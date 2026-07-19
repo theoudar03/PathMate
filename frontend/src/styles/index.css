@@ -1,0 +1,246 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ─────────────────────────────────────────────────
+   BASE LAYER
+───────────────────────────────────────────────── */
+@layer base {
+  html {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+  }
+
+  body {
+    background-color: #F5F7FA;
+    color: #0F172A;
+    font-family: 'Inter', system-ui, sans-serif;
+    letter-spacing: 0.01em;
+    line-height: 1.6;
+  }
+
+  h1, h2, h3, h4, h5, h6, .font-display {
+    font-family: "Plus Jakarta Sans", system-ui, sans-serif;
+    color: #0F172A;
+    letter-spacing: -0.02em;
+    line-height: 1.2;
+  }
+
+  /* Smooth scrolling */
+  * {
+    scroll-behavior: smooth;
+  }
+}
+
+/* ─────────────────────────────────────────────────
+   FOCUS & ACCESSIBILITY
+───────────────────────────────────────────────── */
+*:focus-visible {
+  outline: 2px solid #1B4DA6;
+  outline-offset: 3px;
+  border-radius: 6px;
+}
+
+/* ─────────────────────────────────────────────────
+   COMPONENT UTILITIES
+───────────────────────────────────────────────── */
+@layer components {
+
+  /* Enterprise Card — white opaque surface, layered shadow */
+  .card {
+    background-color: #FFFFFF;
+    border: 1px solid #E2E8F0;
+    border-radius: 20px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.04), 0 4px 16px rgba(15,23,42,0.06);
+    transition: box-shadow 180ms ease-out, transform 180ms ease-out;
+  }
+
+  .card:hover,
+  .card-hover:hover {
+    box-shadow: 0 2px 8px rgba(0,0,0,0.06), 0 12px 32px rgba(15,23,42,0.10);
+    transform: translateY(-1px);
+  }
+
+  /* Card with primary left accent border */
+  .card-accent {
+    background-color: #FFFFFF;
+    border: 1px solid #E2E8F0;
+    border-left: 3px solid #1B4DA6;
+    border-radius: 20px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.04), 0 4px 16px rgba(15,23,42,0.06);
+  }
+
+  /* Icon container — filled */
+  .icon-container {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 12px;
+    flex-shrink: 0;
+  }
+
+  /* Primary button */
+  .btn-primary {
+    background-color: #1B4DA6;
+    color: #FFFFFF;
+    font-weight: 700;
+    font-size: 0.8125rem;
+    padding: 0.625rem 1.25rem;
+    border-radius: 50px;
+    border: none;
+    box-shadow: 0 1px 3px rgba(27,77,166,0.2), 0 4px 12px rgba(27,77,166,0.16);
+    transition: background-color 180ms ease-out, box-shadow 180ms ease-out, transform 180ms ease-out;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+  }
+
+  .btn-primary:hover {
+    background-color: #163F8A;
+    box-shadow: 0 2px 6px rgba(27,77,166,0.28), 0 8px 20px rgba(27,77,166,0.22);
+  }
+
+  .btn-primary:active {
+    transform: scale(0.98);
+    box-shadow: 0 1px 2px rgba(27,77,166,0.16);
+  }
+
+  /* Secondary / outlined button */
+  .btn-secondary {
+    background-color: transparent;
+    color: #1B4DA6;
+    font-weight: 700;
+    font-size: 0.8125rem;
+    padding: 0.625rem 1.25rem;
+    border-radius: 50px;
+    border: 1.5px solid #CBD5E1;
+    transition: background-color 180ms ease-out, border-color 180ms ease-out, transform 180ms ease-out;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+  }
+
+  .btn-secondary:hover {
+    background-color: #EFF6FF;
+    border-color: #1B4DA6;
+  }
+
+  .btn-secondary:active {
+    transform: scale(0.98);
+  }
+
+  /* Enterprise form input */
+  .input-enterprise {
+    width: 100%;
+    background-color: #FFFFFF;
+    border: 1.5px solid #CBD5E1;
+    border-radius: 12px;
+    padding: 0.625rem 0.875rem;
+    font-size: 0.875rem;
+    color: #0F172A;
+    outline: none;
+    transition: border-color 180ms ease-out, box-shadow 180ms ease-out;
+  }
+
+  .input-enterprise:focus {
+    border-color: #1B4DA6;
+    box-shadow: 0 0 0 3px rgba(27,77,166,0.12);
+  }
+
+  .input-enterprise::placeholder {
+    color: #94A3B8;
+  }
+}
+
+/* ─────────────────────────────────────────────────
+   GLOW UTILITIES
+───────────────────────────────────────────────── */
+@layer utilities {
+  .glow-primary {
+    box-shadow: 0 0 20px rgba(27,77,166,0.18);
+  }
+
+  .glow-success {
+    box-shadow: 0 0 20px rgba(22,163,74,0.18);
+  }
+
+  .glow-warning {
+    box-shadow: 0 0 20px rgba(217,119,6,0.18);
+  }
+
+  .glow-danger {
+    box-shadow: 0 0 20px rgba(192,57,43,0.18);
+  }
+
+  .glow-info {
+    box-shadow: 0 0 20px rgba(2,132,199,0.18);
+  }
+}
+
+/* ─────────────────────────────────────────────────
+   TRANSITIONS
+───────────────────────────────────────────────── */
+.transition-md3 {
+  transition: all 200ms cubic-bezier(0.2, 0, 0, 1);
+}
+
+.transition-enterprise {
+  transition: all 180ms ease-out;
+}
+
+/* ─────────────────────────────────────────────────
+   STAGGER REVEAL ANIMATIONS
+───────────────────────────────────────────────── */
+.stagger-item {
+  opacity: 0;
+  transform: translateY(10px);
+  animation: itemReveal 0.35s ease-out forwards;
+}
+
+@keyframes itemReveal {
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.stagger-delay-1 { animation-delay: 40ms; }
+.stagger-delay-2 { animation-delay: 90ms; }
+.stagger-delay-3 { animation-delay: 140ms; }
+.stagger-delay-4 { animation-delay: 190ms; }
+.stagger-delay-5 { animation-delay: 240ms; }
+.stagger-delay-6 { animation-delay: 290ms; }
+.stagger-delay-7 { animation-delay: 340ms; }
+.stagger-delay-8 { animation-delay: 390ms; }
+
+/* ─────────────────────────────────────────────────
+   SCROLLBAR (Chromium)
+───────────────────────────────────────────────── */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background-color: #CBD5E1;
+  border-radius: 99px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background-color: #94A3B8;
+}
+
+/* ─────────────────────────────────────────────────
+   SELECTION
+───────────────────────────────────────────────── */
+::selection {
+  background-color: #BFDBFE;
+  color: #1E3A8A;
+}

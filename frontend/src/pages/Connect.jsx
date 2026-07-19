@@ -1,9 +1,15 @@
-import React, { useState } from 'react';
-import { useApp, POTENTIAL_ROOMMATES, SENIOR_MENTORS } from '../contexts/AppContext';
+import React, { useState, useEffect } from 'react';
+import { useApp } from '../contexts/AppContext';
 import RoommateCard from '../components/hostel/RoommateCard';
 import SeniorConnectCard from '../components/senior/SeniorConnectCard';
 
 const Connect = () => {
+  const [POTENTIAL_ROOMMATES, setRoommates] = useState([]);
+  const [SENIOR_MENTORS, setMentors] = useState([]);
+  useEffect(() => {
+    fetch('/api/roommates').then(r=>r.json()).then(setRoommates).catch(()=>{});
+    fetch('/api/mentors').then(r=>r.json()).then(data => setMentors(data.map(m => ({...m, areas: m.areas || [], name: m.full_name || m.name})))).catch(()=>{});
+  }, []);
   const { studentData, completeOnboarding, t } = useApp();
   const [activeTab, setActiveTab] = useState('roommate'); // 'roommate' | 'senior'
 

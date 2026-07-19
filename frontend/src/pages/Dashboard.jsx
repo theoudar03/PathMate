@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useApp } from '../contexts/AppContext';
-import { DEPARTMENTS_DATA, FACULTY_DATA } from '../contexts/AppContext';
+
 
 const Dashboard = () => {
   const { studentData, resetAllData, token } = useApp();
@@ -17,15 +17,18 @@ const Dashboard = () => {
   const [showAllFaculty, setShowAllFaculty] = useState(false);
 
   // Resolve department details from reference data
-  const deptRecord = DEPARTMENTS_DATA.find(d => d.name === dept);
+  const [deptRecord, setDeptRecord] = useState(null);
+  useEffect(() => {
+    fetch('/api/departments').then(r => r.json()).then(data => setDeptRecord(data.find(d => d.name === dept)))
+  }, [dept]);
   const deptFullName = deptRecord?.full_name || dept;
-  const deptUrlCode  = deptRecord?.faculty_url_code;
+  const deptUrlCode = deptRecord?.faculty_url_code;
   const facultyListUrl = deptUrlCode
     ? `https://saranathan.ac.in/dept.php?dept=${deptUrlCode}&tgt=faculty`
     : null;
 
   // Filter local fallback faculty for this department
-  const deptFaculty = FACULTY_DATA.filter(f => f.dept === dept || f.department === dept);
+  const deptFaculty = [];
 
   // Fetch faculty dynamically from backend database if connection exists
   useEffect(() => {

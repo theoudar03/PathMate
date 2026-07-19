@@ -1,9 +1,11 @@
-import React, { useState } from 'react';
-import { useApp, POTENTIAL_ROOMMATES } from '../contexts/AppContext';
+import React, { useState, useEffect } from 'react';
+import { useApp } from '../contexts/AppContext';
 import RoommateCard from '../components/hostel/RoommateCard';
 import { Home, Shield, Users, Search, HelpCircle, Check } from 'lucide-react';
 
 const Hostel = () => {
+  const [POTENTIAL_ROOMMATES, setRoommates] = useState([]);
+  useEffect(() => { fetch('/api/roommates').then(r=>r.json()).then(setRoommates).catch(() => {}) }, []);
   const { studentData, completeOnboarding } = useApp();
   const [branchFilter, setBranchFilter] = useState('All');
   const [sleepFilter, setSleepFilter] = useState('All');

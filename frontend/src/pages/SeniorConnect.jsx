@@ -1,9 +1,11 @@
-import React, { useState } from 'react';
-import { useApp, SENIOR_MENTORS } from '../contexts/AppContext';
+import React, { useState, useEffect } from 'react';
+import { useApp } from '../contexts/AppContext';
 import SeniorConnectCard from '../components/senior/SeniorConnectCard';
 import { GraduationCap, Search, Shield, HelpCircle } from 'lucide-react';
 
 const SeniorConnect = () => {
+  const [SENIOR_MENTORS, setMentors] = useState([]);
+  useEffect(() => { fetch('/api/mentors').then(r=>r.json()).then(data => { setMentors(data.map(m => ({...m, areas: m.areas || [], name: m.full_name || m.name}))) }).catch(()=>{}) }, []);
   const [branchFilter, setBranchFilter] = useState('All');
   const [areaFilter, setAreaFilter] = useState('All');
   const [searchQuery, setSearchQuery] = useState('');

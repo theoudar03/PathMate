@@ -77,3 +77,6 @@ Reason: ${err.message}
   }
 });
 
+// Export the Express API for Vercel Serverless
+export default app;
+

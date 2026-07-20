@@ -160,6 +160,10 @@ const AdminNotices = () => {
                 <input type="checkbox" name="urgent" id="urgent" className="rounded text-primary focus:ring-primary" />
                 <label htmlFor="urgent" className="text-sm font-medium text-error">Mark as Urgent (High Priority)</label>
               </div>
+              <div>
+                <label className="block text-sm font-medium text-onSurfaceVariant mb-1">Image URL (Optional)</label>
+                <input name="attachment_url" type="url" placeholder="https://example.com/image.png" className="w-full bg-surface border border-surfaceVariant rounded-xl py-2 px-3 text-onSurface focus:outline-none focus:ring-2 focus:ring-primary" />
+              </div>
               <div className="flex gap-3 justify-end mt-6">
                 <button type="button" onClick={() => setShowModal(false)} className="px-4 py-2 text-onSurfaceVariant font-medium hover:bg-surfaceVariant/50 rounded-xl transition-colors">Cancel</button>
                 <button type="submit" className="px-4 py-2 bg-primary text-onPrimary font-medium rounded-xl hover:bg-primary/90 transition-colors shadow-sm">Publish</button>

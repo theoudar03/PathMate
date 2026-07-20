@@ -2,7 +2,7 @@ import express from 'express';
 import bcrypt from 'bcryptjs';
 import db from '../database/index.js';
 import { GoogleGenerativeAI } from '@google/generative-ai';
-import { generateEmbeddings, mapTextToInterests, rankAndExplainMatches, generateChecklistFromProcess, answerGroundedQuestion, generateDigest, translateText, generateWebsiteSummary } from '../services/gemini.js';
+import { generateEmbeddings, mapTextToInterests, rankAndExplainMatches, generateChecklistFromProcess, answerGroundedQuestion, generateDigest, translateText, generateWebsiteSummary, parseNavigationQuery } from '../services/gemini.js';
 import { fetchWebsiteContent, getRelevantUrl } from '../services/scraper.js';
 import dns from 'dns';
 
@@ -855,7 +855,12 @@ router.get('/notices', async (req, res) => {
 
 router.get('/clubs', async (req, res) => {
   try {
-    const result = await db.query('SELECT * FROM clubs WHERE status = \'active\'');
+    const result = await db.query(`
+      SELECT c.*, rp.raw_process_text as registration_steps 
+      FROM clubs c
+      LEFT JOIN registration_process rp ON c.id = rp.club_or_event_id AND rp.club_or_event_type = 'club'
+      WHERE c.status = 'active'
+    `);
     res.json(result.rows);
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -864,7 +869,12 @@ router.get('/clubs', async (req, res) => {
 
 router.get('/events', async (req, res) => {
   try {
-    const result = await db.query('SELECT * FROM events WHERE status = \'upcoming\' OR status = \'ongoing\'');
+    const result = await db.query(`
+      SELECT e.*, rp.raw_process_text as registration_steps 
+      FROM events e
+      LEFT JOIN registration_process rp ON e.id = rp.club_or_event_id AND rp.club_or_event_type = 'event'
+      WHERE e.status = 'upcoming' OR e.status = 'ongoing'
+    `);
     res.json(result.rows);
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -1535,6 +1545,52 @@ router.get('/campus-blocks/:svgId', async (req, res) => {
       return res.status(404).json({ error: 'Campus block not found' });
     }
     res.json(result);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+/**
+ * POST /api/ai/navigate
+ * Uses Gemini NLP to parse destination and intent, then searches database for coordinates.
+ */
+router.post('/ai/navigate', async (req, res) => {
+  const { query } = req.body;
+  if (!query) {
+    return res.status(400).json({ error: 'Query is required.' });
+  }
+
+  try {
+    // 1. NLP Parse
+    const parsed = await parseNavigationQuery(query);
+    
+    // 2. Database Lookup for destination
+    const destRes = await db.query(
+      "SELECT id, block_name, svg_id, entrance_node_id FROM campus_blocks WHERE LOWER(block_name) LIKE $1 OR LOWER(svg_id) LIKE $1",
+      [`%${parsed.destination.toLowerCase()}%`]
+    );
+
+    let destinationBlock = destRes.rows[0];
+    let highlightPins = [];
+    let svgRoute = [];
+
+    if (destinationBlock) {
+      highlightPins.push(destinationBlock.svg_id);
+      
+      // If we had a full routing table mapped, we'd query map_edges here. 
+      // Since map_nodes is partially seeded/empty by default, we fallback to a direct point A -> B line in the frontend using bounding box centers.
+      // We return the structured JSON as requested.
+    }
+
+    res.json({
+      intent: parsed.intent,
+      source: parsed.source,
+      destination: parsed.destination,
+      route: parsed.route,
+      highlightPins,
+      svgRoute,
+      destinationId: destinationBlock ? destinationBlock.svg_id : null
+    });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }

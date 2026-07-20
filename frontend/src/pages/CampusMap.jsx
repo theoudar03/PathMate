@@ -22,6 +22,12 @@ const CampusMap = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState(null); // Filter by legend category
   const [hoveredBlock, setHoveredBlock] = useState(null); // For hover tooltip
+  const [events, setEvents] = useState([]); // Event pins
+
+  // AI Navigation State
+  const [isAiSearching, setIsAiSearching] = useState(false);
+  const [aiDestinationId, setAiDestinationId] = useState(null);
+  const [aiIntentMsg, setAiIntentMsg] = useState(null);
 
   const svgRef = useRef(null);
 
@@ -36,6 +42,21 @@ const CampusMap = () => {
     setScale(0.9);
     setPan({ x: 40, y: 30 });
   };
+
+  useEffect(() => {
+    const fetchEvents = async () => {
+      try {
+        const res = await fetch('/api/events', {
+          headers: token ? { 'Authorization': `Bearer ${token}` } : {}
+        });
+        const data = await res.json();
+        if (Array.isArray(data)) setEvents(data);
+      } catch (e) {
+        console.error("Failed to fetch events for map:", e);
+      }
+    };
+    fetchEvents();
+  }, [token]);
 
   // Dragging to Pan logic
   const handleMouseDown = (e) => {
@@ -55,6 +76,47 @@ const CampusMap = () => {
 
   const handleMouseUpOrLeave = () => {
     setIsDragging(false);
+  };
+
+  const handleAiSearch = async (query) => {
+    if (!query) return;
+    setIsAiSearching(true);
+    setAiIntentMsg("Thinking...");
+    setAiDestinationId(null);
+    try {
+      const res = await fetch('/api/ai/navigate', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token && { 'Authorization': `Bearer ${token}` })
+        },
+        body: JSON.stringify({ query })
+      });
+      const data = await res.json();
+      if (data.destinationId) {
+        setAiDestinationId(data.destinationId);
+        setAiIntentMsg(`Navigating to ${data.destination} (${data.route || 'best'} route)`);
+        
+        // Auto select block
+        const targetBlock = CAMPUS_MAP_DATA.find(b => b.svg_id === data.destinationId);
+        if (targetBlock) {
+          // Center camera
+          setScale(1.2);
+          setPan({ 
+            x: 400 - (targetBlock.coords.x || targetBlock.coords.cx || 400), 
+            y: 500 - (targetBlock.coords.y || targetBlock.coords.cy || 500) 
+          });
+          handleBlockClick(targetBlock);
+        }
+      } else {
+        setAiIntentMsg("Location not found on map.");
+      }
+    } catch (err) {
+      console.error(err);
+      setAiIntentMsg("AI Navigation failed.");
+    } finally {
+      setIsAiSearching(false);
+    }
   };
 
   // Fetch block detail data from database API or fallback to mapData description
@@ -163,24 +225,67 @@ const CampusMap = () => {
           </p>
         </div>
 
-        {/* Live Search bar */}
-        <div className="relative w-full md:w-80 flex-shrink-0">
+        {/* AI Live Search bar */}
+        <div className="relative w-full md:w-96 flex-shrink-0">
           <span className="material-symbols-outlined absolute left-3.5 top-2.5 text-onSurfaceVariant text-[18px]">search</span>
           <input
             type="text"
-            placeholder="Search blocks or departments (e.g. CSE, RV, Library)..."
+            placeholder="Ask me where you want to go... (e.g., Take me to ECE Dept)"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-10 pr-9 py-2 border border-outline/30 rounded-full text-xs bg-surface focus:border-primary focus:ring-1 focus:ring-primary outline-none text-onSurface shadow-sm"
+            onKeyDown={(e) => e.key === 'Enter' && handleAiSearch(searchQuery)}
+            className="w-full pl-10 pr-20 py-2 border border-outline/30 rounded-full text-xs bg-surface focus:border-primary focus:ring-1 focus:ring-primary outline-none text-onSurface shadow-sm"
           />
-          {searchQuery && (
+          
+          <div className="absolute right-2 top-1.5 flex items-center gap-1">
             <button
               type="button"
-              onClick={() => setSearchQuery('')}
-              className="absolute right-3 top-2.5 text-onSurfaceVariant hover:text-onSurface"
+              onClick={() => {
+                const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+                if (SpeechRecognition) {
+                  const recognition = new SpeechRecognition();
+                  recognition.onresult = (event) => {
+                    const transcript = event.results[0][0].transcript;
+                    setSearchQuery(transcript);
+                    handleAiSearch(transcript);
+                  };
+                  recognition.start();
+                } else {
+                  alert('Speech recognition not supported in this browser.');
+                }
+              }}
+              className="text-onSurfaceVariant hover:text-primary transition-colors p-1"
+              title="Voice Search"
             >
-              <span className="material-symbols-outlined text-[16px]">close</span>
+              <span className="material-symbols-outlined text-[18px]">mic</span>
             </button>
+            {searchQuery && (
+              <button
+                type="button"
+                onClick={() => {
+                  setSearchQuery('');
+                  setAiDestinationId(null);
+                  setAiIntentMsg(null);
+                }}
+                className="text-onSurfaceVariant hover:text-onSurface p-1"
+              >
+                <span className="material-symbols-outlined text-[16px]">close</span>
+              </button>
+            )}
+          </div>
+
+          {/* AI Intent Feedback */}
+          {aiIntentMsg && (
+            <div className="absolute top-12 left-0 right-0 bg-primaryContainer text-onPrimaryContainer text-[10px] py-1 px-3 rounded-full text-center shadow-sm truncate animate-fade-in border border-primary/20">
+              {isAiSearching ? (
+                <span className="flex items-center justify-center gap-1">
+                  <span className="material-symbols-outlined text-[12px] animate-spin">sync</span>
+                  {aiIntentMsg}
+                </span>
+              ) : (
+                <span className="font-medium">{aiIntentMsg}</span>
+              )}
+            </div>
           )}
         </div>
       </div>
@@ -293,6 +398,45 @@ const CampusMap = () => {
 
             {/* Gutter separator dash pathway for center column */}
             <line x1="590" y1="215" x2="590" y2="680" stroke="#CBD5E1" strokeWidth="1" strokeDasharray="3 3" />
+
+            {/* ── AI NAVIGATION ROUTE ──────────────────────────────────── */}
+            {aiDestinationId && (() => {
+              const target = CAMPUS_MAP_DATA.find(b => b.svg_id === aiDestinationId);
+              if (!target) return null;
+              
+              const startX = 405;
+              const startY = 970;
+              const endX = target.shape === 'rect' ? target.coords.x + target.coords.w / 2 : target.coords.cx;
+              const endY = target.shape === 'rect' ? target.coords.y + target.coords.h / 2 : target.coords.cy;
+
+              // Draw a simple path (Manhattan-ish routing)
+              const midY = endY < 680 ? 695 : endY; // Go up main road
+              
+              return (
+                <g className="animate-fade-in pointer-events-none">
+                  {/* Outer glow */}
+                  <path 
+                    d={`M ${startX} ${startY} L 405 ${midY} L ${endX} ${midY} L ${endX} ${endY}`}
+                    fill="none" 
+                    stroke="#1B4DA6" 
+                    strokeWidth="8" 
+                    opacity="0.2"
+                  />
+                  {/* Animated dashed line */}
+                  <path 
+                    d={`M ${startX} ${startY} L 405 ${midY} L ${endX} ${midY} L ${endX} ${endY}`}
+                    fill="none" 
+                    stroke="#2563EB" 
+                    strokeWidth="4"
+                    strokeDasharray="12 12"
+                    className="animate-route-dash"
+                  />
+                  {/* Destination Pin */}
+                  <circle cx={endX} cy={endY} r="8" fill="#EF4444" className="animate-bounce shadow-lg" />
+                  <circle cx={endX} cy={endY} r="8" fill="none" stroke="#EF4444" strokeWidth="2" className="animate-ping" />
+                </g>
+              );
+            })()}
 
             {/* ── DYNAMIC MAP NODES ──────────────────────────────────── */}
             {CAMPUS_MAP_DATA.map((block) => {
@@ -434,6 +578,30 @@ const CampusMap = () => {
               );
             })}
 
+            {/* ── EVENT PINS ──────────────────────────────────── */}
+            {events.map((event) => {
+              if (!event.pin_x || !event.pin_y) return null; // Only render if pinned
+              return (
+                <g 
+                  key={`event-${event.id}`}
+                  className="cursor-pointer group animate-fade-in"
+                  transform={`translate(${event.pin_x}, ${event.pin_y})`}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setScale(1.5);
+                    setPan({ x: 400 - event.pin_x, y: 500 - event.pin_y });
+                  }}
+                >
+                  <path d="M 0 0 Q -10 -15 -10 -25 A 10 10 0 1 1 10 -25 Q 10 -15 0 0 Z" fill={event.pin_color || "#F59E0B"} className="drop-shadow-sm transition-transform group-hover:-translate-y-1" />
+                  <circle cx="0" cy="-25" r="4" fill="#FFFFFF" />
+                  <foreignObject x="-40" y="-55" width="80" height="20" className="pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity">
+                    <div className="bg-slate-900/90 text-white text-[8px] font-bold py-0.5 px-2 rounded text-center whitespace-nowrap overflow-hidden text-ellipsis shadow-md">
+                      {event.title}
+                    </div>
+                  </foreignObject>
+                </g>
+              );
+            })}
           </svg>
         </div>
 
@@ -606,6 +774,17 @@ const CampusMap = () => {
           </div>
         </div>
       )}
+
+      {/* Floating AI Guide Button */}
+      <button
+        type="button"
+        className="fixed bottom-6 right-6 w-14 h-14 bg-primary text-white rounded-full shadow-xl hover:scale-105 transition-transform flex items-center justify-center group z-50 animate-bounce"
+        onClick={() => document.querySelector('input[type="text"]').focus()}
+        title="Ask AI Guide"
+      >
+        <span className="material-symbols-outlined text-3xl">smart_toy</span>
+        <span className="absolute -top-2 -right-2 bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full border-2 border-white shadow-sm">AI</span>
+      </button>
     </div>
   );
 };

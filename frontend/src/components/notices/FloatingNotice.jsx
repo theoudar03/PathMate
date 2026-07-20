@@ -98,6 +98,12 @@ const FloatingNotice = ({ notice, onClose }) => {
             <ReactMarkdown remarkPlugins={[remarkGfm]}>
               {notice.content}
             </ReactMarkdown>
+            
+            {notice.attachment_url && (
+              <div className="mt-6 border border-gray-200 rounded-xl overflow-hidden shadow-sm">
+                <img src={notice.attachment_url} alt="Notice Attachment" className="w-full h-auto object-contain" />
+              </div>
+            )}
           </div>
 
           {/* Dummy Attachments Area */}

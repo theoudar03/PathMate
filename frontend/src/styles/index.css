@@ -2,6 +2,17 @@
 @tailwind components;
 @tailwind utilities;
 
+@layer utilities {
+  .animate-route-dash {
+    stroke-dasharray: 12, 12;
+    animation: dash-flow 1.5s linear infinite;
+  }
+  @keyframes dash-flow {
+    from { stroke-dashoffset: 24; }
+    to { stroke-dashoffset: 0; }
+  }
+}
+
 /* ─────────────────────────────────────────────────
    BASE LAYER
 ───────────────────────────────────────────────── */

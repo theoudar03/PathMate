@@ -121,6 +121,7 @@ const AdminEvents = () => {
                 <th className="px-6 py-4 font-medium">{activeTab === 'events' ? 'Event Details' : 'Club Name'}</th>
                 <th className="px-6 py-4 font-medium">{activeTab === 'events' ? 'Location' : 'Members'}</th>
                 <th className="px-6 py-4 font-medium">{activeTab === 'events' ? 'Attendees' : 'Last Activity'}</th>
+                <th className="px-6 py-4 font-medium">Registration Steps</th>
                 <th className="px-6 py-4 font-medium">Status</th>
                 <th className="px-6 py-4 font-medium text-right">Actions</th>
               </tr>
@@ -141,6 +142,9 @@ const AdminEvents = () => {
                   </td>
                   <td className="px-6 py-4">
                     <p className="text-onSurface flex items-center gap-1"><Users size={14} className="text-onSurfaceVariant"/> {event.attendees} registered</p>
+                  </td>
+                  <td className="px-6 py-4 max-w-xs truncate">
+                    <p className="text-xs font-mono text-onSurfaceVariant" title={event.registration_steps}>{event.registration_steps || 'N/A'}</p>
                   </td>
                   <td className="px-6 py-4">
                     <span className={`px-2.5 py-1 rounded-md text-xs font-semibold tracking-wider ${event.status === 'upcoming' ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-700'}`}>
@@ -163,6 +167,9 @@ const AdminEvents = () => {
                   </td>
                   <td className="px-6 py-4">
                     <p className="text-onSurfaceVariant text-sm">{club.lastActivity}</p>
+                  </td>
+                  <td className="px-6 py-4 max-w-xs truncate">
+                    <p className="text-xs font-mono text-onSurfaceVariant" title={club.registration_steps}>{club.registration_steps || 'N/A'}</p>
                   </td>
                   <td className="px-6 py-4">
                     <span className="px-2.5 py-1 rounded-md text-xs font-semibold tracking-wider bg-green-100 text-green-700">
@@ -188,6 +195,52 @@ const AdminEvents = () => {
             <form onSubmit={handleCreate} className="space-y-4">
               {activeTab === 'events' ? (
                 <>
+                  {/* Vision API Auto-Fill Banner */}
+                  <div className="bg-primary/5 border border-primary/20 rounded-xl p-3 space-y-2">
+                    <label className="block text-xs font-bold text-primary flex items-center gap-1">
+                      <span className="material-symbols-outlined text-[16px]">auto_awesome</span>
+                      AI Vision Flyer Auto-Fill
+                    </label>
+                    <div className="flex gap-2">
+                      <input 
+                        id="flyerUrlInput"
+                        placeholder="Paste Event Poster / Flyer Image URL..." 
+                        className="flex-1 bg-surface border border-surfaceVariant rounded-lg py-1.5 px-3 text-xs text-onSurface focus:outline-none" 
+                      />
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          const input = document.getElementById('flyerUrlInput');
+                          if (!input || !input.value) return alert('Please enter a poster URL');
+                          try {
+                            const token = localStorage.getItem('pm_admin_token');
+                            const res = await fetch('/api/admin/events/vision', {
+                              method: 'POST',
+                              headers: {
+                                'Authorization': `Bearer ${token}`,
+                                'Content-Type': 'application/json'
+                              },
+                              body: JSON.stringify({ imageUrl: input.value })
+                            });
+                            const data = await res.json();
+                            if (data.eventName) {
+                              const form = input.closest('form');
+                              if (form.title) form.title.value = data.eventName;
+                              if (form.location) form.location.value = data.venue || '';
+                              alert(`AI Extracted: ${data.eventName} @ ${data.venue}`);
+                            }
+                          } catch (err) {
+                            console.error(err);
+                            alert('Vision OCR extraction failed');
+                          }
+                        }}
+                        className="bg-primary text-white px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-primary/90 transition-colors"
+                      >
+                        Extract
+                      </button>
+                    </div>
+                  </div>
+
                   <div>
                     <label className="block text-sm font-medium text-onSurfaceVariant mb-1">Event Title</label>
                     <input name="title" required className="w-full bg-surface border border-surfaceVariant rounded-xl py-2 px-3 text-onSurface focus:outline-none focus:ring-2 focus:ring-primary" />
@@ -199,6 +252,22 @@ const AdminEvents = () => {
                   <div>
                     <label className="block text-sm font-medium text-onSurfaceVariant mb-1">Location</label>
                     <input name="location" required className="w-full bg-surface border border-surfaceVariant rounded-xl py-2 px-3 text-onSurface focus:outline-none focus:ring-2 focus:ring-primary" />
+                  </div>
+
+                  {/* Campus Map Pin Picker */}
+                  <div className="grid grid-cols-3 gap-2">
+                    <div>
+                      <label className="block text-xs font-medium text-onSurfaceVariant mb-1">Pin X Coord</label>
+                      <input name="pin_x" type="number" defaultValue="400" className="w-full bg-surface border border-surfaceVariant rounded-xl py-1.5 px-3 text-xs text-onSurface" />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-onSurfaceVariant mb-1">Pin Y Coord</label>
+                      <input name="pin_y" type="number" defaultValue="350" className="w-full bg-surface border border-surfaceVariant rounded-xl py-1.5 px-3 text-xs text-onSurface" />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-onSurfaceVariant mb-1">Pin Color</label>
+                      <input name="pin_color" type="color" defaultValue="#F59E0B" className="w-full h-8 bg-surface border border-surfaceVariant rounded-xl p-1 cursor-pointer" />
+                    </div>
                   </div>
                 </>
               ) : (

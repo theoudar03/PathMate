@@ -2,6 +2,7 @@ import express from 'express';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import db from '../database/index.js';
+import { extractEventPosterDetails } from '../services/gemini.js';
 
 const router = express.Router();
 const JWT_SECRET = process.env.JWT_SECRET || 'fallback_secret_pathmate';
@@ -154,11 +155,25 @@ router.get('/students', async (req, res) => {
 router.get('/events', async (req, res) => {
   try {
     const events = await db.query(`
-      SELECT id, name as title, event_date as date, location_text as location, status, 0 as attendees 
-      FROM events 
-      ORDER BY event_date ASC
+      SELECT e.id, e.name as title, e.event_date as date, e.location_text as location, e.status, 0 as attendees, rp.raw_process_text as registration_steps
+      FROM events e
+      LEFT JOIN registration_process rp ON e.id = rp.club_or_event_id AND rp.club_or_event_type = 'event'
+      ORDER BY e.event_date ASC
     `);
     res.json(events.rows);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// POST event vision extraction
+router.post('/events/vision', async (req, res) => {
+  const { imageUrl } = req.body;
+  if (!imageUrl) return res.status(400).json({ error: 'imageUrl is required' });
+
+  try {
+    const extractedData = await extractEventPosterDetails(imageUrl);
+    res.json(extractedData);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -167,7 +182,7 @@ router.get('/events', async (req, res) => {
 // POST new event
 router.post('/events', async (req, res) => {
   try {
-    const { title, date, location, status } = req.body;
+    const { title, date, location, status, pin_x, pin_y, pin_color } = req.body;
     // Basic validation
     if (!title || !date || !location) return res.status(400).json({ error: 'Missing required fields' });
     
@@ -176,8 +191,8 @@ router.post('/events', async (req, res) => {
     if (check.rows.length > 0) return res.status(400).json({ error: 'Event already exists' });
     
     const result = await db.query(
-      'INSERT INTO events (name, event_date, location_text, status) VALUES ($1, $2, $3, $4) RETURNING *',
-      [title, date, location, status || 'upcoming']
+      'INSERT INTO events (name, event_date, location_text, status, pin_x, pin_y, pin_color) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *',
+      [title, date, location, status || 'upcoming', pin_x || null, pin_y || null, pin_color || '#F59E0B']
     );
     
     // Log activity
@@ -208,9 +223,10 @@ router.delete('/events/:id', async (req, res) => {
 router.get('/clubs', async (req, res) => {
   try {
     const clubs = await db.query(`
-      SELECT id, name, description, location_text, eligibility, status, 0 as members, 'Just now' as "lastActivity"
-      FROM clubs 
-      ORDER BY created_at DESC
+      SELECT c.id, c.name, c.description, c.location_text, c.eligibility, c.status, 0 as members, 'Just now' as "lastActivity", rp.raw_process_text as registration_steps
+      FROM clubs c
+      LEFT JOIN registration_process rp ON c.id = rp.club_or_event_id AND rp.club_or_event_type = 'club'
+      ORDER BY c.created_at DESC
     `);
     res.json(clubs.rows);
   } catch (error) {
@@ -318,7 +334,7 @@ router.delete('/seniors/:id', async (req, res) => {
 // POST new notice
 router.post('/notices', async (req, res) => {
   try {
-    const { title, content, target, urgent } = req.body;
+    const { title, content, target, urgent, attachment_url } = req.body;
     if (!title || !content) return res.status(400).json({ error: 'Missing required fields' });
     
     // Check for duplicates
@@ -326,8 +342,8 @@ router.post('/notices', async (req, res) => {
     if (check.rows.length > 0) return res.status(400).json({ error: 'Notice already exists' });
     
     const result = await db.query(
-      "INSERT INTO notices (title, content, target_audience, priority, author) VALUES ($1, $2, $3, $4, $5) RETURNING id, title, target_audience as target, created_at as \"publishedAt\", 0 as views, (priority = 'urgent') as urgent",
-      [title, content, target || 'All', urgent ? 'urgent' : 'normal', req.user?.username || 'Admin']
+      "INSERT INTO notices (title, content, target_audience, priority, author, attachment_url) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id, title, target_audience as target, created_at as \"publishedAt\", 0 as views, (priority = 'urgent') as urgent, attachment_url",
+      [title, content, target || 'All', urgent ? 'urgent' : 'normal', req.user?.username || 'Admin', attachment_url || null]
     );
     
     if (req.user?.id) {

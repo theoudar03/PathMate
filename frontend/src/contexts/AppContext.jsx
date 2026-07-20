@@ -3,147 +3,6 @@ import { LOCALIZATION_DICTS } from '../utils/localization';
 
 const AppContext = createContext();
 
-// Mock Data for SCE Clubs & Events
-export const CLUBS_DATA = [
-  {
-    id: 'coding-club',
-    name: 'SCE Coding Club',
-    description: 'A community of passionate programmers and developers at SCE. We host hackathons, codathons, and weekly programming workshops.',
-    reason: 'Matches your interest in technology and software development. Coding is critical for your department.',
-    category: 'Technical',
-    type: 'Club',
-    location: 'Santhanam Block, Lab 3 (2nd Floor)',
-    requirements: 'Basic curiosity about problem-solving. No prior coding experience required.',
-    timings: 'Tuesdays and Thursdays, 4:15 PM - 5:30 PM'
-  },
-  {
-    id: 'robotics',
-    name: 'SCE Robotics & Automation Society',
-    description: 'Build robots, micro-controllers, and automation systems. Combines hardware development, embedded coding, and structural design.',
-    reason: 'Complements your interest in hardware-software integration and hands-on laboratory experiments.',
-    category: 'Technical',
-    type: 'Club',
-    location: 'Main Lab Block, Embedded Systems Lab (Ground Floor)',
-    requirements: 'Open to all branches. Enthusiasm for electronics and physical building.',
-    timings: 'Wednesdays, 4:15 PM - 6:00 PM'
-  },
-  {
-    id: 'fine-arts',
-    name: 'SCE Fine Arts Club (FAC)',
-    description: 'The creative hub of Saranathan College. Focuses on painting, sketching, music, photography, and theater performances during college cultural festivals.',
-    reason: 'Matches your artistic side and creative interests expressed during onboarding.',
-    category: 'Cultural',
-    type: 'Club',
-    location: 'Open Air Theatre (OAT) & FAC Room (Admin Block Annex)',
-    requirements: 'Passion for performance, music, arts, or media.',
-    timings: 'Fridays, 4:00 PM - 5:30 PM'
-  },
-  {
-    id: 'english-literary',
-    name: 'English Literary Club (ELC)',
-    description: 'Enhances public speaking, debate, creative writing, and group discussions. A wonderful place to build confidence for placements.',
-    reason: 'Supports your goal to improve communications, soft skills, and professional networking.',
-    category: 'Literary',
-    type: 'Club',
-    location: 'Library Seminar Hall (1st Floor)',
-    requirements: 'A love for reading, speaking, writing, or debate.',
-    timings: 'Mondays, 4:15 PM - 5:15 PM'
-  },
-  {
-    id: 'tamil-mandram',
-    name: 'தமிழ் இலக்கிய மன்றம் (Tamil Literary Association)',
-    description: 'Celebrating the richness of Tamil language, poetry, drama, and debating. We organize annual state-level competitions.',
-    reason: 'Matches your selected preference for Tamil cultural activities and regional literature.',
-    category: 'Cultural/Literary',
-    type: 'Club',
-    location: 'RV Auditorium (Admin Block)',
-    requirements: 'Basic appreciation for Tamil arts, speaking, or poetry.',
-    timings: 'Thursdays, 4:15 PM - 5:30 PM'
-  },
-  {
-    id: 'nss-yrc',
-    name: 'NSS & Youth Red Cross (YRC)',
-    description: 'Dedicated to community service, blood donation camps, environmental awareness drives, and rural development camps around Trichy.',
-    reason: 'Aligns with your choice to engage in social work, volunteering, and civic action.',
-    category: 'Social Service',
-    type: 'Club',
-    location: 'NSS Office (Civil Block Ground Floor)',
-    requirements: 'Commitment to attend weekend volunteering camps.',
-    timings: 'Alternate Saturdays, 9:00 AM - 1:00 PM'
-  },
-  {
-    id: 'sports-council',
-    name: 'SCE Sports Council & Gymkhana',
-    description: 'Oversees college sports teams (Cricket, Football, Basketball, Volleyball, Badminton, Athletics) and manages fitness facilities.',
-    reason: 'Matches your focus on sports, physical fitness, and representing SCE in inter-collegiate matches.',
-    category: 'Sports',
-    type: 'Club',
-    location: 'SCE Playgrounds & Indoor Sports Complex',
-    requirements: 'Selection trials for varsity teams. Open recreation for others.',
-    timings: 'Daily, 4:30 PM - 6:30 PM'
-  },
-  {
-    id: 'orientation-event',
-    name: 'SCE Freshman Orientation Day',
-    description: 'The official inaugural orientation ceremony welcoming the Batch of 2026. Meet department coordinators and obtain syllabus sheets.',
-    reason: 'Key institutional event to introduce campus standards, safety rules, and your direct HOD team.',
-    category: 'Academic/Social',
-    type: 'Event',
-    location: 'RV Auditorium (Admin Block)',
-    requirements: 'Recommended attire: formal. Open to all registered freshers.',
-    timings: 'August 3rd, 9:00 AM - 1:00 PM'
-  },
-  {
-    id: 'hackathon-event',
-    name: 'SCE Code-Storm Hackathon',
-    description: 'A rapid 24-hour programming and prototype sprint designed exclusively for first-year engineering students to build early projects.',
-    reason: 'Curated code event matching your technical goals. Excellent for collaborating and choosing team-partners.',
-    category: 'Technical',
-    type: 'Event',
-    location: 'Central Computing Lab, Santhanam Block',
-    requirements: 'Bring your laptop. Basic coding syntax curiosity is sufficient.',
-    timings: 'August 14th, 9:00 AM - August 15th, 9:00 AM'
-  },
-  {
-    id: 'cultural-fest',
-    name: 'SCE Symphony Culturals 2026',
-    description: 'The annual freshman talent search fest, featuring stage presentations, vocal music, drama contests, sketching, and arts exhibits.',
-    reason: 'Matches your hobbies and creative profile interests. Build confidence and display your artistry early.',
-    category: 'Cultural',
-    type: 'Event',
-    location: 'Open Air Theatre (OAT)',
-    requirements: 'Registration form submission required at the FAC room.',
-    timings: 'August 22nd, 2:00 PM - 6:30 PM'
-  }
-];
-
-// Data fetching states
-  const [potentialRoommates, setPotentialRoommates] = useState([]);
-  const [seniorMentors, setSeniorMentors] = useState([]);
-  const [departmentsData, setDepartmentsData] = useState([]);
-  const [facultyData, setFacultyData] = useState([]);
-
-  useEffect(() => {
-    // Fetch live data from backend
-    const fetchData = async () => {
-      try {
-        const [rmRes, mentorRes, deptRes, facRes] = await Promise.all([
-          fetch('/api/roommates'),
-          fetch('/api/mentors'),
-          fetch('/api/departments'),
-          fetch('/api/faculty')
-        ]);
-        
-        if (rmRes.ok) setPotentialRoommates(await rmRes.json());
-        if (mentorRes.ok) setSeniorMentors(await mentorRes.json());
-        if (deptRes.ok) setDepartmentsData(await deptRes.json());
-        if (facRes.ok) setFacultyData(await facRes.json());
-      } catch (err) {
-        console.error("Failed to fetch live data:", err);
-      }
-    };
-    fetchData();
-  }, []);
 
 
 export const AppProvider = ({ children }) => {
@@ -225,7 +84,8 @@ export const AppProvider = ({ children }) => {
         type: 'Club',
         location: c.location_text || 'TBD',
         requirements: c.eligibility || 'Open to all',
-        timings: 'TBD'
+        timings: 'TBD',
+        registration_steps: c.registration_steps || 'Please contact the coordinator.'
       }));
       const formattedEvents = events.map(e => ({
         id: `event-${e.id}`,
@@ -236,7 +96,8 @@ export const AppProvider = ({ children }) => {
         type: 'Event',
         location: e.location_text || e.location || 'TBD',
         requirements: 'Open to all',
-        timings: e.event_date ? new Date(e.event_date).toLocaleString() : 'TBD'
+        timings: e.event_date ? new Date(e.event_date).toLocaleString() : 'TBD',
+        registration_steps: e.registration_steps || 'Registration details pending.'
       }));
       const formattedCommittees = committees.map(c => ({
         id: `comm-${c.id}`,
@@ -475,14 +336,14 @@ export const AppProvider = ({ children }) => {
     let items = [];
 
     // Add matching club/event checklist items dynamically only if opted-in
-    const optedClubs = CLUBS_DATA.filter(c => optedInClubs.includes(c.id));
+    const optedClubs = fetchedClubsEvents.filter(c => optedInClubs.includes(c.id));
     optedClubs.forEach(club => {
       items.push({
         id: `chk-club-${club.id}`,
         title: `${club.name} Registration`,
         deadline: club.type === 'Event' ? '2026-08-10' : '2026-08-20',
         location: club.location,
-        note: `Register for this ${club.type.toLowerCase()}. Requirement: ${club.requirements}. Timings: ${club.timings}.`,
+        note: `Register for this ${club.type.toLowerCase()}. Requirement: ${club.requirements}. Timings: ${club.timings}. Steps: ${club.registration_steps}`,
         category: 'Club Registration',
         isClubItem: true,
         clubId: club.id

@@ -403,3 +403,66 @@ Return only the summarized answer.`;
     return `Here is a summary from the official website regarding your query about "${userQuery}". For full procedures, please visit saranathan.ac.in.`;
   }
 };
+
+export const parseNavigationQuery = async (text) => {
+  const prompt = `You are an AI navigation assistant for Saranathan College of Engineering campus.
+Analyze the user's campus navigation query:
+"${text}"
+
+Extract the intent, source (if mentioned, otherwise null), destination, and preferred route type (e.g. fastest, shortest).
+Allowed intents: "navigate", "find_nearest", "info".
+Return the results in structured JSON.`;
+
+  const schema = {
+    type: "OBJECT",
+    properties: {
+      intent: { type: "STRING", description: "navigate, find_nearest, or info" },
+      source: { type: "STRING", description: "Starting location or null" },
+      destination: { type: "STRING", description: "Target location or building" },
+      route: { type: "STRING", description: "Preferred route (e.g., fastest)" }
+    },
+    required: ["intent", "destination"]
+  };
+
+  const mockFallback = () => ({
+    intent: "navigate",
+    source: null,
+    destination: text,
+    route: "fastest"
+  });
+
+  return callGeminiJson(prompt, schema, mockFallback);
+};
+
+export const extractEventPosterDetails = async (imageUrl) => {
+  const prompt = `You are an AI Vision assistant for Saranathan College of Engineering.
+Extract event details from this poster URL: ${imageUrl}
+
+Return structured JSON.`;
+
+  const schema = {
+    type: "OBJECT",
+    properties: {
+      eventName: { type: "STRING" },
+      venue: { type: "STRING" },
+      date: { type: "STRING" },
+      time: { type: "STRING" },
+      organizer: { type: "STRING" },
+      description: { type: "STRING" },
+      targetAudience: { type: "STRING" }
+    },
+    required: ["eventName", "venue"]
+  };
+
+  const mockFallback = () => ({
+    eventName: "Campus Hackathon 2026",
+    venue: "RV Block",
+    date: "2026-08-15",
+    time: "09:00 AM",
+    organizer: "Coding Ninjas",
+    description: "Annual 24-hour hackathon.",
+    targetAudience: "All Students"
+  });
+
+  return callGeminiJson(prompt, schema, mockFallback);
+};

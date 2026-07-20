@@ -1,13 +1,14 @@
 import React from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { useApp, CLUBS_DATA } from '../contexts/AppContext';
+import { useApp } from '../contexts/AppContext';
 
 const ClubEventDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { studentData } = useApp();
+  const { studentData, getMatchedClubs } = useApp();
 
-  const club = CLUBS_DATA.find(c => c.id === id);
+  const clubs = getMatchedClubs();
+  const club = clubs.find(c => c.id === id);
 
   if (!club) {
     return (
@@ -79,6 +80,21 @@ const ClubEventDetail = () => {
                 </h3>
                 <p className="text-sm text-onSurfaceVariant mt-1.5 leading-relaxed">
                   {club.reason} This recommendation was calculated based on your engineering discipline ({studentData.department}) and selected onboarding interests.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Registration Steps */}
+          <div className="bg-primaryContainer/30 border border-primary/20 rounded-2xl p-5 relative overflow-hidden">
+            <div className="flex gap-3 items-start">
+              <span className="material-symbols-outlined text-primary text-[22px] flex-shrink-0 mt-0.5 select-none">assignment</span>
+              <div>
+                <h3 className="text-xs font-bold text-onSurface">
+                  Registration Process Steps
+                </h3>
+                <p className="text-sm text-onSurfaceVariant mt-1.5 leading-relaxed font-mono">
+                  {club.registration_steps}
                 </p>
               </div>
             </div>

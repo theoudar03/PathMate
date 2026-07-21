@@ -1873,5 +1873,132 @@ router.get('/activity-logs', async (req, res) => {
   }
 });
 
+/**
+ * GET /api/seniors
+ * Fetch active senior mentors directly from PostgreSQL
+ */
+router.get('/seniors', async (req, res) => {
+  try {
+    const { department, search } = req.query;
+    let sql = `SELECT * FROM seniors WHERE mentor_status = 'active' OR mentor_status IS NULL`;
+    const params = [];
+    let idx = 1;
+
+    if (department && department !== 'All' && department !== 'all') {
+      sql += ` AND LOWER(department) LIKE $${idx++}`;
+      params.push(`%${department.toLowerCase()}%`);
+    }
+
+    if (search && search.trim() !== '') {
+      sql += ` AND (LOWER(name) LIKE $${idx} OR LOWER(department) LIKE $${idx} OR LOWER(skills::text) LIKE $${idx} OR LOWER(domains::text) LIKE $${idx})`;
+      params.push(`%${search.trim().toLowerCase()}%`);
+      idx++;
+    }
+
+    sql += ` ORDER BY id DESC`;
+    const result = await db.query(sql, params);
+    res.json(result.rows);
+  } catch (error) {
+    console.error("GET /api/seniors error:", error.message);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+/**
+ * POST /api/seniors
+ * Register senior mentor profile into PostgreSQL
+ */
+router.post('/seniors', async (req, res) => {
+  try {
+    const {
+      name, department, year = 'Final Year', languages = ['English', 'Tamil'],
+      skills = [], domains = [], linkedin_url, email, phone, availability = 'Weekdays & Evenings', mentor_status = 'active'
+    } = req.body;
+
+    if (!name || !department) {
+      return res.status(400).json({ error: 'Name and Department are required' });
+    }
+
+    const result = await db.query(
+      `INSERT INTO seniors (
+        name, department, year, languages, skills, domains,
+        linkedin_url, email, phone, availability, mentor_status
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING *`,
+      [
+        name, department, year,
+        JSON.stringify(languages),
+        JSON.stringify(skills),
+        JSON.stringify(domains),
+        linkedin_url || null,
+        email || null,
+        phone || null,
+        availability,
+        mentor_status
+      ]
+    );
+
+    res.status(201).json(result.rows[0]);
+  } catch (error) {
+    console.error("POST /api/seniors error:", error.message);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+/**
+ * GET /api/committees
+ * Fetch official institutional committees directly from PostgreSQL
+ */
+router.get('/committees', async (req, res) => {
+  try {
+    const result = await db.query(`SELECT * FROM committees WHERE status = 'active' OR status IS NULL ORDER BY id ASC`);
+    res.json(result.rows);
+  } catch (error) {
+    console.error("GET /api/committees error:", error.message);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+/**
+ * GET /api/clubs
+ * Fetch registered student clubs directly from PostgreSQL
+ */
+router.get('/clubs', async (req, res) => {
+  try {
+    const result = await db.query(`SELECT * FROM clubs ORDER BY id DESC`);
+    res.json(result.rows);
+  } catch (error) {
+    console.error("GET /api/clubs error:", error.message);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+/**
+ * GET /api/events
+ * Fetch upcoming campus events directly from PostgreSQL
+ */
+router.get('/events', async (req, res) => {
+  try {
+    const result = await db.query(`SELECT * FROM events ORDER BY date ASC, id DESC`);
+    res.json(result.rows);
+  } catch (error) {
+    console.error("GET /api/events error:", error.message);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+/**
+ * GET /api/notices
+ * Fetch active official notices directly from PostgreSQL
+ */
+router.get('/notices', async (req, res) => {
+  try {
+    const result = await db.query(`SELECT * FROM notices WHERE status = 'published' OR status IS NULL ORDER BY is_pinned DESC, id DESC`);
+    res.json(result.rows);
+  } catch (error) {
+    console.error("GET /api/notices error:", error.message);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 export default router;
 

@@ -124,16 +124,19 @@ router.post('/auth/login', loginRateLimiter, async (req, res) => {
 // Middleware to verify Admin JWT & Role
 export const verifyAdmin = (req, res, next) => {
   const authHeader = req.headers.authorization;
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    return res.status(401).json({ error: 'Missing or invalid authorization header' });
+  const token = authHeader && authHeader.startsWith('Bearer ') ? authHeader.split(' ')[1] : null;
+
+  if (!token || token === 'null' || token === 'undefined') {
+    return res.status(401).json({ error: 'Authentication required. Missing admin authorization token.' });
   }
 
-  const token = authHeader.split(' ')[1];
   try {
     const decoded = jwt.verify(token, JWT_SECRET);
     
     const adminRoles = ['SUPER_ADMIN', 'ADMIN', 'PRINCIPAL', 'HOD', 'FACULTY_ADMIN'];
-    if (!decoded.role || !adminRoles.includes(decoded.role.toUpperCase())) {
+    const userRole = (decoded.role || '').toUpperCase();
+
+    if (!adminRoles.includes(userRole)) {
       return res.status(403).json({ error: 'Access denied. Administrator privileges required.' });
     }
 
@@ -141,7 +144,10 @@ export const verifyAdmin = (req, res, next) => {
     req.user = decoded;
     next();
   } catch (error) {
-    return res.status(403).json({ error: 'Invalid or expired admin token' });
+    if (error.name === 'TokenExpiredError') {
+      return res.status(401).json({ error: 'Admin session expired. Please log in again.' });
+    }
+    return res.status(401).json({ error: 'Invalid admin token. Please log in again.' });
   }
 };
 

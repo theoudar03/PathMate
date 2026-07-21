@@ -53,12 +53,16 @@ app.get('/', (req, res) => {
   });
 });
 
-// Ensure uploads directory exists and serve static files
-const uploadsDir = path.join(__dirname, '../uploads');
-if (!fs.existsSync(uploadsDir)) {
-  fs.mkdirSync(uploadsDir, { recursive: true });
+// Ensure uploads directory exists safely (prevents ENOENT / read-only filesystem crash on Vercel)
+try {
+  const uploadsDir = path.join(__dirname, '../uploads');
+  if (!fs.existsSync(uploadsDir)) {
+    fs.mkdirSync(uploadsDir, { recursive: true });
+  }
+  app.use('/uploads', express.static(uploadsDir));
+} catch (fsErr) {
+  console.warn("Uploads folder setup note (serverless/read-only environment):", fsErr.message);
 }
-app.use('/uploads', express.static(uploadsDir));
 
 // Mount the Routers
 app.use('/auth', authRouter);
@@ -77,50 +81,53 @@ app.use((err, req, res, next) => {
 
 import db from './database/index.js';
 
-// Start Server listening
-app.listen(PORT, async () => {
-  console.log(`PathMate API Server is running on port ${PORT}`);
-  console.log(`Visit http://localhost:${PORT} to verify operational status.`);
-
-  // Verify database connectivity on startup
+// Helper function to safely run SQL migrations if files exist
+const runMigrationsSafely = async () => {
   try {
-    await db.query('SELECT NOW()');
-    console.log('✓ Connected to PostgreSQL');
+    const migrationFiles = [
+      '13_activity_manager.sql',
+      '14_notice_attachments.sql',
+      '15_real_student_modules.sql',
+      '16_production_auth_security.sql',
+      '17_admin_crud_production.sql'
+    ];
 
-    // Run migrations automatically
-    try {
-      const sql13 = path.join(__dirname, 'database', 'migrations', '13_activity_manager.sql');
-      if (fs.existsSync(sql13)) {
-        await db.query(fs.readFileSync(sql13, 'utf8'));
-        console.log('✓ Activity Manager PostgreSQL schema initialized');
+    for (const file of migrationFiles) {
+      try {
+        const sqlPath = path.join(__dirname, 'database', 'migrations', file);
+        if (fs.existsSync(sqlPath)) {
+          const sql = fs.readFileSync(sqlPath, 'utf8');
+          await db.query(sql);
+          console.log(`✓ Migration ${file} initialized successfully`);
+        }
+      } catch (migFileErr) {
+        // Suppress ENOENT errors on serverless Vercel runtime
+        if (migFileErr.code !== 'ENOENT') {
+          console.warn(`Migration ${file} note:`, migFileErr.message);
+        }
       }
-
-      const sql14 = path.join(__dirname, 'database', 'migrations', '14_notice_attachments.sql');
-      if (fs.existsSync(sql14)) {
-        await db.query(fs.readFileSync(sql14, 'utf8'));
-        console.log('✓ Notice Attachments PostgreSQL schema initialized');
-      }
-
-      const sql15 = path.join(__dirname, 'database', 'migrations', '15_real_student_modules.sql');
-      if (fs.existsSync(sql15)) {
-        await db.query(fs.readFileSync(sql15, 'utf8'));
-        console.log('✓ Real Student Modules (Seniors & Roommates) schema initialized');
-      }
-
-      const sql16 = path.join(__dirname, 'database', 'migrations', '16_production_auth_security.sql');
-      if (fs.existsSync(sql16)) {
-        await db.query(fs.readFileSync(sql16, 'utf8'));
-        console.log('✓ Production Auth & Security Infrastructure schema initialized');
-      }
-
-      const sql17 = path.join(__dirname, 'database', 'migrations', '17_admin_crud_production.sql');
-      if (fs.existsSync(sql17)) {
-        await db.query(fs.readFileSync(sql17, 'utf8'));
-        console.log('✓ Admin CRUD Production & AI FAQs schema initialized');
-      }
-    } catch (err) {
-      console.error("Failed to run database migrations on startup:", err.message);
     }
+  } catch (err) {
+    console.warn("Database migration execution note:", err.message);
+  }
+};
+
+// Start Server listening (for local development)
+if (process.env.NODE_ENV !== 'test') {
+  app.listen(PORT, async () => {
+    console.log(`PathMate API Server is running on port ${PORT}`);
+    console.log(`Visit http://localhost:${PORT} to verify operational status.`);
+
+    // Verify database connectivity on startup
+    try {
+      await db.query('SELECT NOW()');
+      console.log('✓ Connected to PostgreSQL');
+      await runMigrationsSafely();
+    } catch (err) {
+      console.warn('PostgreSQL connection note:', err.message);
+    }
+  });
+}
   } catch (err) {
     console.error(`
 ======================================================================

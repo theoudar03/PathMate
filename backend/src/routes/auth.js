@@ -54,7 +54,7 @@ const validateUsernameFormat = (username) => {
  */
 router.get('/me', authenticateToken, async (req, res) => {
   try {
-    const userId = req.user?.id;
+    const userId = req.user?.id || req.user?.userId;
     if (!userId) return res.status(401).json({ success: false, error: 'Invalid authentication token' });
 
     const userRes = await safeDbCall(
@@ -367,6 +367,7 @@ router.post('/register', async (req, res) => {
 
     const userInterests = await getUserInterests(result.userId);
     const tokenPayload = {
+      id: result.userId,
       userId: result.userId,
       username,
       role: 'student',
@@ -473,6 +474,7 @@ router.post('/login', loginRateLimiter, async (req, res) => {
 
     // Generate JWT Access Token (expires in 2 Hours)
     const tokenPayload = {
+      id: user.id,
       userId: user.id,
       username: user.username,
       role: user.role || 'student',

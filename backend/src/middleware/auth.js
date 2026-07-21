@@ -29,7 +29,8 @@ export const authenticateToken = (req, res, next) => {
       });
     }
 
-    req.user = verified;
+    const id = verified.id || verified.userId;
+    req.user = { ...verified, id, userId: id };
     next();
   } catch (err) {
     if (err.name === 'TokenExpiredError') {

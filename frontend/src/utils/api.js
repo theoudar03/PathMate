@@ -1,7 +1,7 @@
 /**
  * Safe fetch helper for handling API requests professionally.
  * Prevents raw syntax errors (e.g., "Unexpected token '<', <!DOCTYPE...") 
- * when backend returns HTML 404/500 error pages.
+ * when backend returns HTML 404/500 error pages and handles 401/403 session expiration cleanly.
  */
 export const safeFetchJson = async (url, options = {}) => {
   try {
@@ -18,10 +18,18 @@ export const safeFetchJson = async (url, options = {}) => {
     }
 
     if (!res.ok) {
+      // Auto-clear invalid admin token on 401/403
+      if (url.includes('/api/admin') && !url.includes('/api/admin/auth/login') && (res.status === 401 || res.status === 403)) {
+        localStorage.removeItem('pm_admin_token');
+        if (typeof window !== 'undefined' && window.location.pathname.startsWith('/admin') && window.location.pathname !== '/admin/login') {
+          window.location.href = '/admin/login';
+        }
+      }
+
       const defaultMsg = res.status === 404 
         ? 'Requested server endpoint was not found (404).' 
         : res.status === 403 
-        ? 'Access denied. You do not have permission to perform this action.' 
+        ? 'Access denied. You do not have permission for this resource.' 
         : res.status === 401 
         ? 'Session expired. Please log in again.' 
         : 'An unexpected server error occurred. Please try again.';

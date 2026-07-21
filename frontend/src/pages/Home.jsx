@@ -4,7 +4,9 @@ import { useNavigate } from 'react-router-dom';
 import { useApp } from '../contexts/AppContext';
 import TranslateText from '../components/common/TranslateText';
 import FloatingNotice from '../components/notices/FloatingNotice';
-import { Bell, AlertCircle, Clock, X } from 'lucide-react';
+import { Bell, AlertCircle, Clock, X, CheckSquare } from 'lucide-react';
+import ToDoWidget from '../components/todo/ToDoWidget';
+import ActivityManagerModal from '../components/todo/ActivityManagerModal';
 
 // Campus SVG Illustration
 const CampusIllustration = () => (
@@ -99,6 +101,16 @@ const Home = () => {
   const [showNoticeBoard, setShowNoticeBoard] = useState(false);
   const [selectedNotice, setSelectedNotice] = useState(null);
 
+  // Activity Manager Modal state
+  const [showTodoModal, setShowTodoModal] = useState(false);
+  const [todoDefaultTab, setTodoDefaultTab] = useState('all');
+  const [todoRefreshTrigger, setTodoRefreshTrigger] = useState(0);
+
+  const openTodoModal = (tab = 'all') => {
+    setTodoDefaultTab(tab);
+    setShowTodoModal(true);
+  };
+
   // Fetch notices for the side drawer
   useEffect(() => {
     fetch('/api/notices')
@@ -171,6 +183,14 @@ const Home = () => {
         <div className="w-full md:w-2/5 flex-shrink-0 flex items-center justify-center">
           <CampusIllustration />
         </div>
+      </div>
+
+      {/* ── 1.5 PERSONAL TO-DO & ACTIVITY MANAGER WIDGET ───────────── */}
+      <div className="stagger-item stagger-delay-1.5">
+        <ToDoWidget
+          onOpenModal={openTodoModal}
+          refreshTrigger={todoRefreshTrigger}
+        />
       </div>
 
       {/* ── 2. QUICK ACTIONS ─────────────────────────────────────── */}
@@ -364,7 +384,7 @@ const Home = () => {
 
       {/* ── 6. FLOATING NOTICE BOARD DRAWER ────────────────────── */}
       
-      {/* Floating Toggle Button */}
+      {/* Floating Notice Toggle Button */}
       {notices.length > 0 && (
         <button
           onClick={() => setShowNoticeBoard(true)}
@@ -377,6 +397,16 @@ const Home = () => {
           </span>
         </button>
       )}
+
+      {/* Floating Activity Manager Toggle Button (Immediately below Notice Board) */}
+      <button
+        onClick={() => openTodoModal('all')}
+        className="fixed top-48 right-0 z-40 bg-indigo-700 text-white shadow-lg hover:pr-5 hover:bg-indigo-800 transition-all flex items-center gap-2 py-3 px-4 rounded-l-2xl border border-r-0 border-white/20"
+        title="Open Activity Manager & To-Do companion"
+      >
+        <CheckSquare size={20} />
+        <span className="font-bold text-sm hidden sm:block">My To-Do</span>
+      </button>
 
       {/* Overlay and Side Drawer Panel via Portal to escape stacking context */}
       {createPortal(
@@ -430,14 +460,28 @@ const Home = () => {
                       <h3 className={`text-sm font-bold leading-tight mb-2 group-hover:text-primary transition-colors ${notice.priority === 'urgent' ? 'text-red-700' : 'text-onSurface'}`}>
                         {notice.title}
                       </h3>
-                      <div className="flex items-center gap-3 text-[11px] text-onSurfaceVariant font-semibold">
+                      <div className="flex flex-wrap items-center gap-2 text-[11px] text-onSurfaceVariant font-semibold">
                         <span className="flex items-center gap-1 bg-gray-100 px-2 py-1 rounded-md">
                           <Clock size={12} />
-                          {new Date(notice.created_at).toLocaleDateString()}
+                          {new Date(notice.created_at || notice.publishedAt).toLocaleDateString()}
                         </span>
                         <span className="px-2 py-1 bg-primary/10 text-primary rounded-md capitalize">
                           {notice.priority}
                         </span>
+
+                        {(() => {
+                          const atts = notice.attachments || [];
+                          const imgCount = atts.filter(a => a.file_type === 'image').length;
+                          const pdfCount = atts.filter(a => a.file_type === 'pdf').length;
+                          if (imgCount > 0 && pdfCount > 0) {
+                            return <span className="px-2 py-1 bg-purple-100 text-purple-700 rounded-md font-extrabold">🖼 + 📄 Mixed</span>;
+                          } else if (imgCount > 0) {
+                            return <span className="px-2 py-1 bg-blue-100 text-blue-700 rounded-md font-extrabold">🖼 {imgCount} {imgCount > 1 ? 'Images' : 'Image'}</span>;
+                          } else if (pdfCount > 0) {
+                            return <span className="px-2 py-1 bg-red-100 text-red-700 rounded-md font-extrabold">📄 PDF</span>;
+                          }
+                          return null;
+                        })()}
                       </div>
                     </div>
                   </div>
@@ -456,6 +500,14 @@ const Home = () => {
           onClose={() => setSelectedNotice(null)} 
         />
       )}
+
+      {/* Personal Activity Manager Companion Popup */}
+      <ActivityManagerModal
+        isOpen={showTodoModal}
+        onClose={() => setShowTodoModal(false)}
+        defaultTab={todoDefaultTab}
+        onTaskChanged={() => setTodoRefreshTrigger(prev => prev + 1)}
+      />
 
     </div>
   );

@@ -3,6 +3,7 @@ import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-route
 import { AppProvider, useApp } from './contexts/AppContext';
 import MainLayout from './layouts/MainLayout';
 import Welcome from './pages/Welcome';
+import Login from './pages/Login';
 import Onboarding from './pages/Onboarding';
 import Home from './pages/Home';
 import Dashboard from './pages/Dashboard';
@@ -25,24 +26,29 @@ import AdminCommittees from './pages/admin/AdminCommittees';
 import AdminVolunteers from './pages/admin/AdminVolunteers';
 import AdminSeniors from './pages/admin/AdminSeniors';
 
-// Route Guard: redirect unauthenticated users to Welcome Gate
+// Route Guard: redirect unauthenticated users strictly to Welcome Page
 const ProtectedRoute = ({ children }) => {
-  const { onboarded } = useApp();
-  if (!onboarded) return <Navigate to="/welcome" replace />;
+  const { onboarded, token, user } = useApp();
+  const location = useLocation();
+
+  if (!onboarded || !token || !user) {
+    return <Navigate to="/welcome" state={{ from: location }} replace />;
+  }
   return children;
 };
 
 // Route Guard: Admin routes
 const AdminProtectedRoute = ({ children }) => {
   const token = localStorage.getItem('pm_admin_token');
-  if (!token) return <Navigate to="/admin/login" replace />;
+  const location = useLocation();
+  if (!token) return <Navigate to="/admin/login" state={{ from: location }} replace />;
   return children;
 };
 
-// Route Guard: redirect already-onboarded users past welcome/onboarding
-const OnboardingRoute = ({ children }) => {
-  const { onboarded } = useApp();
-  if (onboarded) return <Navigate to="/" replace />;
+// Route Guard: redirect already authenticated users past welcome/login/onboarding
+const AuthRoute = ({ children }) => {
+  const { onboarded, token } = useApp();
+  if (onboarded && token) return <Navigate to="/" replace />;
   return children;
 };
 
@@ -62,22 +68,20 @@ const PageSkeleton = () => (
 );
 
 function AppContent() {
-  const { initializing, showSplash } = useApp();
+  const { initializing } = useApp();
 
   if (initializing) {
-    if (showSplash) {
-      return <BrandedSplashLoader />;
-    }
-    return null; // Prevent flashes on super-fast network queries
+    return <BrandedSplashLoader />;
   }
 
   return (
     <BrowserRouter>
       <React.Suspense fallback={<PageSkeleton />}>
         <Routes>
-          {/* Pre-app gates (no navbar) */}
-          <Route path="/welcome" element={<OnboardingRoute><Welcome /></OnboardingRoute>} />
-          <Route path="/onboarding" element={<OnboardingRoute><Onboarding /></OnboardingRoute>} />
+          {/* Public & Authentication Gates (No App Navbar) */}
+          <Route path="/login" element={<AuthRoute><Login /></AuthRoute>} />
+          <Route path="/welcome" element={<AuthRoute><Welcome /></AuthRoute>} />
+          <Route path="/onboarding" element={<AuthRoute><Onboarding /></AuthRoute>} />
           <Route path="/admin/login" element={<AdminLogin />} />
 
           {/* Admin Dashboard Area */}
@@ -94,24 +98,26 @@ function AppContent() {
             <Route path="settings" element={<div className="p-4"><h1 className="text-xl font-bold">Settings Module</h1></div>} />
           </Route>
 
-          {/* Main app shell with persistent navbar */}
-          <Route element={<MainLayout />}>
-            <Route path="/" element={<ProtectedRoute><Home /></ProtectedRoute>} />
-            <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
-            <Route path="/clubs" element={<ProtectedRoute><ClubsEvents /></ProtectedRoute>} />
-            <Route path="/club-event/:id" element={<ProtectedRoute><ClubEventDetail /></ProtectedRoute>} />
-            <Route path="/connect" element={<ProtectedRoute><Connect /></ProtectedRoute>} />
-            <Route path="/faculty" element={<ProtectedRoute><FacultyDirectory /></ProtectedRoute>} />
-            <Route path="/map" element={<ProtectedRoute><CampusMap /></ProtectedRoute>} />
-            <Route path="/study-hub" element={<ProtectedRoute><StudyHub /></ProtectedRoute>} />
-            <Route path="/chatbot" element={<ProtectedRoute><Chatbot /></ProtectedRoute>} />
+          {/* Protected Student Portal Shell (with Navbar) */}
+          <Route element={<ProtectedRoute><MainLayout /></ProtectedRoute>}>
+            <Route path="/" element={<Home />} />
+            <Route path="/student" element={<Home />} />
+            <Route path="/student/home" element={<Home />} />
+            <Route path="/dashboard" element={<Dashboard />} />
+            <Route path="/clubs" element={<ClubsEvents />} />
+            <Route path="/club-event/:id" element={<ClubEventDetail />} />
+            <Route path="/connect" element={<Connect />} />
+            <Route path="/faculty" element={<FacultyDirectory />} />
+            <Route path="/map" element={<CampusMap />} />
+            <Route path="/study-hub" element={<StudyHub />} />
+            <Route path="/chatbot" element={<Chatbot />} />
           </Route>
 
-          {/* Legacy redirects for old /hostel and /senior-connect routes */}
+          {/* Legacy redirects */}
           <Route path="/hostel" element={<Navigate to="/connect" replace />} />
           <Route path="/senior-connect" element={<Navigate to="/connect" replace />} />
 
-          {/* Catch-all */}
+          {/* Catch-all redirect to login or dashboard depending on auth */}
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </React.Suspense>
@@ -128,4 +134,3 @@ function App() {
 }
 
 export default App;
-

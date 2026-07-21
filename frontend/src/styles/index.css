@@ -249,9 +249,37 @@
 }
 
 /* ─────────────────────────────────────────────────
+   SHIMMER SKELETON ANIMATIONS (Material Design 3)
+───────────────────────────────────────────────── */
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+.animate-shimmer {
+  background: linear-gradient(
+    90deg,
+    #e2e8f0 0%,
+    #f8fafc 35%,
+    #e2e8f0 70%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.4s ease-in-out infinite;
+}
+
+.skeleton-pulse {
+  animation: pulse 1.5s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+/* ─────────────────────────────────────────────────
    SELECTION
 ───────────────────────────────────────────────── */
 ::selection {
   background-color: #BFDBFE;
   color: #1E3A8A;
 }
+

@@ -1,303 +1,482 @@
 import React, { useState, useEffect } from 'react';
-import { Calendar, Plus, MoreVertical, MapPin, Users, Trash2 } from 'lucide-react';
+import { Calendar, Plus, MapPin, Users, Trash2, Edit, X, CheckCircle, Sparkles, Building, Layers } from 'lucide-react';
 
 const AdminEvents = () => {
-  const [activeTab, setActiveTab] = useState('events');
+  const [activeTab, setActiveTab] = useState('events'); // 'events' | 'clubs'
   const [events, setEvents] = useState([]);
   const [clubs, setClubs] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [showModal, setShowModal] = useState(false);
 
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const token = localStorage.getItem('pm_admin_token');
-        const headers = { 'Authorization': `Bearer ${token}` };
-        
-        const [eventsRes, clubsRes] = await Promise.all([
-          fetch('/api/admin/events', { headers }),
-          fetch('/api/admin/clubs', { headers })
-        ]);
-        
-        if (eventsRes.ok) setEvents(await eventsRes.json());
-        if (clubsRes.ok) setClubs(await clubsRes.json());
-      } catch (err) {
-        console.error("Error fetching data:", err);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchData();
-  }, []);
+  // Modals
+  const [showEventModal, setShowEventModal] = useState(false);
+  const [showClubModal, setShowClubModal] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [showScannerModal, setShowScannerModal] = useState(false);
 
-  const handleDelete = async (id, type) => {
-    if (!window.confirm(`Are you sure you want to delete this ${type}?`)) return;
+  const [selectedItem, setSelectedItem] = useState(null);
+
+  // Form states
+  const [eventForm, setEventForm] = useState({ title: '', description: '', date: '', location: '', status: 'upcoming', registration_steps: '' });
+  const [clubForm, setClubForm] = useState({ name: '', description: '', location: '', eligibility: '', status: 'active', registration_steps: '' });
+  const [posterUrl, setPosterUrl] = useState('');
+  const [actionLoading, setActionLoading] = useState(false);
+  const [errorMsg, setErrorMsg] = useState('');
+
+  const fetchData = async () => {
+    setLoading(true);
     try {
       const token = localStorage.getItem('pm_admin_token');
-      const res = await fetch(`/api/admin/${type}s/${id}`, {
-        method: 'DELETE',
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      if (res.ok) {
-        if (type === 'event') setEvents(events.filter(e => e.id !== id));
-        if (type === 'club') setClubs(clubs.filter(c => c.id !== id));
-      }
+      const headers = { 'Authorization': `Bearer ${token}` };
+      
+      const [eventsRes, clubsRes] = await Promise.all([
+        fetch('/api/admin/events', { headers }),
+        fetch('/api/admin/clubs', { headers })
+      ]);
+      
+      if (eventsRes.ok) setEvents(await eventsRes.json());
+      if (clubsRes.ok) setClubs(await clubsRes.json());
     } catch (err) {
-      console.error(`Error deleting ${type}:`, err);
+      console.error("Error fetching data:", err);
+    } finally {
+      setLoading(false);
     }
   };
 
-  const handleCreate = async (e) => {
+  useEffect(() => {
+    fetchData();
+  }, []);
+
+  const handleEventSubmit = async (e) => {
     e.preventDefault();
-    const formData = new FormData(e.target);
-    const data = Object.fromEntries(formData);
-    
+    setActionLoading(true);
+    setErrorMsg('');
+
     try {
       const token = localStorage.getItem('pm_admin_token');
-      const res = await fetch(`/api/admin/${activeTab}`, {
-        method: 'POST',
-        headers: { 
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
+      const method = selectedItem ? 'PUT' : 'POST';
+      const url = selectedItem ? `/api/admin/events/${selectedItem.id}` : '/api/admin/events';
+
+      const res = await fetch(url, {
+        method,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
         },
-        body: JSON.stringify(data)
+        body: JSON.stringify(eventForm)
       });
-      
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to save event');
+
+      setShowEventModal(false);
+      setSelectedItem(null);
+      fetchData();
+    } catch (err) {
+      setErrorMsg(err.message);
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleClubSubmit = async (e) => {
+    e.preventDefault();
+    setActionLoading(true);
+    setErrorMsg('');
+
+    try {
+      const token = localStorage.getItem('pm_admin_token');
+      const method = selectedItem ? 'PUT' : 'POST';
+      const url = selectedItem ? `/api/admin/clubs/${selectedItem.id}` : '/api/admin/clubs';
+
+      const res = await fetch(url, {
+        method,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(clubForm)
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to save club');
+
+      setShowClubModal(false);
+      setSelectedItem(null);
+      fetchData();
+    } catch (err) {
+      setErrorMsg(err.message);
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleDeleteSubmit = async () => {
+    if (!selectedItem) return;
+    setActionLoading(true);
+    try {
+      const token = localStorage.getItem('pm_admin_token');
+      const endpoint = activeTab === 'events' ? 'events' : 'clubs';
+      const res = await fetch(`/api/admin/${endpoint}/${selectedItem.id}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (!res.ok) throw new Error('Failed to delete');
+
+      setShowDeleteModal(false);
+      setSelectedItem(null);
+      fetchData();
+    } catch (err) {
+      alert(err.message);
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleScanPoster = async () => {
+    if (!posterUrl) return;
+    setActionLoading(true);
+    try {
+      const token = localStorage.getItem('pm_admin_token');
+      const res = await fetch('/api/admin/events/vision', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ imageUrl: posterUrl })
+      });
+      const data = await res.json();
       if (res.ok) {
-        const newItem = await res.json();
-        if (activeTab === 'events') {
-          setEvents([...events, { ...newItem, title: newItem.name, date: newItem.event_date, location: newItem.location_text }]);
-        } else {
-          setClubs([...clubs, newItem]);
-        }
-        setShowModal(false);
-      } else {
-        const error = await res.json();
-        alert(error.error || 'Failed to create');
+        setEventForm({
+          title: data.name || '',
+          description: data.description || '',
+          date: data.event_date ? new Date(data.event_date).toISOString().slice(0, 16) : '',
+          location: data.location || '',
+          status: 'upcoming',
+          registration_steps: data.registration_steps || ''
+        });
+        setShowScannerModal(false);
+        setShowEventModal(true);
       }
     } catch (err) {
-      console.error(`Error creating ${activeTab}:`, err);
+      alert("Failed to scan poster details");
+    } finally {
+      setActionLoading(false);
     }
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4">
+    <div className="space-y-6 text-left">
+      
+      {/* Header Banner */}
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-surface border border-surfaceVariant/60 rounded-3xl p-6 shadow-sm">
         <div>
-          <h1 className="text-2xl font-bold text-onSurface">Events & Clubs</h1>
-          <p className="text-onSurfaceVariant text-sm">Manage campus activities and student organizations</p>
+          <h1 className="text-2xl font-black text-onSurface tracking-tight">Events & Clubs Management</h1>
+          <p className="text-xs text-onSurfaceVariant font-medium mt-1">
+            Manage student campus hackathons, activities, and club organizations in PostgreSQL.
+          </p>
         </div>
-        <button 
-          onClick={() => setShowModal(true)}
-          className="bg-primary text-onPrimary px-4 py-2 rounded-xl font-medium shadow-sm hover:bg-primary/90 transition-colors flex items-center gap-2"
-        >
-          <Plus size={18} />
-          Create {activeTab === 'events' ? 'Event' : 'Club'}
-        </button>
+
+        <div className="flex items-center gap-2">
+          {activeTab === 'events' && (
+            <button
+              onClick={() => { setPosterUrl(''); setShowScannerModal(true); }}
+              className="bg-secondaryContainer text-onSecondaryContainer hover:bg-secondaryContainer/80 font-bold text-xs px-4 py-3 rounded-2xl transition-all flex items-center gap-2"
+            >
+              <Sparkles size={16} />
+              <span>AI Poster Scanner</span>
+            </button>
+          )}
+
+          <button
+            onClick={() => {
+              setSelectedItem(null);
+              if (activeTab === 'events') {
+                setEventForm({ title: '', description: '', date: '', location: '', status: 'upcoming', registration_steps: '' });
+                setShowEventModal(true);
+              } else {
+                setClubForm({ name: '', description: '', location: '', eligibility: '', status: 'active', registration_steps: '' });
+                setShowClubModal(true);
+              }
+              setErrorMsg('');
+            }}
+            className="bg-primary hover:bg-primaryHover text-onPrimary font-extrabold text-xs px-5 py-3 rounded-2xl shadow-md transition-all flex items-center gap-2"
+          >
+            <Plus size={16} />
+            <span>Create {activeTab === 'events' ? 'Event' : 'Club'}</span>
+          </button>
+        </div>
       </div>
 
-      <div className="flex gap-4 border-b border-surfaceVariant/50">
-        <button 
+      {/* Tabs */}
+      <div className="flex border-b border-outline/20 space-x-6 text-sm font-bold">
+        <button
           onClick={() => setActiveTab('events')}
-          className={`pb-3 px-1 text-sm font-semibold transition-colors relative ${activeTab === 'events' ? 'text-primary' : 'text-onSurfaceVariant hover:text-onSurface'}`}
+          className={`pb-3 transition-colors ${activeTab === 'events' ? 'border-b-2 border-primary text-primary' : 'text-onSurfaceVariant hover:text-onSurface'}`}
         >
-          Campus Events
-          {activeTab === 'events' && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary rounded-t-full"></div>}
+          Campus Events ({events.length})
         </button>
-        <button 
+        <button
           onClick={() => setActiveTab('clubs')}
-          className={`pb-3 px-1 text-sm font-semibold transition-colors relative ${activeTab === 'clubs' ? 'text-primary' : 'text-onSurfaceVariant hover:text-onSurface'}`}
+          className={`pb-3 transition-colors ${activeTab === 'clubs' ? 'border-b-2 border-primary text-primary' : 'text-onSurfaceVariant hover:text-onSurface'}`}
         >
-          Student Clubs
-          {activeTab === 'clubs' && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary rounded-t-full"></div>}
+          Student Clubs ({clubs.length})
         </button>
       </div>
 
-      <div className="bg-surface border border-surfaceVariant rounded-3xl overflow-hidden shadow-sm">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-sm">
-            <thead className="bg-surfaceVariant/30 text-onSurfaceVariant border-b border-surfaceVariant/50">
-              <tr>
-                <th className="px-6 py-4 font-medium">{activeTab === 'events' ? 'Event Details' : 'Club Name'}</th>
-                <th className="px-6 py-4 font-medium">{activeTab === 'events' ? 'Location' : 'Members'}</th>
-                <th className="px-6 py-4 font-medium">{activeTab === 'events' ? 'Attendees' : 'Last Activity'}</th>
-                <th className="px-6 py-4 font-medium">Registration Steps</th>
-                <th className="px-6 py-4 font-medium">Status</th>
-                <th className="px-6 py-4 font-medium text-right">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-surfaceVariant/50">
-              {loading ? (
-                <tr><td colSpan="5" className="p-8 text-center text-onSurfaceVariant">Loading...</td></tr>
-              ) : activeTab === 'events' ? events.map((event) => (
-                <tr key={event.id} className="hover:bg-surfaceVariant/20 transition-colors group">
-                  <td className="px-6 py-4">
-                    <p className="font-semibold text-onSurface group-hover:text-primary transition-colors">{event.title}</p>
-                    <p className="text-xs text-onSurfaceVariant flex items-center gap-1 mt-0.5">
-                      <Calendar size={12} /> {new Date(event.date).toLocaleDateString()}
+      {/* EVENTS TAB */}
+      {activeTab === 'events' && (
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+          {loading ? (
+            <div className="col-span-full py-12 text-center text-xs text-onSurfaceVariant font-semibold">Loading Events from PostgreSQL...</div>
+          ) : events.length === 0 ? (
+            <div className="col-span-full py-12 text-center text-xs text-onSurfaceVariant italic">No events scheduled. Click "Create Event" to publish one.</div>
+          ) : (
+            events.map((evt) => (
+              <div key={evt.id} className="bg-surface border border-surfaceVariant/60 rounded-3xl p-5 shadow-2xs space-y-3 flex flex-col justify-between">
+                <div>
+                  <div className="flex justify-between items-start gap-2 mb-2">
+                    <span className="text-[10px] font-black px-2.5 py-0.5 rounded-full bg-amber-100 text-amber-800 border border-amber-300 uppercase tracking-wider">
+                      {evt.status || 'upcoming'}
+                    </span>
+                    <span className="text-xs font-mono text-onSurfaceVariant font-semibold flex items-center gap-1">
+                      <Users size={13} /> {evt.attendees || 0} enrolled
+                    </span>
+                  </div>
+
+                  <h3 className="font-bold text-onSurface text-base leading-snug">{evt.title}</h3>
+                  <p className="text-xs text-onSurfaceVariant mt-1.5 line-clamp-2 leading-relaxed">{evt.description || evt.title}</p>
+                  
+                  <div className="mt-3 space-y-1 text-xs text-onSurfaceVariant font-medium">
+                    <p className="flex items-center gap-1.5">
+                      <Calendar size={14} className="text-primary" />
+                      <span>{evt.date ? new Date(evt.date).toLocaleString() : 'TBD'}</span>
                     </p>
-                  </td>
-                  <td className="px-6 py-4">
-                    <p className="text-onSurface flex items-center gap-1"><MapPin size={14} className="text-onSurfaceVariant"/> {event.location}</p>
-                  </td>
-                  <td className="px-6 py-4">
-                    <p className="text-onSurface flex items-center gap-1"><Users size={14} className="text-onSurfaceVariant"/> {event.attendees} registered</p>
-                  </td>
-                  <td className="px-6 py-4 max-w-xs truncate">
-                    <p className="text-xs font-mono text-onSurfaceVariant" title={event.registration_steps}>{event.registration_steps || 'N/A'}</p>
-                  </td>
-                  <td className="px-6 py-4">
-                    <span className={`px-2.5 py-1 rounded-md text-xs font-semibold tracking-wider ${event.status === 'upcoming' ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-700'}`}>
-                      {event.status.toUpperCase()}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 text-right">
-                    <button onClick={() => handleDelete(event.id, 'event')} className="text-error hover:bg-error/10 p-2 rounded-lg transition-colors">
-                      <Trash2 size={18} />
-                    </button>
-                  </td>
-                </tr>
-              )) : clubs.map((club) => (
-                <tr key={club.id} className="hover:bg-surfaceVariant/20 transition-colors group">
-                  <td className="px-6 py-4">
-                    <p className="font-semibold text-onSurface group-hover:text-primary transition-colors">{club.name}</p>
-                  </td>
-                  <td className="px-6 py-4">
-                    <p className="text-onSurface flex items-center gap-1"><Users size={14} className="text-onSurfaceVariant"/> {club.members}</p>
-                  </td>
-                  <td className="px-6 py-4">
-                    <p className="text-onSurfaceVariant text-sm">{club.lastActivity}</p>
-                  </td>
-                  <td className="px-6 py-4 max-w-xs truncate">
-                    <p className="text-xs font-mono text-onSurfaceVariant" title={club.registration_steps}>{club.registration_steps || 'N/A'}</p>
-                  </td>
-                  <td className="px-6 py-4">
-                    <span className="px-2.5 py-1 rounded-md text-xs font-semibold tracking-wider bg-green-100 text-green-700">
-                      {club.status.toUpperCase()}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 text-right">
-                    <button onClick={() => handleDelete(club.id, 'club')} className="text-error hover:bg-error/10 p-2 rounded-lg transition-colors">
-                      <Trash2 size={18} />
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+                    <p className="flex items-center gap-1.5">
+                      <MapPin size={14} className="text-rose-600" />
+                      <span>{evt.location || 'SCE Campus'}</span>
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex justify-end gap-2 pt-3 border-t border-outline/10">
+                  <button
+                    onClick={() => {
+                      setSelectedItem(evt);
+                      setEventForm({
+                        title: evt.title,
+                        description: evt.description || '',
+                        date: evt.date ? new Date(evt.date).toISOString().slice(0, 16) : '',
+                        location: evt.location || '',
+                        status: evt.status || 'upcoming',
+                        registration_steps: evt.registration_steps || ''
+                      });
+                      setShowEventModal(true);
+                    }}
+                    className="p-2 text-onSurfaceVariant hover:text-primary rounded-xl hover:bg-surfaceVariant transition-colors"
+                  >
+                    <Edit size={16} />
+                  </button>
+                  <button
+                    onClick={() => { setSelectedItem(evt); setShowDeleteModal(true); }}
+                    className="p-2 text-onSurfaceVariant hover:text-rose-600 rounded-xl hover:bg-rose-50 transition-colors"
+                  >
+                    <Trash2 size={16} />
+                  </button>
+                </div>
+              </div>
+            ))
+          )}
         </div>
-      </div>
+      )}
 
-      {showModal && (
-        <div className="fixed inset-0 bg-surface/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-surfaceVariant border border-surfaceVariant/50 rounded-3xl p-6 w-full max-w-md shadow-elevation3">
-            <h2 className="text-xl font-bold text-onSurface mb-4">Create {activeTab === 'events' ? 'Event' : 'Club'}</h2>
-            <form onSubmit={handleCreate} className="space-y-4">
-              {activeTab === 'events' ? (
-                <>
-                  {/* Vision API Auto-Fill Banner */}
-                  <div className="bg-primary/5 border border-primary/20 rounded-xl p-3 space-y-2">
-                    <label className="block text-xs font-bold text-primary flex items-center gap-1">
-                      <span className="material-symbols-outlined text-[16px]">auto_awesome</span>
-                      AI Vision Flyer Auto-Fill
-                    </label>
-                    <div className="flex gap-2">
-                      <input 
-                        id="flyerUrlInput"
-                        placeholder="Paste Event Poster / Flyer Image URL..." 
-                        className="flex-1 bg-surface border border-surfaceVariant rounded-lg py-1.5 px-3 text-xs text-onSurface focus:outline-none" 
-                      />
-                      <button
-                        type="button"
-                        onClick={async () => {
-                          const input = document.getElementById('flyerUrlInput');
-                          if (!input || !input.value) return alert('Please enter a poster URL');
-                          try {
-                            const token = localStorage.getItem('pm_admin_token');
-                            const res = await fetch('/api/admin/events/vision', {
-                              method: 'POST',
-                              headers: {
-                                'Authorization': `Bearer ${token}`,
-                                'Content-Type': 'application/json'
-                              },
-                              body: JSON.stringify({ imageUrl: input.value })
-                            });
-                            const data = await res.json();
-                            if (data.eventName) {
-                              const form = input.closest('form');
-                              if (form.title) form.title.value = data.eventName;
-                              if (form.location) form.location.value = data.venue || '';
-                              alert(`AI Extracted: ${data.eventName} @ ${data.venue}`);
-                            }
-                          } catch (err) {
-                            console.error(err);
-                            alert('Vision OCR extraction failed');
-                          }
-                        }}
-                        className="bg-primary text-white px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-primary/90 transition-colors"
-                      >
-                        Extract
-                      </button>
-                    </div>
+      {/* CLUBS TAB */}
+      {activeTab === 'clubs' && (
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+          {loading ? (
+            <div className="col-span-full py-12 text-center text-xs text-onSurfaceVariant font-semibold">Loading Clubs from PostgreSQL...</div>
+          ) : clubs.length === 0 ? (
+            <div className="col-span-full py-12 text-center text-xs text-onSurfaceVariant italic">No clubs configured. Click "Create Club" to add one.</div>
+          ) : (
+            clubs.map((c) => (
+              <div key={c.id} className="bg-surface border border-surfaceVariant/60 rounded-3xl p-5 shadow-2xs space-y-3 flex flex-col justify-between">
+                <div>
+                  <div className="flex justify-between items-start gap-2 mb-2">
+                    <span className="text-[10px] font-black px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-300 uppercase tracking-wider">
+                      {c.status || 'active'}
+                    </span>
+                    <span className="text-xs font-mono text-onSurfaceVariant font-semibold flex items-center gap-1">
+                      <Users size={13} /> {c.members || 0} members
+                    </span>
                   </div>
 
-                  <div>
-                    <label className="block text-sm font-medium text-onSurfaceVariant mb-1">Event Title</label>
-                    <input name="title" required className="w-full bg-surface border border-surfaceVariant rounded-xl py-2 px-3 text-onSurface focus:outline-none focus:ring-2 focus:ring-primary" />
+                  <h3 className="font-bold text-onSurface text-base leading-snug">{c.name}</h3>
+                  <p className="text-xs text-onSurfaceVariant mt-1.5 line-clamp-3 leading-relaxed">{c.description}</p>
+                  
+                  <div className="mt-3 space-y-1 text-xs text-onSurfaceVariant font-medium">
+                    <p className="flex items-center gap-1.5">
+                      <MapPin size={14} className="text-rose-600" />
+                      <span>{c.location || 'TBD'}</span>
+                    </p>
                   </div>
-                  <div>
-                    <label className="block text-sm font-medium text-onSurfaceVariant mb-1">Date & Time</label>
-                    <input name="date" type="datetime-local" required className="w-full bg-surface border border-surfaceVariant rounded-xl py-2 px-3 text-onSurface focus:outline-none focus:ring-2 focus:ring-primary" />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-onSurfaceVariant mb-1">Location</label>
-                    <input name="location" required className="w-full bg-surface border border-surfaceVariant rounded-xl py-2 px-3 text-onSurface focus:outline-none focus:ring-2 focus:ring-primary" />
-                  </div>
+                </div>
 
-                  {/* Campus Map Pin Picker */}
-                  <div className="grid grid-cols-3 gap-2">
-                    <div>
-                      <label className="block text-xs font-medium text-onSurfaceVariant mb-1">Pin X Coord</label>
-                      <input name="pin_x" type="number" defaultValue="400" className="w-full bg-surface border border-surfaceVariant rounded-xl py-1.5 px-3 text-xs text-onSurface" />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-medium text-onSurfaceVariant mb-1">Pin Y Coord</label>
-                      <input name="pin_y" type="number" defaultValue="350" className="w-full bg-surface border border-surfaceVariant rounded-xl py-1.5 px-3 text-xs text-onSurface" />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-medium text-onSurfaceVariant mb-1">Pin Color</label>
-                      <input name="pin_color" type="color" defaultValue="#F59E0B" className="w-full h-8 bg-surface border border-surfaceVariant rounded-xl p-1 cursor-pointer" />
-                    </div>
-                  </div>
-                </>
-              ) : (
-                <>
-                  <div>
-                    <label className="block text-sm font-medium text-onSurfaceVariant mb-1">Club Name</label>
-                    <input name="name" required className="w-full bg-surface border border-surfaceVariant rounded-xl py-2 px-3 text-onSurface focus:outline-none focus:ring-2 focus:ring-primary" />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-onSurfaceVariant mb-1">Description</label>
-                    <textarea name="description" required rows="2" className="w-full bg-surface border border-surfaceVariant rounded-xl py-2 px-3 text-onSurface focus:outline-none focus:ring-2 focus:ring-primary"></textarea>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-onSurfaceVariant mb-1">Eligibility Criteria</label>
-                    <textarea name="eligibility" rows="2" className="w-full bg-surface border border-surfaceVariant rounded-xl py-2 px-3 text-onSurface focus:outline-none focus:ring-2 focus:ring-primary"></textarea>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-onSurfaceVariant mb-1">Location</label>
-                    <input name="location" required className="w-full bg-surface border border-surfaceVariant rounded-xl py-2 px-3 text-onSurface focus:outline-none focus:ring-2 focus:ring-primary" />
-                  </div>
-                </>
-              )}
-              <div className="flex gap-3 justify-end mt-6">
-                <button type="button" onClick={() => setShowModal(false)} className="px-4 py-2 text-onSurfaceVariant font-medium hover:bg-surfaceVariant/50 rounded-xl transition-colors">Cancel</button>
-                <button type="submit" className="px-4 py-2 bg-primary text-onPrimary font-medium rounded-xl hover:bg-primary/90 transition-colors shadow-sm">Create</button>
+                <div className="flex justify-end gap-2 pt-3 border-t border-outline/10">
+                  <button
+                    onClick={() => {
+                      setSelectedItem(c);
+                      setClubForm({
+                        name: c.name,
+                        description: c.description || '',
+                        location: c.location || '',
+                        eligibility: c.eligibility || '',
+                        status: c.status || 'active',
+                        registration_steps: c.registration_steps || ''
+                      });
+                      setShowClubModal(true);
+                    }}
+                    className="p-2 text-onSurfaceVariant hover:text-primary rounded-xl hover:bg-surfaceVariant transition-colors"
+                  >
+                    <Edit size={16} />
+                  </button>
+                  <button
+                    onClick={() => { setSelectedItem(c); setShowDeleteModal(true); }}
+                    className="p-2 text-onSurfaceVariant hover:text-rose-600 rounded-xl hover:bg-rose-50 transition-colors"
+                  >
+                    <Trash2 size={16} />
+                  </button>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+      )}
+
+      {/* EVENT MODAL */}
+      {showEventModal && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-fade-in">
+          <div className="bg-white border border-outline/30 rounded-[28px] max-w-lg w-full p-6 text-left shadow-2xl relative animate-scale-up">
+            <button onClick={() => setShowEventModal(false)} className="absolute right-4 top-4 text-onSurfaceVariant"><X size={18} /></button>
+            <h3 className="text-xl font-black text-onSurface mb-1">{selectedItem ? 'Edit Event' : 'Create Event'}</h3>
+
+            {errorMsg && <p className="text-xs text-rose-600 bg-rose-50 p-2.5 rounded-xl font-bold mb-3">{errorMsg}</p>}
+
+            <form onSubmit={handleEventSubmit} className="space-y-3 text-xs">
+              <div>
+                <label className="block font-bold text-onSurfaceVariant mb-1 uppercase">Event Title</label>
+                <input type="text" required value={eventForm.title} onChange={e => setEventForm({...eventForm, title: e.target.value})} placeholder="e.g. Smart India Hackathon 2026" className="w-full p-2.5 border rounded-xl bg-surfaceContainerLow font-bold" />
+              </div>
+              <div>
+                <label className="block font-bold text-onSurfaceVariant mb-1 uppercase">Description</label>
+                <textarea rows={3} value={eventForm.description} onChange={e => setEventForm({...eventForm, description: e.target.value})} placeholder="Event description & highlights..." className="w-full p-2.5 border rounded-xl bg-surfaceContainerLow" />
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="block font-bold text-onSurfaceVariant mb-1 uppercase">Date & Time</label>
+                  <input type="datetime-local" required value={eventForm.date} onChange={e => setEventForm({...eventForm, date: e.target.value})} className="w-full p-2.5 border rounded-xl bg-surfaceContainerLow" />
+                </div>
+                <div>
+                  <label className="block font-bold text-onSurfaceVariant mb-1 uppercase">Location</label>
+                  <input type="text" required value={eventForm.location} onChange={e => setEventForm({...eventForm, location: e.target.value})} placeholder="RV Block Hall" className="w-full p-2.5 border rounded-xl bg-surfaceContainerLow" />
+                </div>
+              </div>
+              <div>
+                <label className="block font-bold text-onSurfaceVariant mb-1 uppercase">Registration Steps for Students</label>
+                <textarea rows={2} value={eventForm.registration_steps} onChange={e => setEventForm({...eventForm, registration_steps: e.target.value})} placeholder="Step 1: Fill Google form..." className="w-full p-2.5 border rounded-xl bg-surfaceContainerLow" />
+              </div>
+
+              <div className="pt-3 flex justify-end gap-2">
+                <button type="button" onClick={() => setShowEventModal(false)} className="px-4 py-2 bg-surfaceVariant rounded-xl font-bold">Cancel</button>
+                <button type="submit" disabled={actionLoading} className="px-5 py-2 bg-primary text-onPrimary font-bold rounded-xl shadow-md">
+                  {actionLoading ? 'Saving...' : 'Save Event'}
+                </button>
               </div>
             </form>
           </div>
         </div>
       )}
+
+      {/* CLUB MODAL */}
+      {showClubModal && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-fade-in">
+          <div className="bg-white border border-outline/30 rounded-[28px] max-w-lg w-full p-6 text-left shadow-2xl relative animate-scale-up">
+            <button onClick={() => setShowClubModal(false)} className="absolute right-4 top-4 text-onSurfaceVariant"><X size={18} /></button>
+            <h3 className="text-xl font-black text-onSurface mb-1">{selectedItem ? 'Edit Club' : 'Create Club'}</h3>
+
+            {errorMsg && <p className="text-xs text-rose-600 bg-rose-50 p-2.5 rounded-xl font-bold mb-3">{errorMsg}</p>}
+
+            <form onSubmit={handleClubSubmit} className="space-y-3 text-xs">
+              <div>
+                <label className="block font-bold text-onSurfaceVariant mb-1 uppercase">Club Name</label>
+                <input type="text" required value={clubForm.name} onChange={e => setClubForm({...clubForm, name: e.target.value})} placeholder="e.g. Coding Ninjas SCE" className="w-full p-2.5 border rounded-xl bg-surfaceContainerLow font-bold" />
+              </div>
+              <div>
+                <label className="block font-bold text-onSurfaceVariant mb-1 uppercase">Description</label>
+                <textarea rows={3} value={clubForm.description} onChange={e => setClubForm({...clubForm, description: e.target.value})} placeholder="Club mission & activities..." className="w-full p-2.5 border rounded-xl bg-surfaceContainerLow" />
+              </div>
+              <div>
+                <label className="block font-bold text-onSurfaceVariant mb-1 uppercase">Location / Meeting Venue</label>
+                <input type="text" value={clubForm.location} onChange={e => setClubForm({...clubForm, location: e.target.value})} placeholder="RV Block CS Lab" className="w-full p-2.5 border rounded-xl bg-surfaceContainerLow" />
+              </div>
+              <div>
+                <label className="block font-bold text-onSurfaceVariant mb-1 uppercase">Eligibility Criteria</label>
+                <textarea rows={2} value={clubForm.eligibility} onChange={e => setClubForm({...clubForm, eligibility: e.target.value})} placeholder="Requirements for freshmen..." className="w-full p-2.5 border rounded-xl bg-surfaceContainerLow" />
+              </div>
+
+              <div className="pt-3 flex justify-end gap-2">
+                <button type="button" onClick={() => setShowClubModal(false)} className="px-4 py-2 bg-surfaceVariant rounded-xl font-bold">Cancel</button>
+                <button type="submit" disabled={actionLoading} className="px-5 py-2 bg-primary text-onPrimary font-bold rounded-xl shadow-md">
+                  {actionLoading ? 'Saving...' : 'Save Club'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* AI POSTER SCANNER MODAL */}
+      {showScannerModal && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-fade-in">
+          <div className="bg-white border border-outline/30 rounded-[28px] max-w-md w-full p-6 text-left shadow-2xl relative animate-scale-up">
+            <button onClick={() => setShowScannerModal(false)} className="absolute right-4 top-4 text-onSurfaceVariant"><X size={18} /></button>
+            <h3 className="text-xl font-black text-onSurface mb-1 flex items-center gap-2">
+              <Sparkles className="text-amber-500" size={20} /> AI Event Poster Scanner
+            </h3>
+            <p className="text-xs text-onSurfaceVariant mb-4">Paste image URL of an event poster to extract title, date, location & process using Gemini AI.</p>
+
+            <div className="space-y-3 text-xs">
+              <div>
+                <label className="block font-bold text-onSurfaceVariant mb-1 uppercase">Poster Image URL</label>
+                <input type="url" value={posterUrl} onChange={e => setPosterUrl(e.target.value)} placeholder="https://example.com/poster.jpg" className="w-full p-2.5 border rounded-xl bg-surfaceContainerLow" />
+              </div>
+
+              <div className="pt-3 flex justify-end gap-2">
+                <button type="button" onClick={() => setShowScannerModal(false)} className="px-4 py-2 bg-surfaceVariant rounded-xl font-bold">Cancel</button>
+                <button onClick={handleScanPoster} disabled={actionLoading || !posterUrl} className="px-5 py-2 bg-secondaryContainer text-onSecondaryContainer font-bold rounded-xl shadow-md">
+                  {actionLoading ? 'Scanning with Gemini...' : 'Scan & Auto-Fill Form'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* DELETE CONFIRMATION MODAL */}
+      {showDeleteModal && selectedItem && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-fade-in">
+          <div className="bg-white border border-outline/30 rounded-[28px] max-w-md w-full p-6 text-left shadow-2xl relative animate-scale-up">
+            <h3 className="text-xl font-black text-rose-700 mb-2">Delete {activeTab === 'events' ? 'Event' : 'Club'}</h3>
+            <p className="text-xs text-onSurfaceVariant leading-relaxed mb-6">
+              Are you sure you want to permanently delete <strong>{selectedItem.title || selectedItem.name}</strong> from PostgreSQL?
+            </p>
+            <div className="flex justify-end gap-2 text-xs">
+              <button onClick={() => setShowDeleteModal(false)} className="px-4 py-2 bg-surfaceVariant rounded-xl font-bold">Cancel</button>
+              <button onClick={handleDeleteSubmit} disabled={actionLoading} className="px-5 py-2 bg-rose-600 text-white font-bold rounded-xl shadow-md">
+                {actionLoading ? 'Deleting...' : 'Confirm Delete'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 };

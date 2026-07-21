@@ -2,6 +2,7 @@ import React from 'react';
 import { Outlet } from 'react-router-dom';
 import Navbar from '../components/common/Navbar';
 import EmergencyButton from '../components/common/EmergencyButton';
+import FloatingAIButton from '../components/common/FloatingAIButton';
 
 const MainLayout = () => {
   return (
@@ -14,7 +15,10 @@ const MainLayout = () => {
         <Outlet />
       </main>
 
-      {/* Floating Emergency shortcut */}
+      {/* Upper Floating AI Assistant shortcut */}
+      <FloatingAIButton />
+
+      {/* Lower Floating Emergency shortcut */}
       <EmergencyButton />
     </div>
   );

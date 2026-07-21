@@ -11,14 +11,8 @@ export const AppProvider = ({ children }) => {
     return localStorage.getItem('pm_auth_token') || null;
   });
 
-  const [user, setUser] = useState(() => {
-    const data = localStorage.getItem('pm_user');
-    return data ? JSON.parse(data) : null;
-  });
-
-  const [onboarded, setOnboarded] = useState(() => {
-    return localStorage.getItem('pm_onboarded') === 'true';
-  });
+  const [user, setUser] = useState(null);
+  const [onboarded, setOnboarded] = useState(false);
 
   const [studentData, setStudentData] = useState(() => {
     const savedUser = localStorage.getItem('pm_user');
@@ -136,16 +130,19 @@ export const AppProvider = ({ children }) => {
             setLanguage(data.user.preferred_language);
             localStorage.setItem('pm_lang', data.user.preferred_language);
           }
+        } else {
+          throw new Error('Invalid user payload');
         }
       })
       .catch(err => {
-        console.warn("Session expired or invalid. Logging out:", err.message);
+        console.warn("Session expired or invalid token. Clearing session:", err.message);
         resetAllData();
       })
       .finally(() => {
         setInitializing(false);
       });
     } else {
+      resetAllData();
       setInitializing(false);
     }
   }, [token]);

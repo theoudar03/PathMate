@@ -1,15 +1,28 @@
 import express from 'express';
 import cors from 'cors';
+import helmet from 'helmet';
 import dotenv from 'dotenv';
 import apiRouter from './routes/api.js';
 
 import authRouter from './routes/auth.js';
 import adminRouter from './routes/admin.js';
+import tasksRouter from './routes/tasks.js';
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 5000;
+
+// Security Headers with Helmet
+app.use(helmet({
+  crossOriginResourcePolicy: { policy: "cross-origin" }
+}));
 
 // Enable CORS so the React frontend (running on e.g. localhost:5173) can query this server
 app.use(cors({
@@ -18,7 +31,8 @@ app.use(cors({
   allowedHeaders: ['Content-Type', 'Authorization']
 }));
 
-app.use(express.json());
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
 // Root path diagnostic greeting
 app.get('/', (req, res) => {
@@ -29,9 +43,17 @@ app.get('/', (req, res) => {
   });
 });
 
+// Ensure uploads directory exists and serve static files
+const uploadsDir = path.join(__dirname, '../uploads');
+if (!fs.existsSync(uploadsDir)) {
+  fs.mkdirSync(uploadsDir, { recursive: true });
+}
+app.use('/uploads', express.static(uploadsDir));
+
 // Mount the Routers
 app.use('/auth', authRouter);
 app.use('/api/admin', adminRouter);
+app.use('/api/tasks', tasksRouter);
 app.use('/api', apiRouter);
 
 // Global Error Handler
@@ -54,6 +76,41 @@ app.listen(PORT, async () => {
   try {
     await db.query('SELECT NOW()');
     console.log('✓ Connected to PostgreSQL');
+
+    // Run migrations automatically
+    try {
+      const sql13 = path.join(__dirname, 'database', 'migrations', '13_activity_manager.sql');
+      if (fs.existsSync(sql13)) {
+        await db.query(fs.readFileSync(sql13, 'utf8'));
+        console.log('✓ Activity Manager PostgreSQL schema initialized');
+      }
+
+      const sql14 = path.join(__dirname, 'database', 'migrations', '14_notice_attachments.sql');
+      if (fs.existsSync(sql14)) {
+        await db.query(fs.readFileSync(sql14, 'utf8'));
+        console.log('✓ Notice Attachments PostgreSQL schema initialized');
+      }
+
+      const sql15 = path.join(__dirname, 'database', 'migrations', '15_real_student_modules.sql');
+      if (fs.existsSync(sql15)) {
+        await db.query(fs.readFileSync(sql15, 'utf8'));
+        console.log('✓ Real Student Modules (Seniors & Roommates) schema initialized');
+      }
+
+      const sql16 = path.join(__dirname, 'database', 'migrations', '16_production_auth_security.sql');
+      if (fs.existsSync(sql16)) {
+        await db.query(fs.readFileSync(sql16, 'utf8'));
+        console.log('✓ Production Auth & Security Infrastructure schema initialized');
+      }
+
+      const sql17 = path.join(__dirname, 'database', 'migrations', '17_admin_crud_production.sql');
+      if (fs.existsSync(sql17)) {
+        await db.query(fs.readFileSync(sql17, 'utf8'));
+        console.log('✓ Admin CRUD Production & AI FAQs schema initialized');
+      }
+    } catch (err) {
+      console.error("Failed to run database migrations on startup:", err.message);
+    }
   } catch (err) {
     console.error(`
 ======================================================================
@@ -69,11 +126,7 @@ Reason: ${err.message}
 ======================================================================
     `);
 
-    // In production, exit if database is offline and mock fallback is not explicitly permitted
-    if (process.env.ALLOW_MOCK_DATA !== 'true') {
-      console.error('CRITICAL ERROR: ALLOW_MOCK_DATA is false and PostgreSQL is unreachable. Exiting server...');
-      process.exit(1);
-    }
+    console.warn('NOTE: Operating in fallback memory mode. Configure DATABASE_URL in .env to connect to PostgreSQL.');
   }
 });
 

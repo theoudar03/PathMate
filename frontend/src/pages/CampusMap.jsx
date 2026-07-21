@@ -1,66 +1,48 @@
-import React, { useState, useEffect, useRef } from 'react';
-import Loader from '../components/common/Loader';
+import React, { useState, useRef } from 'react';
 import { useApp } from '../contexts/AppContext';
-import { CAMPUS_MAP_DATA, LEGEND_CATEGORIES } from '../config/mapData';
+import { CAMPUS_MAP_DATA } from '../config/mapData';
+import SatelliteMapView from '../components/map/SatelliteMapView';
+import LiveNavigationDrawer from '../components/map/LiveNavigationDrawer';
 
 const CampusMap = () => {
-  const { token, t } = useApp();
+  const { token } = useApp();
   
   // Selection and details state
   const [selectedBlockId, setSelectedBlockId] = useState(null);
   const [blockDetails, setBlockDetails] = useState(null);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
 
-  // Map Controls State (Zoom and Pan)
+  // View Mode Switcher: Default 'satellite' (Satellite View FIRST) | 'layout' (2D Layout SECOND)
+  const [viewMode, setViewMode] = useState('satellite');
+
+  // Shared Navigation & GPS State across Map and Drawer
+  const [showNavigationDrawer, setShowNavigationDrawer] = useState(true);
+  const [isNavigating, setIsNavigating] = useState(false);
+  const [navigationDestination, setNavigationDestination] = useState(CAMPUS_MAP_DATA[0]);
+  const [navigationOriginId, setNavigationOriginId] = useState('main-gate');
+  const [userLocation, setUserLocation] = useState(null);
+
+  // Map Controls State (Zoom and Pan for 2D Layout)
   const [scale, setScale] = useState(1);
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
 
-  // Filtering / Search State
+  // Search & Filtering
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState(null); // Filter by legend category
-  const [hoveredBlock, setHoveredBlock] = useState(null); // For hover tooltip
-  const [events, setEvents] = useState([]); // Event pins
 
-  // AI Navigation State
+  // Gemini AI Search State
+  const [aiInput, setAiInput] = useState('');
   const [isAiSearching, setIsAiSearching] = useState(false);
-  const [aiDestinationId, setAiDestinationId] = useState(null);
   const [aiIntentMsg, setAiIntentMsg] = useState(null);
 
   const svgRef = useRef(null);
 
-  // Zoom handling helpers
   const handleZoomIn = () => setScale(prev => Math.min(prev + 0.2, 3));
   const handleZoomOut = () => setScale(prev => Math.max(prev - 0.2, 0.6));
-  const handleReset = () => {
-    setScale(1);
-    setPan({ x: 0, y: 0 });
-  };
-  const handleFit = () => {
-    setScale(0.9);
-    setPan({ x: 40, y: 30 });
-  };
+  const handleReset = () => { setScale(1); setPan({ x: 0, y: 0 }); };
 
-  useEffect(() => {
-    const fetchEvents = async () => {
-      try {
-        const res = await fetch('/api/events', {
-          headers: token ? { 'Authorization': `Bearer ${token}` } : {}
-        });
-        const data = await res.json();
-        if (Array.isArray(data)) setEvents(data);
-      } catch (e) {
-        console.error("Failed to fetch events for map:", e);
-      }
-    };
-    fetchEvents();
-  }, [token]);
-
-  // Dragging to Pan logic
   const handleMouseDown = (e) => {
-    // Only drag on left click
     if (e.button !== 0) return;
     setIsDragging(true);
     setDragStart({ x: e.clientX - pan.x, y: e.clientY - pan.y });
@@ -68,21 +50,17 @@ const CampusMap = () => {
 
   const handleMouseMove = (e) => {
     if (!isDragging) return;
-    setPan({
-      x: e.clientX - dragStart.x,
-      y: e.clientY - dragStart.y
-    });
+    setPan({ x: e.clientX - dragStart.x, y: e.clientY - dragStart.y });
   };
 
-  const handleMouseUpOrLeave = () => {
-    setIsDragging(false);
-  };
+  const handleMouseUpOrLeave = () => setIsDragging(false);
 
-  const handleAiSearch = async (query) => {
-    if (!query) return;
+  const handleAiSearch = async (queryToSearch) => {
+    const query = queryToSearch || aiInput;
+    if (!query || !query.trim()) return;
+
     setIsAiSearching(true);
-    setAiIntentMsg("Thinking...");
-    setAiDestinationId(null);
+    setAiIntentMsg("Gemini AI analyzing navigation intent...");
     try {
       const res = await fetch('/api/ai/navigate', {
         method: 'POST',
@@ -93,24 +71,32 @@ const CampusMap = () => {
         body: JSON.stringify({ query })
       });
       const data = await res.json();
-      if (data.destinationId) {
-        setAiDestinationId(data.destinationId);
-        setAiIntentMsg(`Navigating to ${data.destination} (${data.route || 'best'} route)`);
-        
-        // Auto select block
-        const targetBlock = CAMPUS_MAP_DATA.find(b => b.svg_id === data.destinationId);
-        if (targetBlock) {
-          // Center camera
-          setScale(1.2);
-          setPan({ 
-            x: 400 - (targetBlock.coords.x || targetBlock.coords.cx || 400), 
-            y: 500 - (targetBlock.coords.y || targetBlock.coords.cy || 500) 
-          });
-          handleBlockClick(targetBlock);
-        }
-      } else {
-        setAiIntentMsg("Location not found on map.");
-      }
+      
+      const qLower = query.toLowerCase();
+
+      const targetBlock = CAMPUS_MAP_DATA.find(b => 
+        b.id === data.destinationId ||
+        b.svg_id === data.destinationId || 
+        b.name.toLowerCase().includes((data.destination || '').toLowerCase()) ||
+        b.departments.some(d => d.toLowerCase().includes((data.destination || '').toLowerCase())) ||
+        (qLower.includes('cse') && b.id === 'rv-block') ||
+        (qLower.includes('ece') && b.id === 'ks-block') ||
+        (qLower.includes('ai') && b.id === 'bd-block') ||
+        (qLower.includes('civil') && b.id === 'js-block') ||
+        (qLower.includes('mech') && b.id === 'me-block')
+      ) || CAMPUS_MAP_DATA[0];
+
+      setAiIntentMsg(`Navigating to ${targetBlock.name}`);
+      setNavigationDestination(targetBlock);
+      setIsNavigating(true);
+      setShowNavigationDrawer(true);
+      setSelectedBlockId(targetBlock.id);
+      
+      setScale(1.2);
+      setPan({ 
+        x: 400 - (targetBlock.coords.x || targetBlock.coords.cx || 400), 
+        y: 500 - (targetBlock.coords.y || targetBlock.coords.cy || 500) 
+      });
     } catch (err) {
       console.error(err);
       setAiIntentMsg("AI Navigation failed.");
@@ -119,675 +105,334 @@ const CampusMap = () => {
     }
   };
 
-  // Fetch block detail data from database API or fallback to mapData description
   const handleBlockClick = (block) => {
     setSelectedBlockId(block.id);
     setLoading(true);
-    setError(null);
     setBlockDetails(null);
 
     fetch(`/api/campus-blocks/${block.svg_id}`, {
-      headers: {
-        'Authorization': token ? `Bearer ${token}` : ''
-      }
+      headers: { 'Authorization': token ? `Bearer ${token}` : '' }
     })
-      .then((res) => {
-        if (!res.ok) throw new Error('Failed to fetch details');
-        return res.json();
-      })
-      .then((data) => {
+      .then(res => res.json())
+      .then(data => {
         setBlockDetails({
           ...data,
           description: block.description,
-          departments: block.departments
+          departments: block.departments,
+          labs: block.labs,
+          faculty: block.faculty
         });
       })
-      .catch((err) => {
-        console.warn('Backend API unreachable, using static fallback for', block.svg_id);
-        // Fallback to static mock block structure using mapData
+      .catch(() => {
         setBlockDetails({
           block_name: block.name,
-          block_type: block.category.toLowerCase() === 'academic' ? 'academic' : 'facility',
+          block_type: 'academic',
           description: block.description,
           departments: block.departments,
-          floors: [
-            { floor_label: "Location", detail_text: block.description },
-            { floor_label: "Wings", detail_text: block.departments.join(", ") }
-          ]
+          labs: block.labs,
+          faculty: block.faculty
         });
       })
-      .finally(() => {
-        setLoading(false);
-      });
+      .finally(() => setLoading(false));
   };
 
   const closeDialog = () => {
     setSelectedBlockId(null);
     setBlockDetails(null);
-    setError(null);
   };
 
-  // Check if a block matches the search query or category filter
-  const isBlockHighlighted = (block) => {
-    // 1. Search Query filter (matches name or departments list)
-    const matchesSearch = searchQuery
-      ? block.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        block.departments.some(d => d.toLowerCase().includes(searchQuery.toLowerCase()))
-      : null;
-
-    // 2. Category filter
-    const matchesCategory = selectedCategory ? block.category === selectedCategory : null;
-
-    if (matchesSearch !== null && matchesCategory !== null) {
-      return matchesSearch && matchesCategory;
-    } else if (matchesSearch !== null) {
-      return matchesSearch;
-    } else if (matchesCategory !== null) {
-      return matchesCategory;
+  // High-Contrast Vivid Colors (Fix washed-out text/color bug)
+  const getBlockStyle = (category) => {
+    switch (category) {
+      case 'Sports':
+        return { fill: '#F0FDF4', stroke: '#166534', text: '#14532D', dot: '#166534' };
+      case 'Academic':
+        return { fill: '#EEF2FF', stroke: '#1E40AF', text: '#1E3A8A', dot: '#1E40AF' };
+      case 'Services':
+      case 'Religious':
+        return { fill: '#FFF7ED', stroke: '#C2410C', text: '#7C2D12', dot: '#C2410C' };
+      case 'Hostel':
+        return { fill: '#EEF2FF', stroke: '#3730A3', text: '#1E1B4B', dot: '#3730A3' };
+      case 'Transport':
+      case 'Utilities':
+      default:
+        return { fill: '#F8FAFC', stroke: '#334155', text: '#0F172A', dot: '#334155' };
     }
-    return true; // Highlighted by default if no filters
-  };
-
-  // Check if a block is pulsing (soft pulse for exact matches on search)
-  const isBlockPulsing = (block) => {
-    if (!searchQuery) return false;
-    return block.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      block.departments.some(d => d.toLowerCase().includes(searchQuery.toLowerCase()));
-  };
-
-  // Dynamic colors for SVG polygons/rectangles matching legend system
-  const getCategoryColor = (category, type = 'fill') => {
-    const map = {
-      'Academic': { fill: '#D8E2FF', stroke: '#1B4DA6', text: '#001A41' },
-      'Hostel': { fill: '#E8EAF6', stroke: '#3F51B5', text: '#1A237E' },
-      'Sports': { fill: '#E8F5E9', stroke: '#2E7D32', text: '#1B5E20' },
-      'Transport': { fill: '#ECEFF1', stroke: '#607D8B', text: '#263238' },
-      'Utilities': { fill: '#F5F5F5', stroke: '#757575', text: '#424242' },
-      'Services': { fill: '#FFF3E0', stroke: '#E65100', text: '#5D4037' },
-      'Religious': { fill: '#FFF9C4', stroke: '#FFA000', text: '#5D4037' }
-    };
-    return map[category]?.[type] || '#FFFFFF';
   };
 
   return (
-    <div className="space-y-6 font-sans animate-fade-in py-6 max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8 text-left relative">
-      
-      {/* ── HEADER ────────────────────────────────────────────────── */}
-      <div className="border-b border-surfaceVariant pb-4 flex flex-col md:flex-row md:items-center justify-between gap-4">
+    <div className="space-y-6 font-sans text-left max-w-7xl mx-auto py-4 animate-fade-in select-none">
+      {/* Light MD3 Header */}
+      <div className="border-b border-surfaceVariant pb-4 flex flex-col md:flex-row items-start md:items-end justify-between gap-4">
         <div>
-          <span className="text-xs text-onSurfaceVariant font-bold uppercase tracking-wider">{t('campusInfo') || 'Campus Info'}</span>
-          <h1 className="text-2xl sm:text-3xl font-extrabold text-primary mt-0.5 flex items-center gap-2">
-            <span className="material-symbols-outlined text-[28px] select-none">map</span>
-            {t('campusMap') || 'Interactive Campus Map'}
+          <span className="text-xs text-onSurfaceVariant font-bold uppercase tracking-wider">Saranathan Campus Portal</span>
+          <h1 className="text-3xl font-extrabold text-primary flex items-center gap-2 mt-0.5">
+            <span className="material-symbols-outlined text-[32px]">map</span>
+            Campus Map & Live Navigation
           </h1>
-          <p className="text-xs sm:text-sm text-onSurfaceVariant mt-1.5 leading-relaxed max-w-2xl">
-            Interactive floor blueprints and department finder for Saranathan College of Engineering. Click on any building to view services, labs, and directions.
+          <p className="text-sm text-onSurfaceVariant mt-1">
+            Pick your destination building, track live GPS walking directions, and explore 18+ SCE landmarks.
           </p>
         </div>
 
-        {/* AI Live Search bar */}
-        <div className="relative w-full md:w-96 flex-shrink-0">
-          <span className="material-symbols-outlined absolute left-3.5 top-2.5 text-onSurfaceVariant text-[18px]">search</span>
-          <input
-            type="text"
-            placeholder="Ask me where you want to go... (e.g., Take me to ECE Dept)"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && handleAiSearch(searchQuery)}
-            className="w-full pl-10 pr-20 py-2 border border-outline/30 rounded-full text-xs bg-surface focus:border-primary focus:ring-1 focus:ring-primary outline-none text-onSurface shadow-sm"
-          />
-          
-          <div className="absolute right-2 top-1.5 flex items-center gap-1">
-            <button
-              type="button"
-              onClick={() => {
-                const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-                if (SpeechRecognition) {
-                  const recognition = new SpeechRecognition();
-                  recognition.onresult = (event) => {
-                    const transcript = event.results[0][0].transcript;
-                    setSearchQuery(transcript);
-                    handleAiSearch(transcript);
-                  };
-                  recognition.start();
-                } else {
-                  alert('Speech recognition not supported in this browser.');
-                }
-              }}
-              className="text-onSurfaceVariant hover:text-primary transition-colors p-1"
-              title="Voice Search"
-            >
-              <span className="material-symbols-outlined text-[18px]">mic</span>
-            </button>
-            {searchQuery && (
-              <button
-                type="button"
-                onClick={() => {
-                  setSearchQuery('');
-                  setAiDestinationId(null);
-                  setAiIntentMsg(null);
-                }}
-                className="text-onSurfaceVariant hover:text-onSurface p-1"
-              >
-                <span className="material-symbols-outlined text-[16px]">close</span>
-              </button>
-            )}
+        {/* View Mode Toggle Switcher */}
+        <div className="inline-flex border border-outline/30 rounded-full p-1 bg-white shadow-xs">
+          <button
+            onClick={() => setViewMode('satellite')}
+            className={`flex items-center gap-2 rounded-full px-5 py-2.5 text-xs font-black transition-all ${
+              viewMode === 'satellite' ? 'bg-primary text-white shadow-md' : 'text-onSurfaceVariant hover:bg-slate-100'
+            }`}
+          >
+            <span className="material-symbols-outlined text-[18px]">satellite_alt</span>
+            <span>🛰️ Live Satellite View</span>
+          </button>
+
+          <button
+            onClick={() => setViewMode('layout')}
+            className={`flex items-center gap-2 rounded-full px-5 py-2.5 text-xs font-black transition-all ${
+              viewMode === 'layout' ? 'bg-primary text-white shadow-md' : 'text-onSurfaceVariant hover:bg-slate-100'
+            }`}
+          >
+            <span className="material-symbols-outlined text-[18px]">map</span>
+            <span>🗺️ 2D Layout Map</span>
+          </button>
+        </div>
+      </div>
+
+      {/* Light MD3 AI Search Bar */}
+      <div className="bg-white p-3 sm:p-4 rounded-3xl border border-outline/30 shadow-elevation1 space-y-2">
+        <div className="flex flex-col md:flex-row items-center gap-3">
+          <div className="flex items-center gap-3 min-w-0 flex-1 w-full bg-surfaceContainerLow border border-outline/25 rounded-full px-4 py-1.5 focus-within:ring-2 focus-within:ring-primary">
+            <span className="material-symbols-outlined text-primary text-[20px]">search</span>
+            <input
+              type="text"
+              value={aiInput}
+              onChange={(e) => { setAiInput(e.target.value); setSearchQuery(e.target.value); }}
+              onKeyDown={(e) => e.key === 'Enter' && handleAiSearch()}
+              placeholder="Ask AI to navigate anywhere on campus... (e.g. 'take me to cse department')"
+              className="w-full bg-transparent border-0 text-xs text-onSurface placeholder-gray-400 focus:outline-none font-semibold py-2"
+            />
           </div>
 
-          {/* AI Intent Feedback */}
-          {aiIntentMsg && (
-            <div className="absolute top-12 left-0 right-0 bg-primaryContainer text-onPrimaryContainer text-[10px] py-1 px-3 rounded-full text-center shadow-sm truncate animate-fade-in border border-primary/20">
-              {isAiSearching ? (
-                <span className="flex items-center justify-center gap-1">
-                  <span className="material-symbols-outlined text-[12px] animate-spin">sync</span>
-                  {aiIntentMsg}
-                </span>
-              ) : (
-                <span className="font-medium">{aiIntentMsg}</span>
-              )}
+          <button
+            onClick={() => handleAiSearch()}
+            disabled={isAiSearching}
+            className="w-full md:w-auto px-6 py-3 bg-primary hover:bg-primaryHover text-white font-black text-xs rounded-full shadow-md transition-all active:scale-[0.98] flex items-center justify-center gap-2"
+          >
+            <span className="material-symbols-outlined text-[18px]">auto_awesome</span>
+            <span>{isAiSearching ? 'Analyzing...' : 'Ask AI Navigation'}</span>
+          </button>
+        </div>
+
+        {aiIntentMsg && (
+          <div className="text-xs text-primary font-bold flex items-center gap-2 bg-primaryContainer/30 p-2.5 rounded-2xl border border-primaryContainer">
+            <span className="material-symbols-outlined text-sm">info</span>
+            <span>{aiIntentMsg}</span>
+          </div>
+        )}
+      </div>
+
+      {/* Main Container: Map Stage + Navigation Drawer */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
+        {/* Map View Column */}
+        <div className="lg:col-span-2">
+          {viewMode === 'satellite' ? (
+            <SatelliteMapView
+              searchQuery={searchQuery}
+              userLocation={userLocation}
+              activeDestination={navigationDestination}
+              originId={navigationOriginId}
+              isNavigating={isNavigating}
+              onToggleNavigation={(navState) => setIsNavigating(navState)}
+              onSelectBuildingForNavigation={(b) => {
+                setNavigationDestination(b);
+                setIsNavigating(true);
+                setShowNavigationDrawer(true);
+              }}
+            />
+          ) : (
+            /* 2D Architectural Layout Map (High Contrast & Vivid Text Colors) */
+            <div className="relative w-full h-[680px] bg-[#F1F5F9] border border-slate-300 rounded-3xl overflow-hidden shadow-elevation2">
+              <div className="absolute top-4 right-4 z-20 flex flex-col gap-1 bg-white p-1.5 rounded-2xl shadow-md border border-outline/20">
+                <button onClick={handleZoomIn} className="p-2 hover:bg-slate-100 rounded-xl text-gray-700" title="Zoom In">
+                  <span className="material-symbols-outlined text-[20px]">add</span>
+                </button>
+                <button onClick={handleZoomOut} className="p-2 hover:bg-slate-100 rounded-xl text-gray-700" title="Zoom Out">
+                  <span className="material-symbols-outlined text-[20px]">remove</span>
+                </button>
+                <button onClick={handleReset} className="p-2 hover:bg-slate-100 rounded-xl text-gray-700" title="Reset View">
+                  <span className="material-symbols-outlined text-[20px]">center_focus_strong</span>
+                </button>
+              </div>
+
+              <div
+                className="w-full h-full cursor-grab active:cursor-grabbing flex items-center justify-center p-2"
+                onMouseDown={handleMouseDown}
+                onMouseMove={handleMouseMove}
+                onMouseUp={handleMouseUpOrLeave}
+                onMouseLeave={handleMouseUpOrLeave}
+              >
+                <div
+                  style={{
+                    transform: `translate(${pan.x}px, ${pan.y}px) scale(${scale})`,
+                    transition: isDragging ? 'none' : 'transform 0.15s ease-out'
+                  }}
+                  className="w-full h-full flex items-center justify-center"
+                >
+                  <svg
+                    ref={svgRef}
+                    viewBox="0 0 900 980"
+                    className="w-full h-full max-h-[640px] object-contain drop-shadow-sm select-none"
+                  >
+                    <g className="roads" opacity="0.8">
+                      <rect x="0" y="175" width="900" height="26" fill="#CBD5E1" />
+                      <line x1="0" y1="188" x2="900" y2="188" stroke="#94A3B8" strokeWidth="2" strokeDasharray="8 6" />
+                      <rect x="435" y="175" width="30" height="795" fill="#CBD5E1" />
+                      <line x1="450" y1="175" x2="450" y2="970" stroke="#94A3B8" strokeWidth="2" strokeDasharray="8 6" />
+                      <rect x="0" y="660" width="900" height="26" fill="#CBD5E1" />
+                      <line x1="0" y1="673" x2="900" y2="673" stroke="#94A3B8" strokeWidth="2" strokeDasharray="8 6" />
+                    </g>
+
+                    <g transform="translate(405, 940)" className="cursor-pointer">
+                      <rect x="0" y="0" width="90" height="28" rx="8" fill="#0F172A" />
+                      <text x="45" y="14" fill="#FFFFFF" fontSize="9" fontWeight="900" textAnchor="middle" dominantBaseline="central">
+                        MAIN ENTRANCE
+                      </text>
+                    </g>
+
+                    {CAMPUS_MAP_DATA.map(block => {
+                      const isSelected = selectedBlockId === block.id || navigationDestination?.id === block.id;
+                      const style = getBlockStyle(block.category);
+
+                      if (block.shape === 'ellipse') {
+                        const cx = block.coords.cx;
+                        const cy = block.coords.cy;
+                        const rx = block.coords.rx;
+                        const ry = block.coords.ry;
+
+                        return (
+                          <g
+                            key={block.id}
+                            onClick={() => handleBlockClick(block)}
+                            className="cursor-pointer group"
+                            opacity={1}
+                          >
+                            <ellipse
+                              cx={cx}
+                              cy={cy}
+                              rx={rx}
+                              ry={ry}
+                              fill={style.fill}
+                              stroke={isSelected ? '#1E40AF' : style.stroke}
+                              strokeWidth={isSelected ? 4 : 2}
+                              className="transition-all duration-150 group-hover:filter group-hover:brightness-95"
+                            />
+                            <circle cx={cx - rx + 30} cy={cy - ry + 20} r={4} fill={style.dot} />
+                            <text
+                              x={cx}
+                              y={cy - 5}
+                              textAnchor="middle"
+                              dominantBaseline="central"
+                              fill={style.text}
+                              fontSize="11"
+                              fontWeight="900"
+                              className="pointer-events-none"
+                            >
+                              {block.name}
+                            </text>
+                            <text
+                              x={cx}
+                              y={cy + 10}
+                              textAnchor="middle"
+                              dominantBaseline="central"
+                              fill="#475569"
+                              fontSize="8"
+                              fontWeight="800"
+                              className="pointer-events-none uppercase tracking-wider"
+                            >
+                              {block.category}
+                            </text>
+                          </g>
+                        );
+                      } else {
+                        const x = block.coords.x;
+                        const y = block.coords.y;
+                        const w = block.coords.w;
+                        const h = block.coords.h;
+                        const centerX = x + w / 2;
+                        const centerY = y + h / 2;
+
+                        return (
+                          <g
+                            key={block.id}
+                            onClick={() => handleBlockClick(block)}
+                            className="cursor-pointer group"
+                            opacity={1}
+                          >
+                            <rect
+                              x={x}
+                              y={y}
+                              width={w}
+                              height={h}
+                              rx={14}
+                              fill={style.fill}
+                              stroke={isSelected ? '#1E40AF' : style.stroke}
+                              strokeWidth={isSelected ? 4 : 2}
+                              className="transition-all duration-150 group-hover:filter group-hover:brightness-95"
+                            />
+                            <circle cx={x + 14} cy={y + 14} r={3.5} fill={style.dot} />
+                            <text
+                              x={centerX}
+                              y={h < 40 ? centerY : centerY - 6}
+                              textAnchor="middle"
+                              dominantBaseline="central"
+                              fill={style.text}
+                              fontSize={w < 100 || h < 40 ? "9.5" : "11.5"}
+                              fontWeight="900"
+                              className="pointer-events-none"
+                            >
+                              {block.name}
+                            </text>
+                            {h >= 40 && (
+                              <text
+                                x={centerX}
+                                y={centerY + 8}
+                                textAnchor="middle"
+                                dominantBaseline="central"
+                                fill="#475569"
+                                fontSize="8"
+                                fontWeight="800"
+                                className="pointer-events-none uppercase tracking-wider"
+                              >
+                                {block.category}
+                              </text>
+                            )}
+                          </g>
+                        );
+                      }
+                    })}
+                  </svg>
+                </div>
+              </div>
             </div>
           )}
         </div>
+
+        {/* Live Navigation Drawer Column */}
+        <div className="space-y-6">
+          <LiveNavigationDrawer
+            initialDestination={navigationDestination}
+            isNavigating={isNavigating}
+            onToggleNavigation={(navState) => setIsNavigating(navState)}
+            onOriginChange={(origId) => setNavigationOriginId(origId)}
+            onDestinationChange={(building) => setNavigationDestination(building)}
+            onUserLocationUpdate={(coords) => setUserLocation(coords)}
+            onClose={() => setShowNavigationDrawer(false)}
+          />
+        </div>
       </div>
-
-      {/* ── INTERACTIVE LEGEND ────────────────────────────────────── */}
-      <div className="flex flex-wrap items-center gap-2 py-1">
-        <span className="text-xs font-bold text-onSurfaceVariant mr-2">Filter Category:</span>
-        <button
-          type="button"
-          onClick={() => setSelectedCategory(null)}
-          className={`px-3 py-1.5 rounded-full text-[11px] font-bold tracking-wide transition-all outline-none ${
-            selectedCategory === null
-              ? 'bg-primary text-white shadow-sm'
-              : 'bg-surface border border-surfaceVariant/60 text-onSurfaceVariant hover:bg-surfaceContainer'
-          }`}
-        >
-          All Locations
-        </button>
-        {LEGEND_CATEGORIES.map((cat) => {
-          const isSelected = selectedCategory === cat.key;
-          return (
-            <button
-              key={cat.key}
-              type="button"
-              onClick={() => setSelectedCategory(isSelected ? null : cat.key)}
-              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11px] font-bold transition-all outline-none ${
-                isSelected
-                  ? 'bg-primary text-white shadow-sm'
-                  : 'bg-surface border border-surfaceVariant/60 text-onSurfaceVariant hover:bg-surfaceContainer'
-              }`}
-            >
-              <span className="material-symbols-outlined text-[13px]" style={{ color: isSelected ? '#FFFFFF' : cat.color }}>
-                {cat.icon}
-              </span>
-              <span>{cat.label}</span>
-            </button>
-          );
-        })}
-      </div>
-
-      {/* ── MAP CONTAINER ─────────────────────────────────────────── */}
-      <div className="relative bg-slate-100 border border-outline/15 rounded-[28px] overflow-hidden shadow-elevation1 select-none flex flex-col justify-between" style={{ minHeight: '680px' }}>
-        
-        {/* Tooltip Overlay */}
-        {hoveredBlock && (
-          <div 
-            className="absolute top-4 left-4 bg-slate-900/90 text-white px-4 py-2.5 rounded-xl text-xs z-20 shadow-lg pointer-events-none animate-fade-in border border-white/10"
-            style={{ maxWidth: '280px' }}
-          >
-            <p className="font-extrabold text-[13px]">{hoveredBlock.name}</p>
-            <span className="inline-block text-[9px] font-black uppercase tracking-widest text-primaryContainer/90 bg-primaryContainer/20 px-1.5 py-0.5 rounded-full mt-1">
-              {hoveredBlock.category}
-            </span>
-            {hoveredBlock.departments.length > 0 && (
-              <p className="text-[10px] text-slate-300 mt-2 font-medium">
-                <strong>Wings:</strong> {hoveredBlock.departments.join(', ')}
-              </p>
-            )}
-          </div>
-        )}
-
-        {/* MAP CANVAS VIEWPORT */}
-        <div 
-          className="flex-1 w-full h-full overflow-hidden relative cursor-grab active:cursor-grabbing"
-          onMouseDown={handleMouseDown}
-          onMouseMove={handleMouseMove}
-          onMouseUp={handleMouseUpOrLeave}
-          onMouseLeave={handleMouseUpOrLeave}
-        >
-          <svg
-            ref={svgRef}
-            viewBox="0 0 800 1000"
-            className="w-full h-full select-none origin-top-left transition-transform duration-75"
-            style={{ 
-              transform: `translate(${pan.x}px, ${pan.y}px) scale(${scale})`,
-              shapeRendering: 'geometricPrecision' 
-            }}
-          >
-            {/* Background canvas */}
-            <rect width="800" height="1000" fill="#F4F6F9" />
-
-            {/* GRID LINES BACKDROP */}
-            <defs>
-              <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
-                <path d="M 40 0 L 0 0 0 40" fill="none" stroke="#E2E8F0" strokeWidth="0.5" />
-              </pattern>
-            </defs>
-            <rect width="800" height="1000" fill="url(#grid)" opacity="0.4" />
-
-            {/* ── ROADS & STREETS ────────────────────────────────────── */}
-            {/* Top Horizontal Road */}
-            <rect x="0" y="185" width="800" height="30" fill="#E2E8F0" rx="2" />
-            <line x1="0" y1="200" x2="800" y2="200" stroke="#CBD5E1" strokeWidth="1.5" strokeDasharray="6 6" />
-
-            {/* Bottom Horizontal Road */}
-            <rect x="0" y="680" width="800" height="30" fill="#E2E8F0" rx="2" />
-            <line x1="0" y1="695" x2="800" y2="695" stroke="#CBD5E1" strokeWidth="1.5" strokeDasharray="6 6" />
-
-            {/* Center Vertical Road */}
-            <rect x="390" y="215" width="30" height="465" fill="#E2E8F0" />
-            <line x1="405" y1="215" x2="405" y2="680" stroke="#CBD5E1" strokeWidth="1.5" strokeDasharray="6 6" />
-
-            {/* Main Entrance Vertical continuation */}
-            <rect x="390" y="710" width="30" height="260" fill="#E2E8F0" />
-            <line x1="405" y1="710" x2="405" y2="970" stroke="#CBD5E1" strokeWidth="1.5" strokeDasharray="6 6" />
-
-            {/* Main Entrance Gate Banner */}
-            <rect x="365" y="970" width="80" height="25" rx="4" fill="#0F172A" />
-            <text x="405" y="986" textAnchor="middle" fill="#FFFFFF" fontSize="8" fontWeight="bold" letterSpacing="1" fontFamily="sans-serif">MAIN ENTRANCE</text>
-
-            {/* Gutter separator dash pathway for center column */}
-            <line x1="590" y1="215" x2="590" y2="680" stroke="#CBD5E1" strokeWidth="1" strokeDasharray="3 3" />
-
-            {/* ── AI NAVIGATION ROUTE ──────────────────────────────────── */}
-            {aiDestinationId && (() => {
-              const target = CAMPUS_MAP_DATA.find(b => b.svg_id === aiDestinationId);
-              if (!target) return null;
-              
-              const startX = 405;
-              const startY = 970;
-              const endX = target.shape === 'rect' ? target.coords.x + target.coords.w / 2 : target.coords.cx;
-              const endY = target.shape === 'rect' ? target.coords.y + target.coords.h / 2 : target.coords.cy;
-
-              // Draw a simple path (Manhattan-ish routing)
-              const midY = endY < 680 ? 695 : endY; // Go up main road
-              
-              return (
-                <g className="animate-fade-in pointer-events-none">
-                  {/* Outer glow */}
-                  <path 
-                    d={`M ${startX} ${startY} L 405 ${midY} L ${endX} ${midY} L ${endX} ${endY}`}
-                    fill="none" 
-                    stroke="#1B4DA6" 
-                    strokeWidth="8" 
-                    opacity="0.2"
-                  />
-                  {/* Animated dashed line */}
-                  <path 
-                    d={`M ${startX} ${startY} L 405 ${midY} L ${endX} ${midY} L ${endX} ${endY}`}
-                    fill="none" 
-                    stroke="#2563EB" 
-                    strokeWidth="4"
-                    strokeDasharray="12 12"
-                    className="animate-route-dash"
-                  />
-                  {/* Destination Pin */}
-                  <circle cx={endX} cy={endY} r="8" fill="#EF4444" className="animate-bounce shadow-lg" />
-                  <circle cx={endX} cy={endY} r="8" fill="none" stroke="#EF4444" strokeWidth="2" className="animate-ping" />
-                </g>
-              );
-            })()}
-
-            {/* ── DYNAMIC MAP NODES ──────────────────────────────────── */}
-            {CAMPUS_MAP_DATA.map((block) => {
-              const highlighted = isBlockHighlighted(block);
-              const pulsing = isBlockPulsing(block);
-              const fillVal = getCategoryColor(block.category, 'fill');
-              const strokeVal = getCategoryColor(block.category, 'stroke');
-              const textVal = getCategoryColor(block.category, 'text');
-
-              return (
-                <g 
-                  key={block.id} 
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleBlockClick(block);
-                  }}
-                  onMouseEnter={() => setHoveredBlock(block)}
-                  onMouseLeave={() => setHoveredBlock(null)}
-                  className="group cursor-pointer"
-                  style={{
-                    opacity: highlighted ? 1 : 0.22,
-                    transition: 'opacity 200ms ease, transform 180ms ease'
-                  }}
-                >
-                  {/* Outer Pulsing Aura (for search focus) */}
-                  {pulsing && (
-                    block.shape === 'rect' ? (
-                      <rect
-                        x={block.coords.x - 4}
-                        y={block.coords.y - 4}
-                        width={block.coords.w + 8}
-                        height={block.coords.h + 8}
-                        rx={16}
-                        fill="none"
-                        stroke="#1B4DA6"
-                        strokeWidth="2"
-                        className="animate-pulse"
-                      />
-                    ) : (
-                      <ellipse
-                        cx={block.coords.cx}
-                        cy={block.coords.cy}
-                        rx={block.coords.rx + 6}
-                        ry={block.coords.ry + 6}
-                        fill="none"
-                        stroke="#1B4DA6"
-                        strokeWidth="2"
-                        className="animate-pulse"
-                      />
-                    )
-                  )}
-
-                  {/* Building Shape rendering */}
-                  {block.shape === 'rect' ? (
-                    <rect
-                      x={block.coords.x}
-                      y={block.coords.y}
-                      width={block.coords.w}
-                      height={block.coords.h}
-                      rx={12}
-                      fill={fillVal}
-                      stroke={strokeVal}
-                      strokeWidth="2"
-                      className="transition-all duration-200 group-hover:brightness-95 group-hover:scale-[1.02] transform origin-center shadow-sm"
-                      style={{ transformOrigin: `${block.coords.x + block.coords.w / 2}px ${block.coords.y + block.coords.h / 2}px` }}
-                    />
-                  ) : (
-                    <ellipse
-                      cx={block.coords.cx}
-                      cy={block.coords.cy}
-                      rx={block.coords.rx}
-                      ry={block.coords.ry}
-                      fill={fillVal}
-                      stroke={strokeVal}
-                      strokeWidth="2"
-                      className="transition-all duration-200 group-hover:brightness-95 group-hover:scale-[1.02] transform origin-center shadow-sm"
-                      style={{ transformOrigin: `${block.coords.cx}px ${block.coords.cy}px` }}
-                    />
-                  )}
-
-                  {/* Building Name Label */}
-                  {block.shape === 'rect' ? (
-                    <foreignObject
-                      x={block.coords.x}
-                      y={block.coords.y}
-                      width={block.coords.w}
-                      height={block.coords.h}
-                      className="pointer-events-none"
-                    >
-                      <div className="w-full h-full flex flex-col items-center justify-center text-center p-0.5 leading-tight overflow-hidden">
-                        <span 
-                          style={{ color: textVal, fontSize: block.coords.w < 60 ? '8px' : '10px' }} 
-                          className="font-[900] font-['Plus_Jakarta_Sans'] whitespace-normal break-words"
-                        >
-                          {block.name}
-                        </span>
-                        {block.coords.h > 40 && (
-                          <span 
-                            style={{ color: strokeVal }} 
-                            className="font-[700] text-[6px] uppercase tracking-wider opacity-75 mt-0.5 whitespace-normal break-words"
-                          >
-                            {block.category}
-                          </span>
-                        )}
-                      </div>
-                    </foreignObject>
-                  ) : (
-                    <foreignObject
-                      x={block.coords.cx - block.coords.rx}
-                      y={block.coords.cy - block.coords.ry}
-                      width={block.coords.rx * 2}
-                      height={block.coords.ry * 2}
-                      className="pointer-events-none"
-                    >
-                      <div className="w-full h-full flex flex-col items-center justify-center text-center p-2 leading-tight overflow-hidden">
-                        <span 
-                          style={{ color: textVal, fontSize: '10px' }} 
-                          className="font-[900] font-['Plus_Jakarta_Sans'] whitespace-normal break-words"
-                        >
-                          {block.name}
-                        </span>
-                        <span 
-                          style={{ color: strokeVal }} 
-                          className="font-[700] text-[7px] uppercase tracking-wider opacity-75 mt-0.5 whitespace-normal break-words"
-                        >
-                          {block.category}
-                        </span>
-                      </div>
-                    </foreignObject>
-                  )}
-
-                  {/* Material Ripple Click Accent Ring */}
-                  {block.shape === 'rect' ? (
-                    <circle cx={block.coords.x + 12} cy={block.coords.y + 12} r="3.5" fill={strokeVal} />
-                  ) : (
-                    <circle cx={block.coords.cx - 15} cy={block.coords.cy - 10} r="3.5" fill={strokeVal} />
-                  )}
-                </g>
-              );
-            })}
-
-            {/* ── EVENT PINS ──────────────────────────────────── */}
-            {events.map((event) => {
-              if (!event.pin_x || !event.pin_y) return null; // Only render if pinned
-              return (
-                <g 
-                  key={`event-${event.id}`}
-                  className="cursor-pointer group animate-fade-in"
-                  transform={`translate(${event.pin_x}, ${event.pin_y})`}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setScale(1.5);
-                    setPan({ x: 400 - event.pin_x, y: 500 - event.pin_y });
-                  }}
-                >
-                  <path d="M 0 0 Q -10 -15 -10 -25 A 10 10 0 1 1 10 -25 Q 10 -15 0 0 Z" fill={event.pin_color || "#F59E0B"} className="drop-shadow-sm transition-transform group-hover:-translate-y-1" />
-                  <circle cx="0" cy="-25" r="4" fill="#FFFFFF" />
-                  <foreignObject x="-40" y="-55" width="80" height="20" className="pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity">
-                    <div className="bg-slate-900/90 text-white text-[8px] font-bold py-0.5 px-2 rounded text-center whitespace-nowrap overflow-hidden text-ellipsis shadow-md">
-                      {event.title}
-                    </div>
-                  </foreignObject>
-                </g>
-              );
-            })}
-          </svg>
-        </div>
-
-        {/* MAP CONTROLS FLOATING PANEL */}
-        <div className="absolute bottom-4 right-4 bg-white/90 backdrop-blur-sm border border-outline/15 px-3 py-2 rounded-2xl flex items-center gap-2 shadow-lg z-10">
-          <button
-            type="button"
-            onClick={handleZoomIn}
-            title="Zoom In"
-            className="w-8 h-8 rounded-full flex items-center justify-center hover:bg-slate-100 text-slate-700 outline-none transition-colors"
-          >
-            <span className="material-symbols-outlined text-[20px]">add</span>
-          </button>
-          <button
-            type="button"
-            onClick={handleZoomOut}
-            title="Zoom Out"
-            className="w-8 h-8 rounded-full flex items-center justify-center hover:bg-slate-100 text-slate-700 outline-none transition-colors"
-          >
-            <span className="material-symbols-outlined text-[20px]">remove</span>
-          </button>
-          <div className="h-4 w-px bg-slate-300"></div>
-          <button
-            type="button"
-            onClick={handleReset}
-            title="Reset Zoom"
-            className="w-8 h-8 rounded-full flex items-center justify-center hover:bg-slate-100 text-slate-700 outline-none transition-colors"
-          >
-            <span className="material-symbols-outlined text-[18px]">restart_alt</span>
-          </button>
-          <button
-            type="button"
-            onClick={handleFit}
-            title="Fit to Screen"
-            className="w-8 h-8 rounded-full flex items-center justify-center hover:bg-slate-100 text-slate-700 outline-none transition-colors"
-          >
-            <span className="material-symbols-outlined text-[18px]">fit_screen</span>
-          </button>
-        </div>
-
-        {/* Drag pan indicator alert banner */}
-        <div className="absolute bottom-4 left-4 bg-slate-800/40 text-white/90 text-[10px] font-bold px-3 py-1.5 rounded-full z-10 pointer-events-none select-none">
-          💡 Drag canvas to pan • Use +/- controls
-        </div>
-
-      </div>
-
-      {/* ── DETAIL DIALOG / MODAL (M3 style) ─────────────────────── */}
-      {selectedBlockId && (
-        <div
-          className="fixed inset-0 bg-slate-900/60 backdrop-blur-[2px] flex items-center justify-center p-4 z-50 animate-fade-in"
-          onClick={closeDialog}
-        >
-          <div
-            className="bg-white border border-outline/10 rounded-[28px] max-w-md w-full shadow-elevation3 animate-slide-up overflow-hidden"
-            onClick={(e) => e.stopPropagation()}
-          >
-            {/* Dialog Header */}
-            <div className="px-6 pt-6 pb-4 border-b border-surfaceVariant/60 flex items-center justify-between">
-              <div>
-                <h2 className="text-lg font-extrabold text-primary flex items-center gap-2">
-                  <span className="material-symbols-outlined text-[22px] select-none text-primary">location_on</span>
-                  {blockDetails?.block_name || 'Loading...'}
-                </h2>
-                <span className="inline-block text-[9px] bg-primaryContainer/30 text-primary font-black uppercase tracking-wider px-2 py-0.5 rounded-full mt-1">
-                  {blockDetails?.block_type || 'facility'}
-                </span>
-              </div>
-              <button
-                type="button"
-                onClick={closeDialog}
-                className="w-8 h-8 rounded-full flex items-center justify-center text-slate-500 hover:bg-slate-100 transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary"
-              >
-                <span className="material-symbols-outlined text-[20px] select-none">close</span>
-              </button>
-            </div>
-
-            {/* Dialog Content */}
-            <div className="p-6 space-y-4">
-              {loading ? (
-                <div className="space-y-4 animate-pulse py-2 text-left">
-                  <div className="h-3.5 bg-slate-200 rounded-full w-28 mb-3"></div>
-                  <div className="space-y-3">
-                    <div className="flex gap-4 items-center border-b border-slate-100 pb-2">
-                      <div className="h-3.5 bg-slate-200 rounded-full w-16 flex-shrink-0"></div>
-                      <div className="h-3.5 bg-slate-100 rounded-full flex-1"></div>
-                    </div>
-                    <div className="flex gap-4 items-center border-b border-slate-100 pb-2">
-                      <div className="h-3.5 bg-slate-200 rounded-full w-16 flex-shrink-0"></div>
-                      <div className="h-3.5 bg-slate-100 rounded-full flex-1"></div>
-                    </div>
-                  </div>
-                </div>
-              ) : error ? (
-                <div className="py-4 text-center text-red-500 space-y-2">
-                  <span className="material-symbols-outlined text-[36px] select-none">error</span>
-                  <p className="text-sm font-semibold">{error}</p>
-                </div>
-              ) : blockDetails ? (
-                <div className="space-y-4 text-xs text-onSurfaceVariant">
-                  
-                  {/* Block Description */}
-                  <div className="bg-slate-50 border border-slate-150 p-3 rounded-2xl">
-                    <p className="font-semibold text-slate-700 leading-relaxed">
-                      {blockDetails.description || 'Description not configured.'}
-                    </p>
-                  </div>
-
-                  {/* Departments / Wings List */}
-                  {blockDetails.departments && blockDetails.departments.length > 0 && (
-                    <div className="space-y-1">
-                      <p className="text-[10px] font-black uppercase tracking-wider text-slate-400">Departments & Associated Wings</p>
-                      <div className="flex flex-wrap gap-1">
-                        {blockDetails.departments.map((dept, i) => (
-                          <span key={i} className="bg-primary/5 text-primary text-[10px] font-bold px-2.5 py-1 rounded-lg border border-primary/10">
-                            {dept}
-                          </span>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Floor / Facility breakdowns */}
-                  <div className="space-y-2 pt-2">
-                    <p className="text-[10px] font-black uppercase tracking-wider text-slate-400 border-b border-slate-100 pb-1">
-                      Floor details & schedules
-                    </p>
-                    <div className="space-y-2 max-h-[180px] overflow-y-auto pr-1">
-                      {blockDetails.floors && blockDetails.floors.length > 0 ? (
-                        blockDetails.floors.map((floor, idx) => (
-                          <div key={idx} className="flex gap-4 items-start py-1 border-b border-slate-50 last:border-0 pb-1.5 last:pb-0">
-                            <span className="font-extrabold text-primary min-w-[80px] flex-shrink-0 text-left">
-                              {floor.floor_label}
-                            </span>
-                            <span className="text-slate-600 text-left leading-normal">
-                              {floor.detail_text}
-                            </span>
-                          </div>
-                        ))
-                      ) : (
-                        <p className="text-slate-400 text-center py-2">No schedules config loaded.</p>
-                      )}
-                    </div>
-                  </div>
-
-                </div>
-              ) : null}
-            </div>
-
-            {/* Dialog Footer with Navigate action */}
-            <div className="px-6 py-4 bg-slate-50 border-t border-slate-100 flex items-center justify-between">
-              {/* Navigate Action Button placeholder */}
-              <button
-                type="button"
-                disabled
-                className="inline-flex items-center gap-1 text-[11px] font-bold text-slate-400 cursor-not-allowed bg-slate-200/50 py-1.5 px-3 rounded-lg"
-              >
-                <span className="material-symbols-outlined text-[14px]">navigation</span>
-                Navigate (Coming Soon)
-              </button>
-
-              <button
-                type="button"
-                onClick={closeDialog}
-                className="px-5 py-2 bg-primary hover:bg-primaryHover text-white font-bold text-xs rounded-full shadow-sm transition-all focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary"
-              >
-                Close
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Floating AI Guide Button */}
-      <button
-        type="button"
-        className="fixed bottom-6 right-6 w-14 h-14 bg-primary text-white rounded-full shadow-xl hover:scale-105 transition-transform flex items-center justify-center group z-50 animate-bounce"
-        onClick={() => document.querySelector('input[type="text"]').focus()}
-        title="Ask AI Guide"
-      >
-        <span className="material-symbols-outlined text-3xl">smart_toy</span>
-        <span className="absolute -top-2 -right-2 bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full border-2 border-white shadow-sm">AI</span>
-      </button>
     </div>
   );
 };
 
 export default CampusMap;
-

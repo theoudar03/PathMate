@@ -128,24 +128,6 @@ if (process.env.NODE_ENV !== 'test') {
     }
   });
 }
-  } catch (err) {
-    console.error(`
-======================================================================
-Unable to connect to PostgreSQL.
-
-Check:
-- DATABASE_URL: ${process.env.DATABASE_URL ? 'Configured (hidden for safety)' : 'Not Configured'}
-- Network connectivity
-- Supabase database status and connection limits
-- SSL configuration
-
-Reason: ${err.message}
-======================================================================
-    `);
-
-    console.warn('NOTE: Operating in fallback memory mode. Configure DATABASE_URL in .env to connect to PostgreSQL.');
-  }
-});
 
 // Export the Express API for Vercel Serverless
 export default app;

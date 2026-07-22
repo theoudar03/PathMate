@@ -89,7 +89,8 @@ const runMigrationsSafely = async () => {
       '14_notice_attachments.sql',
       '15_real_student_modules.sql',
       '16_production_auth_security.sql',
-      '17_admin_crud_production.sql'
+      '17_admin_crud_production.sql',
+      '19_bus_routes.sql'
     ];
 
     for (const file of migrationFiles) {

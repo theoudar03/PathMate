@@ -1957,5 +1957,45 @@ router.post('/roommates/profile', async (req, res) => {
   }
 });
 
+/**
+ * GET /api/bus-routes/today
+ * Returns active morning and evening bus routes for today (or latest published active routes)
+ */
+router.get('/bus-routes/today', async (req, res) => {
+  try {
+    const morningResult = await db.query(
+      "SELECT * FROM bus_routes WHERE session = 'morning' AND status = 'active' ORDER BY id DESC LIMIT 1"
+    );
+    const eveningResult = await db.query(
+      "SELECT * FROM bus_routes WHERE session = 'evening' AND status = 'active' ORDER BY id DESC LIMIT 1"
+    );
+
+    res.json({
+      morning: morningResult.rows[0] || null,
+      evening: eveningResult.rows[0] || null,
+      serverTime: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error("GET /api/bus-routes/today error:", error.message);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+/**
+ * GET /api/bus-routes/archive
+ * Returns archived/historical bus route records
+ */
+router.get('/bus-routes/archive', async (req, res) => {
+  try {
+    const result = await db.query(
+      "SELECT * FROM bus_routes WHERE status = 'archived' ORDER BY route_date DESC, id DESC LIMIT 20"
+    );
+    res.json(result.rows);
+  } catch (error) {
+    console.error("GET /api/bus-routes/archive error:", error.message);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 export default router;
 

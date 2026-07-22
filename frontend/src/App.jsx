@@ -22,6 +22,7 @@ import AdminDashboard from './pages/admin/AdminDashboard';
 import AdminStudents from './pages/admin/AdminStudents';
 import AdminEvents from './pages/admin/AdminEvents';
 import AdminNotices from './pages/admin/AdminNotices';
+import AdminBusRoutes from './pages/admin/AdminBusRoutes';
 import AdminCommittees from './pages/admin/AdminCommittees';
 import AdminRoommates from './pages/admin/AdminRoommates';
 import AdminSeniors from './pages/admin/AdminSeniors';
@@ -92,6 +93,7 @@ function AppContent() {
             <Route path="knowledge" element={<AdminKnowledge />} />
             <Route path="events" element={<AdminEvents />} />
             <Route path="notices" element={<AdminNotices />} />
+            <Route path="bus-routes" element={<AdminBusRoutes />} />
             <Route path="committees" element={<AdminCommittees />} />
             <Route path="roommates" element={<AdminRoommates />} />
             <Route path="volunteers" element={<Navigate to="../roommates" replace />} />

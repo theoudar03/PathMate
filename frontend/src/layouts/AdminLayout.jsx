@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Outlet, NavLink, useNavigate, useLocation } from 'react-router-dom';
-import { LayoutDashboard, Users, BookOpen, Calendar, Settings, LogOut, Menu, X, Bell, Search, Layers, Home } from 'lucide-react';
+import { LayoutDashboard, Users, BookOpen, Calendar, Settings, LogOut, Menu, X, Bell, Search, Layers, Home, Bus } from 'lucide-react';
 
 const AdminLayout = () => {
   const [sidebarOpen, setSidebarOpen] = useState(true);
@@ -19,8 +19,9 @@ const AdminLayout = () => {
     { name: 'Dashboard', path: '/admin/dashboard', icon: LayoutDashboard },
     { name: 'Students', path: '/admin/students', icon: Users },
     { name: 'AI Knowledge', path: '/admin/knowledge', icon: BookOpen },
-    { name: 'Events & Clubs', path: '/admin/events', icon: Calendar },
     { name: 'Notice Board', path: '/admin/notices', icon: Layers },
+    { name: 'Bus Routes', path: '/admin/bus-routes', icon: Bus },
+    { name: 'Events & Clubs', path: '/admin/events', icon: Calendar },
     { name: 'Committees', path: '/admin/committees', icon: Users },
     { name: 'Roommates', path: '/admin/roommates', icon: Home },
     { name: 'Seniors', path: '/admin/seniors', icon: Users },

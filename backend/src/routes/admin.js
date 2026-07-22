@@ -1125,4 +1125,104 @@ router.delete('/seniors/:id', async (req, res) => {
   }
 });
 
+// ----------------------------------------------------
+// 10. BUS ROUTES MANAGEMENT MODULE
+// ----------------------------------------------------
+
+router.get('/bus-routes', async (req, res) => {
+  try {
+    const result = await db.query('SELECT * FROM bus_routes ORDER BY id DESC');
+    res.json(result.rows);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.post('/bus-routes', async (req, res) => {
+  try {
+    const {
+      title, description, route_date, session = 'morning', image_url, status = 'active', uploaded_by = 'College Administration'
+    } = req.body;
+
+    if (!title || !image_url) {
+      return res.status(400).json({ error: 'Title and high-resolution Image URL are required' });
+    }
+
+    const sess = session.toLowerCase();
+    if (!['morning', 'evening'].includes(sess)) {
+      return res.status(400).json({ error: 'Session must be either morning or evening' });
+    }
+
+    // If publishing as active, archive previous active routes for the same session
+    if (status === 'active') {
+      await db.query(
+        "UPDATE bus_routes SET status = 'archived', updated_at = NOW() WHERE session = $1 AND status = 'active'",
+        [sess]
+      );
+    }
+
+    const result = await db.query(
+      `INSERT INTO bus_routes (
+        title, description, route_date, session, image_url, status, uploaded_by
+      ) VALUES ($1, $2, COALESCE($3, CURRENT_DATE), $4, $5, $6, $7)
+      RETURNING *`,
+      [
+        title, description || null, route_date || null, sess, image_url, status, uploaded_by
+      ]
+    );
+
+    await logActivity(req.admin?.id, 'bus_route_created', `Published bus route board (${sess}): ${title}`);
+    res.status(201).json(result.rows[0]);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.put('/bus-routes/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { title, description, route_date, session, image_url, status, uploaded_by } = req.body;
+
+    // If changing status to active, auto-archive existing active routes for this session
+    if (status === 'active' && session) {
+      await db.query(
+        "UPDATE bus_routes SET status = 'archived', updated_at = NOW() WHERE session = $1 AND status = 'active' AND id != $2",
+        [session.toLowerCase(), id]
+      );
+    }
+
+    const result = await db.query(
+      `UPDATE bus_routes SET 
+        title = COALESCE($1, title),
+        description = COALESCE($2, description),
+        route_date = COALESCE($3, route_date),
+        session = COALESCE($4, session),
+        image_url = COALESCE($5, image_url),
+        status = COALESCE($6, status),
+        uploaded_by = COALESCE($7, uploaded_by),
+        updated_at = NOW()
+       WHERE id = $8 RETURNING *`,
+      [title, description, route_date, session ? session.toLowerCase() : null, image_url, status, uploaded_by, id]
+    );
+
+    if (result.rows.length === 0) return res.status(404).json({ error: 'Bus route record not found' });
+
+    await logActivity(req.admin?.id, 'bus_route_updated', `Updated bus route ID: ${id}`);
+    res.json(result.rows[0]);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.delete('/bus-routes/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    await db.query('DELETE FROM bus_routes WHERE id = $1', [id]);
+    await logActivity(req.admin?.id, 'bus_route_deleted', `Deleted bus route ID: ${id}`);
+    res.json({ success: true });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 export default router;

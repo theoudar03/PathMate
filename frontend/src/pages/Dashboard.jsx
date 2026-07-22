@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useApp } from '../contexts/AppContext';
-import ToastSnackbar from '../components/common/ToastSnackbar';
+import BusRouteWidget from '../components/dashboard/BusRouteWidget';
 
 const Dashboard = () => {
   const { studentData, resetAllData, token } = useApp();
@@ -319,6 +319,9 @@ const Dashboard = () => {
               )}
             </div>
           </div>
+
+          {/* OFFICIAL BUS ROUTES WIDGET */}
+          <BusRouteWidget />
 
           {/* UPCOMING EVENTS */}
           <div className="bg-white border border-surfaceVariant rounded-[24px] p-6 shadow-elevation1 space-y-4">

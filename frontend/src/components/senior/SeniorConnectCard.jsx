@@ -1,11 +1,26 @@
 import React from 'react';
 
+const safeParseArray = (val) => {
+  if (Array.isArray(val)) return val;
+  if (typeof val === 'string' && val.trim() !== '') {
+    try {
+      const parsed = JSON.parse(val);
+      if (Array.isArray(parsed)) return parsed;
+    } catch (e) {
+      return val.split(',').map(s => s.trim()).filter(Boolean);
+    }
+    return [val.trim()];
+  }
+  return [];
+};
+
 const SeniorConnectCard = ({ senior, index }) => {
   const department = senior.department || senior.branch || 'Engineering';
   const year = senior.year || 'Final Year';
-  const skills = Array.isArray(senior.skills) ? senior.skills : (senior.skills ? JSON.parse(senior.skills) : []);
-  const domains = Array.isArray(senior.domains) ? senior.domains : (senior.domains ? JSON.parse(senior.domains) : []);
-  const areas = senior.areas || [...skills, ...domains];
+  const skills = safeParseArray(senior.skills);
+  const domains = safeParseArray(senior.domains);
+  const interests = safeParseArray(senior.interests);
+  const areas = senior.areas ? safeParseArray(senior.areas) : [...new Set([...skills, ...domains, ...interests])];
   const email = senior.email || senior.contact || 'mentor@saranathan.ac.in';
   const linkedin = senior.linkedin_url || senior.linkedin;
   const availability = senior.availability || 'Available for Freshers';

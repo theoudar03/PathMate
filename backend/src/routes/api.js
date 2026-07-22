@@ -1295,41 +1295,7 @@ router.patch('/roommate/request/:id', async (req, res) => {
   }
 });
 
-/**
- * 13. GET /api/seniors
- * Lists active senior advisors
- */
-router.get('/seniors', async (req, res) => {
-  try {
-    const result = await safeDbCall(
-      async () => {
-        const seniorsRes = await db.query(
-          `SELECT s.id, s.name, s.year, s.topics, s.contact_method, d.name as branch 
-           FROM senior_volunteers s 
-           LEFT JOIN departments d ON s.department_id = d.id 
-           WHERE s.is_active = true`
-        );
-        return seniorsRes.rows;
-      },
-      async () => {
-        return MOCK_STORE.seniors.map(s => {
-          const dept = MOCK_STORE.departments.find(d => d.id === s.department_id)?.name || 'Engineering';
-          return {
-            id: s.id,
-            name: s.name,
-            year: `${s.year}rd Year`,
-            topics: s.topics,
-            contact_method: s.contact_method,
-            branch: dept
-          };
-        });
-      }
-    );
-    res.json(result);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
+
 
 /**
  * 14. GET /api/emergency-contacts
@@ -1647,82 +1613,7 @@ router.post('/translate', async (req, res) => {
   }
 });
 
-/**
- * GET /api/seniors
- * Fetch all senior mentors from PostgreSQL database with filtering
- */
-router.get('/seniors', async (req, res) => {
-  try {
-    const { department, search, domain } = req.query;
-    let sql = `SELECT * FROM seniors WHERE is_available = true`;
-    const params = [];
-    let paramIdx = 1;
 
-    if (department && department !== 'all') {
-      sql += ` AND LOWER(department) LIKE $${paramIdx++}`;
-      params.push(`%${department.toLowerCase()}%`);
-    }
-
-    if (search && search.trim() !== '') {
-      sql += ` AND (LOWER(name) LIKE $${paramIdx} OR LOWER(department) LIKE $${paramIdx} OR LOWER(skills::text) LIKE $${paramIdx})`;
-      params.push(`%${search.trim().toLowerCase()}%`);
-      paramIdx++;
-    }
-
-    sql += ` ORDER BY id DESC`;
-    const result = await db.query(sql, params);
-    res.json(result.rows);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
-
-/**
- * POST /api/seniors
- * Opt-in / Register as a Senior Mentor
- */
-router.post('/seniors', async (req, res) => {
-  try {
-    const {
-      student_id, name, department, year = 'Final Year',
-      languages = ['English', 'Tamil'], skills = [], domains = [], interests = [],
-      linkedin_url, email, phone, availability = 'Weekdays & Evenings',
-      mentor_status = 'active', profile_photo
-    } = req.body;
-
-    if (!name || !department) {
-      return res.status(400).json({ error: 'Name and Department are required' });
-    }
-
-    const insertRes = await db.query(
-      `INSERT INTO seniors (
-        student_id, name, department, year, languages, skills, domains, interests,
-        linkedin_url, email, phone, availability, is_available, mentor_status, profile_photo
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, true, $13, $14)
-      RETURNING *`,
-      [
-        student_id || `SCE${Date.now().toString().slice(-6)}`,
-        name,
-        department,
-        year,
-        JSON.stringify(languages),
-        JSON.stringify(skills),
-        JSON.stringify(domains),
-        JSON.stringify(interests),
-        linkedin_url || null,
-        email || null,
-        phone || null,
-        availability,
-        mentor_status,
-        profile_photo || null
-      ]
-    );
-
-    res.status(201).json(insertRes.rows[0]);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
 
 /**
  * GET /api/roommates
@@ -1875,27 +1766,33 @@ router.get('/activity-logs', async (req, res) => {
 
 /**
  * GET /api/seniors
- * Fetch active senior mentors directly from PostgreSQL
+ * Fetch all senior mentors directly from PostgreSQL (100% sync with Admin panel)
  */
 router.get('/seniors', async (req, res) => {
   try {
     const { department, search } = req.query;
-    let sql = `SELECT * FROM seniors WHERE mentor_status = 'active' OR mentor_status IS NULL`;
+    let sql = `
+      SELECT s.*, COALESCE(s.department, d.name, 'Computer Science & Engineering') AS department
+      FROM seniors s
+      LEFT JOIN departments d ON s.department_id = d.id
+      WHERE 1=1
+    `;
     const params = [];
     let idx = 1;
 
     if (department && department !== 'All' && department !== 'all') {
-      sql += ` AND LOWER(department) LIKE $${idx++}`;
+      sql += ` AND (LOWER(s.department) LIKE $${idx} OR LOWER(d.name) LIKE $${idx})`;
       params.push(`%${department.toLowerCase()}%`);
+      idx++;
     }
 
     if (search && search.trim() !== '') {
-      sql += ` AND (LOWER(name) LIKE $${idx} OR LOWER(department) LIKE $${idx} OR LOWER(skills::text) LIKE $${idx} OR LOWER(domains::text) LIKE $${idx})`;
+      sql += ` AND (LOWER(s.name) LIKE $${idx} OR LOWER(s.department) LIKE $${idx} OR LOWER(d.name) LIKE $${idx} OR LOWER(s.skills::text) LIKE $${idx} OR LOWER(s.domains::text) LIKE $${idx} OR LOWER(s.interests::text) LIKE $${idx})`;
       params.push(`%${search.trim().toLowerCase()}%`);
       idx++;
     }
 
-    sql += ` ORDER BY id DESC`;
+    sql += ` ORDER BY s.id DESC`;
     const result = await db.query(sql, params);
     res.json(result.rows);
   } catch (error) {
@@ -1996,6 +1893,66 @@ router.get('/notices', async (req, res) => {
     res.json(result.rows);
   } catch (error) {
     console.error("GET /api/notices error:", error.message);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+/**
+ * GET /api/roommates
+ * Fetch active hostel roommates directly from PostgreSQL
+ */
+router.get('/roommates', async (req, res) => {
+  try {
+    const result = await db.query(`SELECT * FROM roommates ORDER BY id DESC`);
+    res.json(result.rows);
+  } catch (error) {
+    console.error("GET /api/roommates error:", error.message);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+/**
+ * POST /api/roommates/profile
+ * Register/Opt-in hostel roommate profile into PostgreSQL
+ */
+router.post('/roommates/profile', async (req, res) => {
+  try {
+    const {
+      name, gender = 'Male', department, year = '1st Year', hostel_block,
+      preferred_language = 'English', sleep_schedule = '10 PM - 6 AM',
+      study_habits = 'Quiet Study', cleanliness = 'Very Neat',
+      smoking_preference = 'Non-Smoker', food_preference = 'Vegetarian',
+      interests = [], hobbies = [], room_preference = '2 Sharing (Non-AC)',
+      is_visible = true, contact_email, phone
+    } = req.body;
+
+    if (!name || !department || !hostel_block) {
+      return res.status(400).json({ error: 'Name, Department, and Hostel Block are required' });
+    }
+
+    const result = await db.query(
+      `INSERT INTO roommates (
+        student_id, name, gender, department, year, hostel_block,
+        preferred_language, sleep_schedule, study_habits, cleanliness,
+        smoking_preference, food_preference, interests, hobbies,
+        room_preference, is_visible, contact_email, phone
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)
+      RETURNING *`,
+      [
+        `SCE${Date.now().toString().slice(-6)}`,
+        name, gender, department, year, hostel_block,
+        preferred_language, sleep_schedule, study_habits, cleanliness,
+        smoking_preference, food_preference,
+        JSON.stringify(Array.isArray(interests) ? interests : [interests]),
+        JSON.stringify(Array.isArray(hobbies) ? hobbies : [hobbies]),
+        room_preference, is_visible,
+        contact_email || null, phone || null
+      ]
+    );
+
+    res.status(201).json(result.rows[0]);
+  } catch (error) {
+    console.error("POST /api/roommates/profile error:", error.message);
     res.status(500).json({ error: error.message });
   }
 });

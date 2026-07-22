@@ -23,7 +23,7 @@ import AdminStudents from './pages/admin/AdminStudents';
 import AdminEvents from './pages/admin/AdminEvents';
 import AdminNotices from './pages/admin/AdminNotices';
 import AdminCommittees from './pages/admin/AdminCommittees';
-import AdminVolunteers from './pages/admin/AdminVolunteers';
+import AdminRoommates from './pages/admin/AdminRoommates';
 import AdminSeniors from './pages/admin/AdminSeniors';
 
 // Route Guard: redirect unauthenticated users strictly to Welcome Page
@@ -93,7 +93,8 @@ function AppContent() {
             <Route path="events" element={<AdminEvents />} />
             <Route path="notices" element={<AdminNotices />} />
             <Route path="committees" element={<AdminCommittees />} />
-            <Route path="volunteers" element={<AdminVolunteers />} />
+            <Route path="roommates" element={<AdminRoommates />} />
+            <Route path="volunteers" element={<Navigate to="../roommates" replace />} />
             <Route path="seniors" element={<AdminSeniors />} />
             <Route path="settings" element={<div className="p-4"><h1 className="text-xl font-bold">Settings Module</h1></div>} />
           </Route>

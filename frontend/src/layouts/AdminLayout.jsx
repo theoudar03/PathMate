@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Outlet, NavLink, useNavigate, useLocation } from 'react-router-dom';
-import { LayoutDashboard, Users, BookOpen, Calendar, Settings, LogOut, Menu, X, Bell, Search, Layers } from 'lucide-react';
+import { LayoutDashboard, Users, BookOpen, Calendar, Settings, LogOut, Menu, X, Bell, Search, Layers, Home } from 'lucide-react';
 
 const AdminLayout = () => {
   const [sidebarOpen, setSidebarOpen] = useState(true);
@@ -22,7 +22,7 @@ const AdminLayout = () => {
     { name: 'Events & Clubs', path: '/admin/events', icon: Calendar },
     { name: 'Notice Board', path: '/admin/notices', icon: Layers },
     { name: 'Committees', path: '/admin/committees', icon: Users },
-    { name: 'Volunteers', path: '/admin/volunteers', icon: Users },
+    { name: 'Roommates', path: '/admin/roommates', icon: Home },
     { name: 'Seniors', path: '/admin/seniors', icon: Users },
     { name: 'Settings', path: '/admin/settings', icon: Settings },
   ];

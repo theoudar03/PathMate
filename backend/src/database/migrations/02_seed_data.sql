@@ -103,11 +103,3 @@ INSERT INTO emergency_contacts (id, label, contact_value, notes) VALUES
 (3, 'SCE Campus Medical Room', '[ADD REAL MEDICAL Desk NUMBER]', 'First aid desk and ambulance dispatch'),
 (4, 'SCE Anti-Ragging Committee', '[ADD REAL ANTI-RAGGING HOTLINE]', 'Zero tolerance harassment reporting cell')
 ON CONFLICT (id) DO NOTHING;
-
--- Seed senior_volunteers
-INSERT INTO senior_volunteers (id, name, department_id, year, topics, contact_method, is_active) VALUES
-(1, 'Hariharan G.', 1, 4, 'Placement Prep, Web Projects, Hackathons', 'hari.cse@saranathan.ac.in', true),
-(2, 'Nithya Sri S.', 5, 3, 'Club Activities (Fine Arts), DSP Lab Assistance', 'nithya.ece@saranathan.ac.in', true),
-(3, 'Rohan Jacob', 6, 4, 'Gate Preparation, Robotics Society', 'rohan.eee@saranathan.ac.in', true),
-(4, 'Archana R.', 9, 3, 'NSS Volunteering, Java Programming', 'archana.it@saranathan.ac.in', true)
-ON CONFLICT (id) DO NOTHING;

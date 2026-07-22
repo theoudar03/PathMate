@@ -914,73 +914,115 @@ router.delete('/committees/:id', async (req, res) => {
 });
 
 // ----------------------------------------------------
-// 8. VOLUNTEERS MODULE
+// 8. ROOMMATE MATCHER MODULE
 // ----------------------------------------------------
 
-router.get('/volunteers', async (req, res) => {
+router.get('/roommates', async (req, res) => {
   try {
-    const result = await db.query(`
-      SELECT 
-        v.id, v.user_id, v.event_id, v.role, v.status, v.name as volunteer_name,
-        e.name as event_name, u.full_name as student_full_name, u.username as student_username
-      FROM volunteers v
-      LEFT JOIN events e ON v.event_id = e.id
-      LEFT JOIN users u ON v.user_id = u.id
-      ORDER BY v.id DESC
-    `);
+    const result = await db.query('SELECT * FROM roommates ORDER BY id DESC');
     res.json(result.rows);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 });
 
-router.post('/volunteers', async (req, res) => {
+router.post('/roommates', async (req, res) => {
   try {
-    const { user_id, event_id, role, name, status = 'pending' } = req.body;
-    if (!role) return res.status(400).json({ error: 'Volunteer role is required' });
+    const {
+      name, gender = 'Male', department, year = '1st Year', hostel_block,
+      preferred_language = 'English', sleep_schedule = '10 PM - 6 AM',
+      study_habits = 'Quiet Study', cleanliness = 'Very Neat',
+      smoking_preference = 'Non-Smoker', food_preference = 'Vegetarian',
+      interests = [], hobbies = [], room_preference = '2 Sharing (Non-AC)',
+      profile_photo, is_visible = true, contact_email, phone
+    } = req.body;
+
+    if (!name || !department || !hostel_block) {
+      return res.status(400).json({ error: 'Name, Department, and Hostel Block are required' });
+    }
 
     const result = await db.query(
-      'INSERT INTO volunteers (user_id, event_id, role, name, status) VALUES ($1, $2, $3, $4, $5) RETURNING *',
-      [user_id || null, event_id || null, role, name || 'Student Volunteer', status]
+      `INSERT INTO roommates (
+        student_id, name, gender, department, year, hostel_block,
+        preferred_language, sleep_schedule, study_habits, cleanliness,
+        smoking_preference, food_preference, interests, hobbies,
+        room_preference, profile_photo, is_visible, contact_email, phone
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19)
+      RETURNING *`,
+      [
+        `SCE${Date.now().toString().slice(-6)}`,
+        name, gender, department, year, hostel_block,
+        preferred_language, sleep_schedule, study_habits, cleanliness,
+        smoking_preference, food_preference,
+        JSON.stringify(Array.isArray(interests) ? interests : [interests]),
+        JSON.stringify(Array.isArray(hobbies) ? hobbies : [hobbies]),
+        room_preference, profile_photo || null, is_visible,
+        contact_email || null, phone || null
+      ]
     );
 
-    await logActivity(req.admin?.id, 'volunteer_created', `Added volunteer role: ${role}`);
+    await logActivity(req.admin?.id, 'roommate_created', `Added roommate profile: ${name}`);
     res.status(201).json(result.rows[0]);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 });
 
-router.put('/volunteers/:id', async (req, res) => {
+router.put('/roommates/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    const { role, status, name, event_id } = req.body;
+    const {
+      name, gender, department, year, hostel_block,
+      preferred_language, sleep_schedule, study_habits, cleanliness,
+      smoking_preference, food_preference, interests, hobbies,
+      room_preference, profile_photo, is_visible, contact_email, phone
+    } = req.body;
 
     const result = await db.query(
-      `UPDATE volunteers SET 
-        role = COALESCE($1, role),
-        status = COALESCE($2, status),
-        name = COALESCE($3, name),
-        event_id = COALESCE($4, event_id),
-        updated_at = NOW()
-       WHERE id = $5 RETURNING *`,
-      [role, status, name, event_id, id]
+      `UPDATE roommates SET 
+        name = COALESCE($1, name),
+        gender = COALESCE($2, gender),
+        department = COALESCE($3, department),
+        year = COALESCE($4, year),
+        hostel_block = COALESCE($5, hostel_block),
+        preferred_language = COALESCE($6, preferred_language),
+        sleep_schedule = COALESCE($7, sleep_schedule),
+        study_habits = COALESCE($8, study_habits),
+        cleanliness = COALESCE($9, cleanliness),
+        smoking_preference = COALESCE($10, smoking_preference),
+        food_preference = COALESCE($11, food_preference),
+        interests = COALESCE($12, interests),
+        hobbies = COALESCE($13, hobbies),
+        room_preference = COALESCE($14, room_preference),
+        profile_photo = COALESCE($15, profile_photo),
+        is_visible = COALESCE($16, is_visible),
+        contact_email = COALESCE($17, contact_email),
+        phone = COALESCE($18, phone)
+       WHERE id = $19 RETURNING *`,
+      [
+        name, gender, department, year, hostel_block,
+        preferred_language, sleep_schedule, study_habits, cleanliness,
+        smoking_preference, food_preference,
+        interests ? JSON.stringify(Array.isArray(interests) ? interests : [interests]) : null,
+        hobbies ? JSON.stringify(Array.isArray(hobbies) ? hobbies : [hobbies]) : null,
+        room_preference, profile_photo, is_visible, contact_email, phone, id
+      ]
     );
 
-    if (result.rows.length === 0) return res.status(404).json({ error: 'Volunteer record not found' });
+    if (result.rows.length === 0) return res.status(404).json({ error: 'Roommate profile not found' });
 
-    await logActivity(req.admin?.id, 'volunteer_updated', `Updated volunteer ID ${id} status to ${status || 'updated'}`);
+    await logActivity(req.admin?.id, 'roommate_updated', `Updated roommate profile ID: ${id}`);
     res.json(result.rows[0]);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 });
 
-router.delete('/volunteers/:id', async (req, res) => {
+router.delete('/roommates/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    await db.query('DELETE FROM volunteers WHERE id = $1', [id]);
-    await logActivity(req.admin?.id, 'volunteer_deleted', `Deleted volunteer ID: ${id}`);
+    await db.query('DELETE FROM roommates WHERE id = $1', [id]);
+    await logActivity(req.admin?.id, 'roommate_deleted', `Deleted roommate profile ID: ${id}`);
     res.json({ success: true });
   } catch (error) {
     res.status(500).json({ error: error.message });

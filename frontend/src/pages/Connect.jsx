@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useApp } from '../contexts/AppContext';
+import { safeFetchJson } from '../utils/api';
 import RoommateCard from '../components/hostel/RoommateCard';
 import SeniorConnectCard from '../components/senior/SeniorConnectCard';
 
@@ -50,13 +51,12 @@ const Connect = () => {
   const fetchRoommates = async () => {
     setLoadingRoommates(true);
     try {
-      const res = await fetch('/api/roommates');
-      if (res.ok) {
-        const data = await res.json();
-        setRoommates(data);
-      }
+      const res = await safeFetchJson('/api/roommates');
+      const list = Array.isArray(res?.data) ? res.data : (Array.isArray(res) ? res : []);
+      setRoommates(list);
     } catch (e) {
       console.error("Failed to fetch roommates:", e);
+      setRoommates([]);
     } finally {
       setLoadingRoommates(false);
     }
@@ -65,13 +65,12 @@ const Connect = () => {
   const fetchSeniors = async () => {
     setLoadingSeniors(true);
     try {
-      const res = await fetch('/api/seniors');
-      if (res.ok) {
-        const data = await res.json();
-        setSeniors(data);
-      }
+      const res = await safeFetchJson('/api/seniors');
+      const list = Array.isArray(res?.data) ? res.data : (Array.isArray(res) ? res : []);
+      setSeniors(list);
     } catch (e) {
       console.error("Failed to fetch seniors:", e);
+      setSeniors([]);
     } finally {
       setLoadingSeniors(false);
     }
@@ -80,7 +79,7 @@ const Connect = () => {
   useEffect(() => {
     fetchRoommates();
     fetchSeniors();
-  }, []);
+  }, [activeTab]);
 
   const handleRegisterSenior = async (e) => {
     e.preventDefault();
@@ -162,10 +161,12 @@ const Connect = () => {
   });
 
   const filteredSeniors = seniors.filter(sr => {
-    const matchesBranch = branchSrFilter === 'All' || (sr.department && sr.department.includes(branchSrFilter));
+    const srDept = sr.department || sr.branch || 'Engineering';
+    const srName = sr.name || '';
+    const matchesBranch = branchSrFilter === 'All' || srDept.toLowerCase().includes(branchSrFilter.toLowerCase());
     const matchesSearch = seniorSearch === '' ||
-      sr.name.toLowerCase().includes(seniorSearch.toLowerCase()) ||
-      sr.department.toLowerCase().includes(seniorSearch.toLowerCase());
+      srName.toLowerCase().includes(seniorSearch.toLowerCase()) ||
+      srDept.toLowerCase().includes(seniorSearch.toLowerCase());
     return matchesBranch && matchesSearch;
   });
 
@@ -322,6 +323,7 @@ const Connect = () => {
                   <option value="Electronics">Electronics & Comm</option>
                   <option value="Information Technology">Information Tech</option>
                   <option value="Electrical">Electrical & Electronics</option>
+                  <option value="AI">AI & Data Science</option>
                 </select>
               </div>
             </div>

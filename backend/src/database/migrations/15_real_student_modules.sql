@@ -86,32 +86,4 @@ CREATE INDEX IF NOT EXISTS idx_seniors_mentor_status ON seniors(mentor_status);
 CREATE INDEX IF NOT EXISTS idx_roommates_hostel ON roommates(hostel_block);
 CREATE INDEX IF NOT EXISTS idx_roommates_gender ON roommates(gender);
 
--- Seed initial real SCE senior mentor roster if table is empty
-INSERT INTO seniors (student_id, name, department, year, languages, skills, domains, interests, linkedin_url, email, phone, availability, mentor_status)
-SELECT 'SCE2022CSE045', 'Karthik Subramanian', 'Computer Science & Engineering', 'Final Year', '["English", "Tamil"]'::jsonb, '["Python", "React", "Node.js", "System Design"]'::jsonb, '["Full Stack Development", "Competitive Programming"]'::jsonb, '["Open Source", "Hackathons"]'::jsonb, 'https://linkedin.com/in/karthik-sce', 'karthik.s@saranathan.ac.in', '+91 98765 43210', 'Mon-Fri after 5 PM', 'active'
-WHERE NOT EXISTS (SELECT 1 FROM seniors WHERE student_id = 'SCE2022CSE045');
 
-INSERT INTO seniors (student_id, name, department, year, languages, skills, domains, interests, linkedin_url, email, phone, availability, mentor_status)
-SELECT 'SCE2022ECE012', 'Priya Sundaram', 'Electronics & Communication', 'Final Year', '["English", "Tamil", "Hindi"]'::jsonb, '["Embedded Systems", "MATLAB", "Arduino", "IoT"]'::jsonb, '["Robotics", "Signal Processing"]'::jsonb, '["IEEE Society", "Circuit Design"]'::jsonb, 'https://linkedin.com/in/priya-sundaram-sce', 'priya.s@saranathan.ac.in', '+91 98765 43211', 'Weekends 10 AM - 4 PM', 'active'
-WHERE NOT EXISTS (SELECT 1 FROM seniors WHERE student_id = 'SCE2022ECE012');
-
-INSERT INTO seniors (student_id, name, department, year, languages, skills, domains, interests, linkedin_url, email, phone, availability, mentor_status)
-SELECT 'SCE2022IT088', 'Arun Kumar', 'Information Technology', 'Final Year', '["English", "Tamil"]'::jsonb, '["Cybersecurity", "Java", "Linux", "Docker"]'::jsonb, '["Cloud & Security", "Backend Dev"]'::jsonb, '["CTF Challenges", "DevOps"]'::jsonb, 'https://linkedin.com/in/arun-kumar-sce', 'arun.k@saranathan.ac.in', '+91 98765 43212', 'Wed & Sat Evenings', 'active'
-WHERE NOT EXISTS (SELECT 1 FROM seniors WHERE student_id = 'SCE2022IT088');
-
-INSERT INTO seniors (student_id, name, department, year, languages, skills, domains, interests, linkedin_url, email, phone, availability, mentor_status)
-SELECT 'SCE2022EEE034', 'Deepak Raja', 'Electrical & Electronics', 'Final Year', '["English", "Tamil"]'::jsonb, '["PLC Programming", "Power Systems", "AutoCAD"]'::jsonb, '["Renewable Energy", "Industrial Automation"]'::jsonb, '["Solar Power Labs", "Project Guidance"]'::jsonb, 'https://linkedin.com/in/deepak-raja-sce', 'deepak.r@saranathan.ac.in', '+91 98765 43213', 'Weekdays 4 PM - 6 PM', 'active'
-WHERE NOT EXISTS (SELECT 1 FROM seniors WHERE student_id = 'SCE2022EEE034');
-
--- Seed initial SCE roommate profiles if table is empty
-INSERT INTO roommates (user_id, student_id, name, gender, department, year, hostel_block, preferred_language, sleep_schedule, study_habits, cleanliness, smoking_preference, food_preference, interests, hobbies, room_preference, is_visible, contact_email, phone)
-SELECT 101, 'SCE2025CSE019', 'Rohan Ramachandran', 'Male', 'Computer Science & Engineering', '1st Year', 'Boys Hostel Block A', 'English / Tamil', '10 PM - 6 AM', 'Group Study & Late Night Coding', 'Very Neat', 'Non-Smoker', 'Vegetarian', '["AI & ML", "Gaming"]'::jsonb, '["Chess", "Badminton"]'::jsonb, '2 Sharing (Non-AC)', true, 'rohan.ram@saranathan.ac.in', '+91 94433 11223'
-WHERE NOT EXISTS (SELECT 1 FROM roommates WHERE student_id = 'SCE2025CSE019');
-
-INSERT INTO roommates (user_id, student_id, name, gender, department, year, hostel_block, preferred_language, sleep_schedule, study_habits, cleanliness, smoking_preference, food_preference, interests, hobbies, room_preference, is_visible, contact_email, phone)
-SELECT 102, 'SCE2025ECE042', 'Sanjay Viswanathan', 'Male', 'Electronics & Communication', '1st Year', 'Boys Hostel Block B', 'English / Tamil', '11 PM - 7 AM', 'Quiet Library Reader', 'Moderate', 'Non-Smoker', 'Non-Vegetarian', '["Robotics", "IoT Devices"]'::jsonb, '["Guitar", "Photography"]'::jsonb, '2 Sharing (AC)', true, 'sanjay.v@saranathan.ac.in', '+91 94433 44556'
-WHERE NOT EXISTS (SELECT 1 FROM roommates WHERE student_id = 'SCE2025ECE042');
-
-INSERT INTO roommates (user_id, student_id, name, gender, department, year, hostel_block, preferred_language, sleep_schedule, study_habits, cleanliness, smoking_preference, food_preference, interests, hobbies, room_preference, is_visible, contact_email, phone)
-SELECT 103, 'SCE2025AIDS008', 'Ananya Sridhar', 'Female', 'AI & Data Science', '1st Year', 'Girls Hostel Block A', 'English / Tamil', '10 PM - 6 AM', 'Early Morning Study', 'Very Neat', 'Non-Smoker', 'Vegetarian', '["Data Science", "Web Dev"]'::jsonb, '["Reading", "Painting"]'::jsonb, '2 Sharing (Non-AC)', true, 'ananya.s@saranathan.ac.in', '+91 94433 77889'
-WHERE NOT EXISTS (SELECT 1 FROM roommates WHERE student_id = 'SCE2025AIDS008');

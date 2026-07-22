@@ -1,16 +1,13 @@
 import React, { useState } from 'react';
+import { Mail } from 'lucide-react';
 
 const RoommateCard = ({ roommate, index }) => {
-  const [requested, setRequested] = useState(false);
   const department = roommate.department || roommate.branch || 'Engineering';
-  const hostel = roommate.hostel_block || roommate.hostel || 'Hostel Block';
-  const interests = Array.isArray(roommate.interests) ? roommate.interests : (roommate.interests ? JSON.parse(roommate.interests) : []);
-  const hobbies = Array.isArray(roommate.hobbies) ? roommate.hobbies : (roommate.hobbies ? JSON.parse(roommate.hobbies) : []);
-  const allTags = [...interests, ...hobbies];
-
-  const handleRequestMatch = () => {
-    setRequested(true);
-  };
+  const hostel = roommate.hostel_block || roommate.hostel || 'Hostel';
+  const interests = Array.isArray(roommate.interests) ? roommate.interests : (roommate.interests ? (() => { try { return JSON.parse(roommate.interests); } catch { return roommate.interests.split(',').map(s => s.trim()); } })() : []);
+  const hobbies = Array.isArray(roommate.hobbies) ? roommate.hobbies : (roommate.hobbies ? (() => { try { return JSON.parse(roommate.hobbies); } catch { return roommate.hobbies.split(',').map(s => s.trim()); } })() : []);
+  const allTags = [...new Set([...interests, ...hobbies])].filter(Boolean);
+  const email = roommate.contact_email || roommate.email;
 
   return (
     <div
@@ -34,25 +31,14 @@ const RoommateCard = ({ roommate, index }) => {
               {roommate.name}
             </h3>
 
-            <div className="grid grid-cols-2 gap-2 my-3 text-[11px] bg-slate-50 p-2.5 rounded-xl border border-outline/15">
+            {/* Simplified Details Row - sleep schedule only */}
+            <div className="my-3 text-[11px] bg-slate-50 p-2.5 rounded-xl border border-outline/15">
               <div>
                 <span className="text-gray-400 block text-[9px] uppercase font-bold">Sleep Schedule</span>
                 <span className="font-semibold text-gray-700">{roommate.sleep_schedule || '10 PM - 6 AM'}</span>
               </div>
-              <div>
-                <span className="text-gray-400 block text-[9px] uppercase font-bold">Cleanliness</span>
-                <span className="font-semibold text-gray-700">{roommate.cleanliness || 'Neat'}</span>
-              </div>
-              <div>
-                <span className="text-gray-400 block text-[9px] uppercase font-bold">Food Preference</span>
-                <span className="font-semibold text-gray-700">{roommate.food_preference || 'Vegetarian'}</span>
-              </div>
-              <div>
-                <span className="text-gray-400 block text-[9px] uppercase font-bold">Study Habits</span>
-                <span className="font-semibold text-gray-700">{roommate.study_habits || 'Quiet'}</span>
-              </div>
             </div>
-            
+
             {allTags.length > 0 && (
               <>
                 <strong className="text-onSurfaceVariant text-[11px] font-medium block mt-2 mb-1">Interests & Hobbies:</strong>
@@ -72,28 +58,21 @@ const RoommateCard = ({ roommate, index }) => {
         </div>
       </div>
 
-      {/* Privacy Notice & Request Trigger */}
-      <div className="space-y-3 mt-3 text-left">
-        <div className="flex gap-1.5 items-start bg-surfaceContainerLow rounded-xl p-3 border border-surfaceVariant/60 text-[10px] text-onSurfaceVariant leading-normal">
-          <span className="material-symbols-outlined text-primary text-[16px] flex-shrink-0 select-none">shield</span>
-          <p>
-            <strong className="font-bold text-onSurface">Safe Privacy Rule:</strong> Contact details are locked until mutual connection request is accepted.
-          </p>
-        </div>
-
-        {requested ? (
-          <div className="w-full py-2.5 px-4 rounded-full bg-green-100 text-green-700 text-xs font-bold text-center flex items-center justify-center gap-1.5">
-            <span className="material-symbols-outlined text-[16px]">check_circle</span>
-            Connection Request Sent
-          </div>
-        ) : (
-          <button
-            onClick={handleRequestMatch}
-            className="w-full bg-primary hover:bg-[#123669] text-onPrimary text-xs font-bold py-2.5 px-4 rounded-full transition-all active:scale-[0.98] outline-none shadow-sm flex items-center justify-center gap-1.5"
+      {/* Email Contact Action */}
+      <div className="mt-3 text-left">
+        {email ? (
+          <a
+            href={`mailto:${email}?subject=PathMate - Roommate Inquiry`}
+            className="w-full inline-flex items-center justify-center gap-1.5 bg-primary hover:bg-[#123669] text-onPrimary text-xs font-bold py-2.5 px-4 rounded-full transition-all active:scale-[0.98] outline-none shadow-sm"
           >
-            <span className="material-symbols-outlined text-[16px]">person_add</span>
-            Request Roommate Connection
-          </button>
+            <Mail size={15} />
+            Email to Connect
+          </a>
+        ) : (
+          <div className="w-full py-2.5 px-4 rounded-full bg-surfaceContainerLow text-onSurfaceVariant text-xs font-bold text-center flex items-center justify-center gap-1.5 border border-surfaceVariant">
+            <span className="material-symbols-outlined text-[15px]">mail_lock</span>
+            Contact via Admin
+          </div>
         )}
       </div>
     </div>

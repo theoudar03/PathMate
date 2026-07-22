@@ -7,6 +7,7 @@ import FloatingNotice from '../components/notices/FloatingNotice';
 import { Bell, AlertCircle, Clock, X, CheckSquare } from 'lucide-react';
 import ToDoWidget from '../components/todo/ToDoWidget';
 import ActivityManagerModal from '../components/todo/ActivityManagerModal';
+import BusRouteWidget from '../components/dashboard/BusRouteWidget';
 
 // Campus SVG Illustration
 const CampusIllustration = () => (
@@ -191,6 +192,11 @@ const Home = () => {
           onOpenModal={openTodoModal}
           refreshTrigger={todoRefreshTrigger}
         />
+      </div>
+
+      {/* ── 1.6 TODAY'S BUS ROUTE QUICK ACCESS ──────────────────── */}
+      <div className="stagger-item stagger-delay-1.5">
+        <BusRouteWidget />
       </div>
 
       {/* ── 2. QUICK ACTIONS ─────────────────────────────────────── */}

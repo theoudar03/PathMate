@@ -17,12 +17,9 @@ const AdminRoommates = () => {
     gender: 'Male',
     department: 'Computer Science & Engineering',
     year: '1st Year',
-    hostel_block: 'Boys Hostel Block A',
+    hostel_block: 'Boys Hostel',
     preferred_language: 'English',
     sleep_schedule: '10 PM - 6 AM',
-    study_habits: 'Quiet Study',
-    cleanliness: 'Very Neat',
-    food_preference: 'Vegetarian',
     interests: 'Coding, Gaming, Badminton',
     contact_email: '',
     phone: '',
@@ -62,12 +59,9 @@ const AdminRoommates = () => {
       gender: 'Male',
       department: 'Computer Science & Engineering',
       year: '1st Year',
-      hostel_block: 'Boys Hostel Block A',
+      hostel_block: 'Boys Hostel',
       preferred_language: 'English',
       sleep_schedule: '10 PM - 6 AM',
-      study_habits: 'Quiet Study',
-      cleanliness: 'Very Neat',
-      food_preference: 'Vegetarian',
       interests: 'Coding, Gaming, Badminton',
       contact_email: '',
       phone: '',
@@ -88,12 +82,9 @@ const AdminRoommates = () => {
       gender: rm.gender || 'Male',
       department: rm.department || 'Computer Science & Engineering',
       year: rm.year || '1st Year',
-      hostel_block: rm.hostel_block || 'Boys Hostel Block A',
+      hostel_block: rm.hostel_block || 'Boys Hostel',
       preferred_language: rm.preferred_language || 'English',
       sleep_schedule: rm.sleep_schedule || '10 PM - 6 AM',
-      study_habits: rm.study_habits || 'Quiet Study',
-      cleanliness: rm.cleanliness || 'Very Neat',
-      food_preference: rm.food_preference || 'Vegetarian',
       interests: interestsStr,
       contact_email: rm.contact_email || '',
       phone: rm.phone || '',
@@ -345,43 +336,26 @@ const AdminRoommates = () => {
               </div>
 
               <div>
-                <label className="block font-bold text-onSurface mb-1">Hostel Block *</label>
+                <label className="block font-bold text-onSurface mb-1">Hostel *</label>
                 <select
                   value={form.hostel_block}
                   onChange={(e) => setForm({ ...form, hostel_block: e.target.value })}
                   className="w-full p-2.5 border border-outline rounded-xl bg-surface"
                 >
-                  <option value="Boys Hostel Block A">Boys Hostel Block A</option>
-                  <option value="Boys Hostel Block B">Boys Hostel Block B</option>
-                  <option value="Boys Hostel Block C">Boys Hostel Block C</option>
-                  <option value="Girls Hostel Block A">Girls Hostel Block A</option>
-                  <option value="Girls Hostel Block B">Girls Hostel Block B</option>
+                  <option value="Boys Hostel">Boys Hostel</option>
+                  <option value="Girls Hostel">Girls Hostel</option>
                 </select>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block font-bold text-onSurface mb-1">Sleep Schedule</label>
-                  <input
-                    type="text"
-                    value={form.sleep_schedule}
-                    onChange={(e) => setForm({ ...form, sleep_schedule: e.target.value })}
-                    placeholder="10 PM - 6 AM"
-                    className="w-full p-2.5 border border-outline rounded-xl bg-surface"
-                  />
-                </div>
-                <div>
-                  <label className="block font-bold text-onSurface mb-1">Food Preference</label>
-                  <select
-                    value={form.food_preference}
-                    onChange={(e) => setForm({ ...form, food_preference: e.target.value })}
-                    className="w-full p-2.5 border border-outline rounded-xl bg-surface"
-                  >
-                    <option value="Vegetarian">Vegetarian</option>
-                    <option value="Non-Vegetarian">Non-Vegetarian</option>
-                    <option value="Eggetarian">Eggetarian</option>
-                  </select>
-                </div>
+              <div>
+                <label className="block font-bold text-onSurface mb-1">Sleep Schedule</label>
+                <input
+                  type="text"
+                  value={form.sleep_schedule}
+                  onChange={(e) => setForm({ ...form, sleep_schedule: e.target.value })}
+                  placeholder="10 PM - 6 AM"
+                  className="w-full p-2.5 border border-outline rounded-xl bg-surface"
+                />
               </div>
 
               <div>

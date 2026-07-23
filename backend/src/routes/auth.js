@@ -247,10 +247,22 @@ router.post('/register', async (req, res) => {
     if (!officialStudent) {
       // Auto-insert record in official_students to ensure smooth registration for all valid students
       await safeDbCall(async () => {
-        await db.query(
-          'INSERT INTO official_students (register_number, full_name, email, department, is_registered, gender, travel_mode) VALUES ($1, $2, $3, $4, false, $5, $6) ON CONFLICT (register_number) DO NOTHING',
-          [regNumber, full_name, email || `${username || regNumber.toLowerCase()}@saranathan.ac.in`, department, gender, travel_mode]
-        );
+        try {
+          await db.query(
+            'INSERT INTO official_students (register_number, full_name, email, department, is_registered, gender, travel_mode) VALUES ($1, $2, $3, $4, false, $5, $6) ON CONFLICT (register_number) DO NOTHING',
+            [regNumber, full_name, email || `${username || regNumber.toLowerCase()}@saranathan.ac.in`, department, gender, travel_mode]
+          );
+        } catch (insertErr) {
+          if (insertErr.code === '23505' || insertErr.message.includes('unique constraint')) {
+            const uniqueEmail = `dup_${Date.now()}_${email || `${username || regNumber.toLowerCase()}@saranathan.ac.in`}`;
+            await db.query(
+              'INSERT INTO official_students (register_number, full_name, email, department, is_registered, gender, travel_mode) VALUES ($1, $2, $3, $4, false, $5, $6) ON CONFLICT (register_number) DO NOTHING',
+              [regNumber, full_name, uniqueEmail, department, gender, travel_mode]
+            );
+          } else {
+            throw insertErr;
+          }
+        }
       });
     } else {
       isRegistered = officialStudent.is_registered;

@@ -304,12 +304,26 @@ router.post('/students', async (req, res) => {
     );
 
     // Upsert into official_students
-    await db.query(
-      `INSERT INTO official_students (register_number, full_name, email, department, is_registered, gender, travel_mode)
-       VALUES ($1, $2, $3, $4, true, $5, $6)
-       ON CONFLICT (register_number) DO UPDATE SET is_registered = true, gender = EXCLUDED.gender, travel_mode = EXCLUDED.travel_mode`,
-      [register_number, full_name, email || `${username}@saranathan.ac.in`, department, gender, travel_mode]
-    );
+    try {
+      await db.query(
+        `INSERT INTO official_students (register_number, full_name, email, department, is_registered, gender, travel_mode)
+         VALUES ($1, $2, $3, $4, true, $5, $6)
+         ON CONFLICT (register_number) DO UPDATE SET is_registered = true, gender = EXCLUDED.gender, travel_mode = EXCLUDED.travel_mode`,
+        [register_number, full_name, email || `${username}@saranathan.ac.in`, department, gender, travel_mode]
+      );
+    } catch (insertErr) {
+      if (insertErr.code === '23505' || insertErr.message.includes('unique constraint')) {
+        const uniqueEmail = `dup_${Date.now()}_${email || `${username}@saranathan.ac.in`}`;
+        await db.query(
+          `INSERT INTO official_students (register_number, full_name, email, department, is_registered, gender, travel_mode)
+           VALUES ($1, $2, $3, $4, true, $5, $6)
+           ON CONFLICT (register_number) DO UPDATE SET is_registered = true, gender = EXCLUDED.gender, travel_mode = EXCLUDED.travel_mode`,
+          [register_number, full_name, uniqueEmail, department, gender, travel_mode]
+        );
+      } else {
+        throw insertErr;
+      }
+    }
 
     await logActivity(req.admin?.id, 'student_created', `Created student: ${full_name} (${register_number})`);
     res.status(201).json(userRes.rows[0]);

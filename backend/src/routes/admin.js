@@ -285,10 +285,11 @@ router.get('/students', async (req, res) => {
 // POST Create new student
 router.post('/students', async (req, res) => {
   try {
-    const { full_name, register_number, username, email, department, password, stay_type = 'day_scholar', hostel_block, gender = 'Male', travel_mode = 'own_transport' } = req.body;
-    if (!full_name || !register_number || !username || !password || !department) {
-      return res.status(400).json({ error: 'Full name, register number, username, password, and department are required' });
+    const { full_name, register_number: rawRegNum, username, email, department, password, stay_type = 'day_scholar', hostel_block, gender = 'Male', travel_mode = 'own_transport' } = req.body;
+    if (!full_name || !username || !password || !department) {
+      return res.status(400).json({ error: 'Full name, username, password, and department are required' });
     }
+    const register_number = (rawRegNum || '').trim() || `TEMP_${username.toLowerCase().trim()}_${Math.floor(1000 + Math.random() * 9000)}`;
 
     const deptRes = await db.query('SELECT id FROM departments WHERE name ILIKE $1 OR full_name ILIKE $1', [`%${department}%`]);
     const deptId = deptRes.rows[0]?.id || 1;
@@ -361,7 +362,7 @@ router.put('/students/:id', async (req, res) => {
         stay_type === 'hostel' ? hostel_block : null,
         stay_type === 'hostel',
         deptId, 
-        register_number, 
+        (register_number || '').trim() || oldRegNumber, 
         username, 
         gender, 
         travel_mode,
@@ -371,7 +372,7 @@ router.put('/students/:id', async (req, res) => {
 
     if (updateRes.rows.length === 0) return res.status(404).json({ error: 'Student not found' });
 
-    const finalRegNum = register_number || oldRegNumber;
+    const finalRegNum = (register_number || '').trim() || oldRegNumber;
 
     // Update official_students registry in sync
     if (oldRegNumber) {

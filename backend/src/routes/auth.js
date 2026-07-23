@@ -206,10 +206,15 @@ router.post('/register', async (req, res) => {
     travel_mode = 'own_transport'
   } = req.body;
 
-  const regNumber = (rawRegNum || roll_number || '').trim();
+  let regNumber = (rawRegNum || roll_number || '').trim();
 
-  if (!full_name || !department || !regNumber) {
-    return res.status(400).json({ error: 'Full name, department, and Register Number are required.' });
+  if (!full_name || !department) {
+    return res.status(400).json({ error: 'Full name and department are required.' });
+  }
+
+  if (!regNumber) {
+    const cleanUser = (username || '').toLowerCase().trim();
+    regNumber = `TEMP_${cleanUser || Math.random().toString(36).substring(7)}_${Math.floor(1000 + Math.random() * 9000)}`;
   }
 
   const usernameError = validateUsernameFormat(username);

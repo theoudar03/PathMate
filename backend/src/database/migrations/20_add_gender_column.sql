@@ -14,7 +14,7 @@ CREATE INDEX IF NOT EXISTS idx_roommates_gender ON roommates(gender);
 ALTER TABLE official_students ADD COLUMN IF NOT EXISTS gender VARCHAR(20) DEFAULT 'Male';
 
 -- 5. Update genders for known female records based on names
-UPDATE official_students SET gender = 'Female' WHERE name ILIKE '%Harini%' OR name ILIKE '%Divya%' OR name ILIKE '%Fathima%' OR name ILIKE '%Bavanya%' OR name ILIKE '%Ramesh%';
+UPDATE official_students SET gender = 'Female' WHERE full_name ILIKE '%Harini%' OR full_name ILIKE '%Divya%' OR full_name ILIKE '%Fathima%' OR full_name ILIKE '%Bavanya%' OR full_name ILIKE '%Ramesh%';
 UPDATE users SET gender = 'Female' WHERE full_name ILIKE '%Harini%' OR full_name ILIKE '%Divya%' OR full_name ILIKE '%Fathima%' OR full_name ILIKE '%Bavanya%' OR name ILIKE '%Harini%' OR name ILIKE '%Divya%' OR name ILIKE '%Fathima%' OR name ILIKE '%Bavanya%';
 UPDATE roommates SET gender = 'Female' WHERE name ILIKE '%Harini%' OR name ILIKE '%Divya%' OR name ILIKE '%Fathima%' OR name ILIKE '%Bavanya%';
 UPDATE seniors SET gender = 'Female' WHERE name ILIKE '%Harini%' OR name ILIKE '%Divya%' OR name ILIKE '%Fathima%' OR name ILIKE '%Bavanya%';

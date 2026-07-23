@@ -95,6 +95,10 @@ const AdminStudents = () => {
   const handleEditSubmit = async (e) => {
     e.preventDefault();
     if (!selectedStudent) return;
+    if (!formData.full_name || !formData.username) {
+      setErrorMsg('Full Name and Username are required.');
+      return;
+    }
     setActionLoading(true);
     setErrorMsg('');
 
@@ -375,8 +379,8 @@ const AdminStudents = () => {
               </div>
               <div className="grid grid-cols-2 gap-2">
                 <div>
-                  <label className="block font-bold text-onSurfaceVariant mb-1 uppercase">Register Number</label>
-                  <input type="text" required value={formData.register_number} onChange={e => setFormData({...formData, register_number: e.target.value})} placeholder="SCE2025CSE001" className="w-full p-2.5 border rounded-xl bg-surfaceContainerLow font-mono" />
+                  <label className="block font-bold text-onSurfaceVariant mb-1 uppercase">Register Number (Optional)</label>
+                  <input type="text" value={formData.register_number} onChange={e => setFormData({...formData, register_number: e.target.value})} placeholder="SCE2025CSE001" className="w-full p-2.5 border rounded-xl bg-surfaceContainerLow font-mono" />
                 </div>
                 <div>
                   <label className="block font-bold text-onSurfaceVariant mb-1 uppercase">Username</label>
@@ -416,7 +420,8 @@ const AdminStudents = () => {
                     setFormData({
                       ...formData,
                       stay_type: nextStay,
-                      travel_mode: nextStay === 'hostel' ? 'own_transport' : formData.travel_mode
+                      travel_mode: nextStay === 'hostel' ? 'own_transport' : formData.travel_mode,
+                      hostel_block: nextStay === 'hostel' ? (formData.gender === 'Female' ? 'Girls Hostel' : 'Boys Hostel') : ''
                     });
                   }} className="w-full p-2.5 border rounded-xl bg-surfaceContainerLow font-bold">
                     <option value="day_scholar">Day Scholar</option>
@@ -430,12 +435,9 @@ const AdminStudents = () => {
                       <select value={formData.hostel_block || ''} onChange={e => setFormData({...formData, hostel_block: e.target.value})} className="w-full p-2.5 border rounded-xl bg-surfaceContainerLow font-semibold">
                         <option value="">-- No Hostel Block --</option>
                         {formData.gender === 'Female' ? (
-                          <option value="Girls-Block (Girls Hostel)">Girls-Block (Girls Hostel)</option>
+                          <option value="Girls Hostel">Girls Hostel</option>
                         ) : (
-                          <>
-                            <option value="B-Block (Boys Hostel)">B-Block (Boys Hostel)</option>
-                            <option value="A-Block (Boys Hostel)">A-Block (Boys Hostel)</option>
-                          </>
+                          <option value="Boys Hostel">Boys Hostel</option>
                         )}
                       </select>
                     </>
@@ -487,8 +489,8 @@ const AdminStudents = () => {
               </div>
               <div className="grid grid-cols-2 gap-2">
                 <div>
-                  <label className="block font-bold text-onSurfaceVariant mb-1 uppercase">Register Number</label>
-                  <input type="text" required value={formData.register_number} onChange={e => setFormData({...formData, register_number: e.target.value})} className="w-full p-2.5 border rounded-xl bg-surfaceContainerLow font-mono" />
+                  <label className="block font-bold text-onSurfaceVariant mb-1 uppercase">Register Number (Optional)</label>
+                  <input type="text" value={formData.register_number} onChange={e => setFormData({...formData, register_number: e.target.value})} className="w-full p-2.5 border rounded-xl bg-surfaceContainerLow font-mono" />
                 </div>
                 <div>
                   <label className="block font-bold text-onSurfaceVariant mb-1 uppercase">Username</label>
@@ -528,7 +530,8 @@ const AdminStudents = () => {
                     setFormData({
                       ...formData,
                       stay_type: nextStay,
-                      travel_mode: nextStay === 'hostel' ? 'own_transport' : formData.travel_mode
+                      travel_mode: nextStay === 'hostel' ? 'own_transport' : formData.travel_mode,
+                      hostel_block: nextStay === 'hostel' ? (formData.gender === 'Female' ? 'Girls Hostel' : 'Boys Hostel') : ''
                     });
                   }} className="w-full p-2.5 border rounded-xl bg-surfaceContainerLow font-bold">
                     <option value="day_scholar">Day Scholar</option>
@@ -542,12 +545,9 @@ const AdminStudents = () => {
                       <select value={formData.hostel_block || ''} onChange={e => setFormData({...formData, hostel_block: e.target.value})} className="w-full p-2.5 border rounded-xl bg-surfaceContainerLow font-semibold">
                         <option value="">-- No Hostel Block --</option>
                         {formData.gender === 'Female' ? (
-                          <option value="Girls-Block (Girls Hostel)">Girls-Block (Girls Hostel)</option>
+                          <option value="Girls Hostel">Girls Hostel</option>
                         ) : (
-                          <>
-                            <option value="B-Block (Boys Hostel)">B-Block (Boys Hostel)</option>
-                            <option value="A-Block (Boys Hostel)">A-Block (Boys Hostel)</option>
-                          </>
+                          <option value="Boys Hostel">Boys Hostel</option>
                         )}
                       </select>
                     </>

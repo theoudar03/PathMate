@@ -60,7 +60,7 @@ const Onboarding = ({ isOpen, onClose }) => {
   const [preferredLang, setPreferredLang] = useState('en');
   const [gender, setGender] = useState('Male'); // 'Male' | 'Female'
   const [hosteller, setHosteller] = useState(null); // true = Hosteller, false = Day Scholar
-  const [hostelBlock, setHostelBlock] = useState('B-Block (Boys Hostel)');
+  const [hostelBlock, setHostelBlock] = useState('Boys Hostel');
   const [travelMode, setTravelMode] = useState('own_transport'); // 'college_bus' | 'own_transport'
 
   // Step 2: Department & Interests
@@ -190,7 +190,7 @@ const Onboarding = ({ isOpen, onClose }) => {
   };
 
   // Step Nav validation checks
-  const canNextStep1 = fullName.trim().length > 0 && rollNumber.trim().length > 0 && hosteller !== null;
+  const canNextStep1 = fullName.trim().length > 0 && hosteller !== null;
   const canNextStep2 = department !== '' && selectedInterests.length > 0;
   const canNextStep3 = 
     usernameStatus?.available && 
@@ -318,7 +318,7 @@ const Onboarding = ({ isOpen, onClose }) => {
                   {/* Roll Number */}
                   <div className="space-y-1 text-left">
                     <label htmlFor="reg-roll" className="text-[10px] font-bold text-onSurfaceVariant uppercase tracking-wider">
-                      {t('rollNumber')} <span className="text-error">*</span>
+                      {t('rollNumber')} <span className="text-onSurfaceVariant/60">({t('optional')})</span>
                     </label>
                     <div className="relative">
                       <span className="material-symbols-outlined absolute left-3.5 top-3 text-onSurfaceVariant/70 text-[18px]">tag</span>
@@ -329,7 +329,6 @@ const Onboarding = ({ isOpen, onClose }) => {
                         onChange={(e) => setRollNumber(e.target.value)}
                         placeholder={t('rollPlaceholder')}
                         className="w-full pl-10 pr-4 py-2.5 border border-outline/35 rounded-2xl text-sm bg-surfaceContainerLowest focus:border-primary focus:ring-1 focus:ring-primary outline-none"
-                        required
                       />
                     </div>
                   </div>
@@ -390,8 +389,8 @@ const Onboarding = ({ isOpen, onClose }) => {
                       type="button"
                       onClick={() => {
                         setGender('Male');
-                        if (hostelBlock === 'Girls-Block (Girls Hostel)') {
-                          setHostelBlock('B-Block (Boys Hostel)');
+                        if (hostelBlock === 'Girls Hostel') {
+                          setHostelBlock('Boys Hostel');
                         }
                       }}
                       className={`py-3 px-4 text-xs font-bold rounded-2xl border transition-all duration-150 ease-in-out cursor-pointer active:scale-[0.98] focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1 outline-none flex items-center justify-center gap-2 ${
@@ -407,7 +406,7 @@ const Onboarding = ({ isOpen, onClose }) => {
                       type="button"
                       onClick={() => {
                         setGender('Female');
-                        setHostelBlock('Girls-Block (Girls Hostel)');
+                        setHostelBlock('Girls Hostel');
                       }}
                       className={`py-3 px-4 text-xs font-bold rounded-2xl border transition-all duration-150 ease-in-out cursor-pointer active:scale-[0.98] focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1 outline-none flex items-center justify-center gap-2 ${
                         gender === 'Female'
@@ -488,12 +487,9 @@ const Onboarding = ({ isOpen, onClose }) => {
                       className="w-full px-3 py-2.5 border border-outline/35 rounded-2xl text-sm bg-surfaceContainerLowest focus:border-primary focus:ring-1 focus:ring-primary outline-none"
                     >
                       {gender === 'Female' ? (
-                        <option value="Girls-Block (Girls Hostel)">{t('hostelGirlsBlockOption')}</option>
+                        <option value="Girls Hostel">{t('hostelGirlsBlockOption') || 'Girls Hostel'}</option>
                       ) : (
-                        <>
-                          <option value="B-Block (Boys Hostel)">{t('hostelBBlockOption')}</option>
-                          <option value="A-Block (Boys Hostel)">{t('hostelABlockOption')}</option>
-                        </>
+                        <option value="Boys Hostel">{t('hostelBBlockOption') || 'Boys Hostel'}</option>
                       )}
                     </select>
                   </div>

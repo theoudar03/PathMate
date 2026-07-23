@@ -61,7 +61,7 @@ router.get('/me', authenticateToken, async (req, res) => {
       async () => {
         const queryRes = await db.query(
           `SELECT u.id, u.username, u.full_name, u.name, u.register_number, u.roll_number, u.email, 
-                  u.stay_type, u.hostel_block, u.role, u.status, u.created_at,
+                  u.stay_type, u.hostel_block, u.role, u.status, u.created_at, u.gender, u.travel_mode,
                   d.name as department_name, d.full_name as department
            FROM users u
            LEFT JOIN departments d ON u.department_id = d.id
@@ -98,7 +98,9 @@ router.get('/me', authenticateToken, async (req, res) => {
         hosteller: user.stay_type === 'hostel',
         role: user.role || 'student',
         status: user.status || 'active',
-        created_at: user.created_at
+        created_at: user.created_at,
+        gender: user.gender || 'Male',
+        travel_mode: user.travel_mode || 'own_transport'
       }
     });
   } catch (error) {
@@ -199,7 +201,9 @@ router.post('/register', async (req, res) => {
     custom_notes,
     hostel_block,
     username,
-    password
+    password,
+    gender = 'Male',
+    travel_mode = 'own_transport'
   } = req.body;
 
   const regNumber = (rawRegNum || roll_number || '').trim();
@@ -238,8 +242,8 @@ router.post('/register', async (req, res) => {
       // Auto-insert record in official_students to ensure smooth registration for all valid students
       await safeDbCall(async () => {
         await db.query(
-          'INSERT INTO official_students (register_number, name, department, is_registered) VALUES ($1, $2, $3, false) ON CONFLICT (register_number) DO NOTHING',
-          [regNumber, full_name, department]
+          'INSERT INTO official_students (register_number, full_name, email, department, is_registered, gender, travel_mode) VALUES ($1, $2, $3, $4, false, $5, $6) ON CONFLICT (register_number) DO NOTHING',
+          [regNumber, full_name, email || `${username || regNumber.toLowerCase()}@saranathan.ac.in`, department, gender, travel_mode]
         );
       });
     }
@@ -291,9 +295,9 @@ router.post('/register', async (req, res) => {
 
         // Save User
         const userRes = await db.query(
-          `INSERT INTO users (full_name, name, roll_number, register_number, email, preferred_language, language_pref, hosteller, stay_type, department_id, username, password_hash, role, status, is_first_login, hostel_block, custom_notes)
-           VALUES ($1, $1, $2, $2, $3, $4, $4, $5, $6, $7, $8, $9, 'student', 'active', false, $10, $11) RETURNING id`,
-          [full_name, regNumber, email, preferred_language, hosteller, hosteller ? 'hostel' : 'day_scholar', deptId, username, passwordHash, hostel_block, custom_notes]
+          `INSERT INTO users (full_name, name, roll_number, register_number, email, preferred_language, language_pref, hosteller, stay_type, department_id, username, password_hash, role, status, is_first_login, hostel_block, custom_notes, gender, travel_mode)
+           VALUES ($1, $1, $2, $2, $3, $4, $4, $5, $6, $7, $8, $9, 'student', 'active', false, $10, $11, $12, $13) RETURNING id`,
+          [full_name, regNumber, email, preferred_language, hosteller, hosteller ? 'hostel' : 'day_scholar', deptId, username, passwordHash, hostel_block, custom_notes, gender, travel_mode]
         );
         const userId = userRes.rows[0].id;
 
@@ -352,7 +356,9 @@ router.post('/register', async (req, res) => {
           status: 'active',
           is_first_login: false,
           custom_notes,
-          created_at: new Date().toISOString()
+          created_at: new Date().toISOString(),
+          gender,
+          travel_mode
         };
 
         MOCK_STORE.users.push(newUser);
@@ -386,7 +392,9 @@ router.post('/register', async (req, res) => {
         hosteller,
         department,
         is_first_login: false,
-        interests: userInterests
+        interests: userInterests,
+        gender,
+        travel_mode
       }
     });
   } catch (error) {
@@ -413,7 +421,7 @@ router.post('/login', loginRateLimiter, async (req, res) => {
         const userRes = await db.query(
           `SELECT u.id, u.username, u.password_hash, u.name, u.department_id, u.stay_type, u.hostel_block, 
                   u.language_pref, u.custom_notes, u.full_name, u.roll_number, u.register_number, u.email, 
-                  u.preferred_language, u.hosteller, u.is_first_login, u.role, u.status, d.name as department_name 
+                  u.preferred_language, u.hosteller, u.is_first_login, u.role, u.status, u.gender, u.travel_mode, d.name as department_name 
            FROM users u
            LEFT JOIN departments d ON u.department_id = d.id
            WHERE LOWER(u.username) = LOWER($1) OR LOWER(u.register_number) = LOWER($1) OR LOWER(u.roll_number) = LOWER($1) OR LOWER(u.email) = LOWER($1)`,
@@ -493,7 +501,8 @@ router.post('/login', loginRateLimiter, async (req, res) => {
         hosteller: user.hosteller || (user.stay_type === 'hostel'),
         department: user.department_name,
         is_first_login: user.is_first_login,
-        interests: userInterests
+        interests: userInterests,
+        gender: user.gender || 'Male'
       }
     });
   } catch (error) {
@@ -536,7 +545,7 @@ router.post('/change-password', async (req, res) => {
     const user = await safeDbCall(
       async () => {
         let userRes;
-        const columns = 'id, username, password_hash, name, department_id, stay_type, hostel_block, language_pref, custom_notes, full_name, roll_number, register_number, email, preferred_language, hosteller, is_first_login, role, status';
+        const columns = 'id, username, password_hash, name, department_id, stay_type, hostel_block, language_pref, custom_notes, full_name, roll_number, register_number, email, preferred_language, hosteller, is_first_login, role, status, gender, travel_mode';
         if (searchUserId) {
           userRes = await db.query(`SELECT ${columns} FROM users WHERE id = $1`, [searchUserId]);
         } else {
@@ -603,7 +612,9 @@ router.post('/change-password', async (req, res) => {
         hosteller: user.hosteller || (user.stay_type === 'hostel'),
         department: user.department_name,
         is_first_login: false,
-        interests: userInterests
+        interests: userInterests,
+        gender: user.gender || 'Male',
+        travel_mode: user.travel_mode || 'own_transport'
       }
     });
   } catch (error) {
@@ -663,7 +674,7 @@ router.get('/me', authenticateToken, async (req, res) => {
         const userRes = await db.query(
           `SELECT u.id, u.username, u.name, u.department_id, u.stay_type, u.hostel_block, u.language_pref, 
                   u.custom_notes, u.full_name, u.roll_number, u.register_number, u.email, u.preferred_language, 
-                  u.hosteller, u.is_first_login, u.role, u.status, d.name as department_name 
+                  u.hosteller, u.is_first_login, u.role, u.status, u.gender, u.travel_mode, d.name as department_name 
            FROM users u
            LEFT JOIN departments d ON u.department_id = d.id
            WHERE u.id = $1`,
@@ -702,7 +713,9 @@ router.get('/me', authenticateToken, async (req, res) => {
         hosteller: user.hosteller || (user.stay_type === 'hostel'),
         department: user.department_name,
         is_first_login: user.is_first_login,
-        interests: userInterests
+        interests: userInterests,
+        gender: user.gender || 'Male',
+        travel_mode: user.travel_mode || 'own_transport'
       }
     });
   } catch (error) {

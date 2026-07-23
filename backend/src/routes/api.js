@@ -1899,11 +1899,31 @@ router.get('/notices', async (req, res) => {
 
 /**
  * GET /api/roommates
- * Fetch active hostel roommates directly from PostgreSQL
+ * Fetch active hostel roommates directly from PostgreSQL (authenticated, matching gender only, restricted to hostellers)
  */
-router.get('/roommates', async (req, res) => {
+router.get('/roommates', authenticateToken, async (req, res) => {
   try {
-    const result = await db.query(`SELECT * FROM roommates ORDER BY id DESC`);
+    const userId = req.user.id || req.user.userId;
+    // Fetch requester stay_type and gender
+    const userRes = await db.query('SELECT stay_type, hosteller, gender FROM users WHERE id = $1', [userId]);
+    const user = userRes.rows[0];
+
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    if (user.stay_type !== 'hostel' && !user.hosteller) {
+      return res.status(403).json({ error: 'Roommate finder option is only available to hostel students.' });
+    }
+
+    const gender = user.gender || 'Male';
+    // Fetch only visible roommates of the SAME gender
+    const result = await db.query(
+      `SELECT * FROM roommates 
+       WHERE is_visible = true AND LOWER(gender) = LOWER($1) AND user_id != $2
+       ORDER BY id DESC`,
+      [gender, userId]
+    );
     res.json(result.rows);
   } catch (error) {
     console.error("GET /api/roommates error:", error.message);
@@ -1915,10 +1935,23 @@ router.get('/roommates', async (req, res) => {
  * POST /api/roommates/profile
  * Register/Opt-in hostel roommate profile into PostgreSQL
  */
-router.post('/roommates/profile', async (req, res) => {
+router.post('/roommates/profile', authenticateToken, async (req, res) => {
   try {
+    const userId = req.user.id || req.user.userId;
+    // Fetch user details to verify hosteller status and gender
+    const userRes = await db.query('SELECT stay_type, hosteller, gender FROM users WHERE id = $1', [userId]);
+    const user = userRes.rows[0];
+
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    if (user.stay_type !== 'hostel' && !user.hosteller) {
+      return res.status(403).json({ error: 'Only hostel students can create roommate profiles.' });
+    }
+
     const {
-      name, gender = 'Male', department, year = '1st Year', hostel_block,
+      name, department, year = '1st Year', hostel_block,
       preferred_language = 'English', sleep_schedule = '10 PM - 6 AM',
       study_habits = 'Quiet Study', cleanliness = 'Very Neat',
       smoking_preference = 'Non-Smoker', food_preference = 'Vegetarian',
@@ -1930,25 +1963,63 @@ router.post('/roommates/profile', async (req, res) => {
       return res.status(400).json({ error: 'Name, Department, and Hostel Block are required' });
     }
 
-    const result = await db.query(
-      `INSERT INTO roommates (
-        student_id, name, gender, department, year, hostel_block,
-        preferred_language, sleep_schedule, study_habits, cleanliness,
-        smoking_preference, food_preference, interests, hobbies,
-        room_preference, is_visible, contact_email, phone
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)
-      RETURNING *`,
-      [
-        `SCE${Date.now().toString().slice(-6)}`,
-        name, gender, department, year, hostel_block,
-        preferred_language, sleep_schedule, study_habits, cleanliness,
-        smoking_preference, food_preference,
-        JSON.stringify(Array.isArray(interests) ? interests : [interests]),
-        JSON.stringify(Array.isArray(hobbies) ? hobbies : [hobbies]),
-        room_preference, is_visible,
-        contact_email || null, phone || null
-      ]
-    );
+    const existingProfile = await db.query('SELECT id FROM roommates WHERE user_id = $1', [userId]);
+    let result;
+    if (existingProfile.rows.length > 0) {
+      result = await db.query(
+        `UPDATE roommates SET
+          name = $1,
+          gender = $2,
+          department = $3,
+          year = $4,
+          hostel_block = $5,
+          preferred_language = $6,
+          sleep_schedule = $7,
+          study_habits = $8,
+          cleanliness = $9,
+          smoking_preference = $10,
+          food_preference = $11,
+          interests = $12,
+          hobbies = $13,
+          room_preference = $14,
+          is_visible = $15,
+          contact_email = $16,
+          phone = $17
+         WHERE user_id = $18
+         RETURNING *`,
+        [
+          name, user.gender || 'Male', department, year, hostel_block,
+          preferred_language, sleep_schedule, study_habits, cleanliness,
+          smoking_preference, food_preference,
+          JSON.stringify(Array.isArray(interests) ? interests : [interests]),
+          JSON.stringify(Array.isArray(hobbies) ? hobbies : [hobbies]),
+          room_preference, is_visible,
+          contact_email || null, phone || null,
+          userId
+        ]
+      );
+    } else {
+      result = await db.query(
+        `INSERT INTO roommates (
+          user_id, student_id, name, gender, department, year, hostel_block,
+          preferred_language, sleep_schedule, study_habits, cleanliness,
+          smoking_preference, food_preference, interests, hobbies,
+          room_preference, is_visible, contact_email, phone
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19)
+        RETURNING *`,
+        [
+          userId,
+          `SCE${Date.now().toString().slice(-6)}`,
+          name, user.gender || 'Male', department, year, hostel_block,
+          preferred_language, sleep_schedule, study_habits, cleanliness,
+          smoking_preference, food_preference,
+          JSON.stringify(Array.isArray(interests) ? interests : [interests]),
+          JSON.stringify(Array.isArray(hobbies) ? hobbies : [hobbies]),
+          room_preference, is_visible,
+          contact_email || null, phone || null
+        ]
+      );
+    }
 
     res.status(201).json(result.rows[0]);
   } catch (error) {

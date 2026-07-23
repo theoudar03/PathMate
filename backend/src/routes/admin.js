@@ -252,7 +252,7 @@ router.get('/students', async (req, res) => {
         u.email, u.department_id, d.name as department_name, 
         u.stay_type, u.hostel_block, u.language_pref, u.preferred_language,
         COALESCE(u.role, 'student') as role, COALESCE(u.status, 'active') as status,
-        u.created_at, u.last_login
+        u.created_at, u.last_login, u.gender, u.travel_mode
       FROM users u
       LEFT JOIN departments d ON u.department_id = d.id
       WHERE 1=1
@@ -285,7 +285,7 @@ router.get('/students', async (req, res) => {
 // POST Create new student
 router.post('/students', async (req, res) => {
   try {
-    const { full_name, register_number, username, email, department, password, stay_type = 'day_scholar', hostel_block } = req.body;
+    const { full_name, register_number, username, email, department, password, stay_type = 'day_scholar', hostel_block, gender = 'Male', travel_mode = 'own_transport' } = req.body;
     if (!full_name || !register_number || !username || !password || !department) {
       return res.status(400).json({ error: 'Full name, register number, username, password, and department are required' });
     }
@@ -296,18 +296,18 @@ router.post('/students', async (req, res) => {
     const hash = await bcrypt.hash(password, 12);
 
     const userRes = await db.query(
-      `INSERT INTO users (full_name, name, register_number, roll_number, username, email, department_id, password_hash, stay_type, hostel_block, hosteller, role, status)
-       VALUES ($1, $1, $2, $2, $3, $4, $5, $6, $7, $8, $9, 'student', 'active')
-       RETURNING id, full_name, username, register_number, email, status, role, created_at`,
-      [full_name, register_number, username, email, deptId, hash, stay_type, hostel_block || null, stay_type === 'hostel']
+      `INSERT INTO users (full_name, name, register_number, roll_number, username, email, department_id, password_hash, stay_type, hostel_block, hosteller, role, status, gender, travel_mode)
+       VALUES ($1, $1, $2, $2, $3, $4, $5, $6, $7, $8, $9, 'student', 'active', $10, $11)
+       RETURNING id, full_name, username, register_number, email, status, role, created_at, gender, travel_mode`,
+      [full_name, register_number, username, email, deptId, hash, stay_type, hostel_block || null, stay_type === 'hostel', gender, travel_mode]
     );
 
     // Upsert into official_students
     await db.query(
-      `INSERT INTO official_students (register_number, full_name, email, department, is_registered)
-       VALUES ($1, $2, $3, $4, true)
-       ON CONFLICT (register_number) DO UPDATE SET is_registered = true`,
-      [register_number, full_name, email || `${username}@saranathan.ac.in`, department]
+      `INSERT INTO official_students (register_number, full_name, email, department, is_registered, gender, travel_mode)
+       VALUES ($1, $2, $3, $4, true, $5, $6)
+       ON CONFLICT (register_number) DO UPDATE SET is_registered = true, gender = EXCLUDED.gender, travel_mode = EXCLUDED.travel_mode`,
+      [register_number, full_name, email || `${username}@saranathan.ac.in`, department, gender, travel_mode]
     );
 
     await logActivity(req.admin?.id, 'student_created', `Created student: ${full_name} (${register_number})`);
@@ -321,7 +321,11 @@ router.post('/students', async (req, res) => {
 router.put('/students/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    const { full_name, email, status, role, stay_type, hostel_block, department } = req.body;
+    const { full_name, email, status, role, stay_type, hostel_block, department, register_number, username, gender, travel_mode } = req.body;
+
+    const userBeforeRes = await db.query('SELECT register_number, username FROM users WHERE id = $1', [id]);
+    if (userBeforeRes.rows.length === 0) return res.status(404).json({ error: 'Student not found' });
+    const oldRegNumber = userBeforeRes.rows[0].register_number;
 
     let deptId = null;
     if (department) {
@@ -338,14 +342,65 @@ router.put('/students/:id', async (req, res) => {
         role = COALESCE($4, role),
         stay_type = COALESCE($5, stay_type),
         hostel_block = COALESCE($6, hostel_block),
-        department_id = COALESCE($7, department_id),
+        hosteller = COALESCE($7, hosteller),
+        department_id = COALESCE($8, department_id),
+        register_number = COALESCE($9, register_number),
+        roll_number = COALESCE($9, roll_number),
+        username = COALESCE($10, username),
+        gender = COALESCE($11, gender),
+        travel_mode = COALESCE($12, travel_mode),
         updated_at = NOW()
-       WHERE id = $8
-       RETURNING id, full_name, username, register_number, email, status, role`,
-      [full_name, email, status, role, stay_type, hostel_block, deptId, id]
+       WHERE id = $13
+       RETURNING id, full_name, username, register_number, email, status, role, gender, travel_mode`,
+      [
+        full_name, 
+        email, 
+        status, 
+        role, 
+        stay_type, 
+        stay_type === 'hostel' ? hostel_block : null,
+        stay_type === 'hostel',
+        deptId, 
+        register_number, 
+        username, 
+        gender, 
+        travel_mode,
+        id
+      ]
     );
 
     if (updateRes.rows.length === 0) return res.status(404).json({ error: 'Student not found' });
+
+    const finalRegNum = register_number || oldRegNumber;
+
+    // Update official_students registry in sync
+    if (oldRegNumber) {
+      await db.query(
+        `UPDATE official_students SET 
+          register_number = $1, 
+          full_name = $2, 
+          email = $3, 
+          department = $4,
+          gender = $5,
+          travel_mode = $6
+         WHERE LOWER(register_number) = LOWER($7)`,
+        [finalRegNum, full_name, email || `${username || finalRegNum}@saranathan.ac.in`, department, gender, travel_mode, oldRegNumber]
+      );
+    }
+
+    // Update roommate profile in sync
+    await db.query(
+      `UPDATE roommates SET 
+        name = $1,
+        gender = $2,
+        department = $3,
+        hostel_block = $4,
+        contact_email = $5,
+        student_id = $6,
+        is_visible = $7
+       WHERE user_id = $8`,
+      [full_name, gender, department, stay_type === 'hostel' ? hostel_block : null, email, finalRegNum, stay_type === 'hostel', id]
+    );
 
     await logActivity(req.admin?.id, 'student_updated', `Updated student ID ${id}: status=${status || 'unchanged'}`);
     res.json(updateRes.rows[0]);

@@ -5,6 +5,7 @@ import { useApp } from '../../contexts/AppContext';
 const VoiceInputButton = ({ 
   onInterimTranscript, 
   onFinalTranscript, 
+  onTranscript,
   onError, 
   disabled = false 
 }) => {
@@ -17,16 +18,16 @@ const VoiceInputButton = ({
   
   // Refs for callbacks
   const onInterimRef = useRef(onInterimTranscript);
-  const onFinalRef = useRef(onFinalTranscript);
+  const onFinalRef = useRef(onFinalTranscript || onTranscript);
   const onErrorRef = useRef(onError);
   const languageRef = useRef(language);
 
   useEffect(() => {
     onInterimRef.current = onInterimTranscript;
-    onFinalRef.current = onFinalTranscript;
+    onFinalRef.current = onFinalTranscript || onTranscript;
     onErrorRef.current = onError;
     languageRef.current = language;
-  }, [onInterimTranscript, onFinalTranscript, onError, language]);
+  }, [onInterimTranscript, onFinalTranscript, onTranscript, onError, language]);
 
   useEffect(() => {
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -58,20 +59,14 @@ const VoiceInputButton = ({
     }
   };
 
-  const handleToggleRecord = () => {
-    if (onErrorRef.current) onErrorRef.current('');
-    
-    if (isRecording) {
-      stopRecording();
-      return;
-    }
-    
+  const startRecognition = (isRetry = false) => {
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!SpeechRecognition) return;
 
     // Create a completely fresh instance on every start to prevent Chrome state bugs
     const rec = new SpeechRecognition();
-    rec.continuous = true;
+    // Fall back to single-shot recognition if retrying after a network error
+    rec.continuous = !isRetry;
     rec.interimResults = true;
     rec.maxAlternatives = 1;
     
@@ -85,7 +80,7 @@ const VoiceInputButton = ({
     }
 
     rec.onstart = () => {
-      console.log('SpeechRecognition: started');
+      console.log(`SpeechRecognition: started (continuous=${!isRetry})`);
       setIsRecording(true);
       if (onErrorRef.current) onErrorRef.current('');
     };
@@ -125,6 +120,15 @@ const VoiceInputButton = ({
       console.error('Speech recognition error:', event.error);
       stopRecording();
       
+      // If continuous mode fails with a network error, try retrying once in single-shot mode
+      if (event.error === 'network' && !isRetry) {
+        console.warn('Network error in continuous mode. Attempting speech recognition in single-shot mode...');
+        setTimeout(() => {
+          startRecognition(true);
+        }, 300);
+        return;
+      }
+      
       if (onErrorRef.current) {
         if (event.error === 'not-allowed') {
           onErrorRef.current('Microphone access denied. Please check permissions.');
@@ -150,6 +154,17 @@ const VoiceInputButton = ({
       console.error("Failed to start speech recognition", e);
       stopRecording();
     }
+  };
+
+  const handleToggleRecord = () => {
+    if (onErrorRef.current) onErrorRef.current('');
+    
+    if (isRecording) {
+      stopRecording();
+      return;
+    }
+    
+    startRecognition(false);
   };
 
   if (!isSupported) {

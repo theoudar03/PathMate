@@ -24,7 +24,9 @@ export const AppProvider = ({ children }) => {
       interests: u?.interests || [],
       otherInterest: u?.otherInterest || '',
       backgroundText: u?.custom_notes || '',
-      onboardingCompletedAt: u?.created_at || ''
+      onboardingCompletedAt: u?.created_at || '',
+      gender: u?.gender || 'Male',
+      travel_mode: u?.travel_mode || 'own_transport'
     };
   });
 
@@ -170,7 +172,9 @@ export const AppProvider = ({ children }) => {
         interests: user.interests || [],
         otherInterest: user.otherInterest || '',
         backgroundText: user.custom_notes || '',
-        onboardingCompletedAt: user.created_at || ''
+        onboardingCompletedAt: user.created_at || '',
+        gender: user.gender || 'Male',
+        travel_mode: user.travel_mode || 'own_transport'
       });
     }
   }, [user]);

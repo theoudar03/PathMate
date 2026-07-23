@@ -12,6 +12,8 @@ const Dashboard = () => {
   const dept       = studentData?.department || 'Computer Science';
   const isHostel   = studentData?.isHosteller;
   const interests  = studentData?.interests  || [];
+  const gender     = studentData?.gender     || 'Male';
+  const travelMode = studentData?.travel_mode || 'own_transport';
 
   // Initials for avatar
   const initials = name
@@ -131,13 +133,13 @@ const Dashboard = () => {
       </div>
 
       {/* === QUICK SHORTCUT CARDS GRID === */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+      <div className={`grid grid-cols-2 ${isHostel ? 'sm:grid-cols-4' : 'sm:grid-cols-3'} gap-4`}>
         {[
-          { title: 'Roommate Finder', desc: 'Hostel Profiles', icon: 'bedroom_parent', color: 'text-purple-600', bg: 'bg-purple-50', path: '/connect' },
-          { title: 'Senior Mentors', desc: 'Academic Advice', icon: 'school', color: 'text-blue-600', bg: 'bg-blue-50', path: '/connect' },
-          { title: 'Clubs & Events', desc: 'Campus Activities', icon: 'celebration', color: 'text-amber-600', bg: 'bg-amber-50', path: '/clubs-events' },
-          { title: 'Campus Map', desc: 'Interactive Nav', icon: 'map', color: 'text-emerald-600', bg: 'bg-emerald-50', path: '/campus-map' },
-        ].map((item, idx) => (
+          { title: 'Roommate Finder', desc: 'Hostel Profiles', icon: 'bedroom_parent', color: 'text-purple-600', bg: 'bg-purple-50', path: '/connect', show: isHostel },
+          { title: 'Senior Mentors', desc: 'Academic Advice', icon: 'school', color: 'text-blue-600', bg: 'bg-blue-50', path: '/connect', show: true },
+          { title: 'Clubs & Events', desc: 'Campus Activities', icon: 'celebration', color: 'text-amber-600', bg: 'bg-amber-50', path: '/clubs-events', show: true },
+          { title: 'Campus Map', desc: 'Interactive Nav', icon: 'map', color: 'text-emerald-600', bg: 'bg-emerald-50', path: '/campus-map', show: true },
+        ].filter(item => item.show).map((item, idx) => (
           <div
             key={idx}
             onClick={() => navigate(item.path)}
@@ -322,7 +324,9 @@ const Dashboard = () => {
           </div>
 
           {/* OFFICIAL BUS ROUTES WIDGET */}
-          <BusRouteWidget />
+          {(travelMode === 'college_bus' || (gender === 'Female' && isHostel === true)) && (
+            <BusRouteWidget />
+          )}
 
           {/* UPCOMING EVENTS */}
           <div className="bg-white border border-surfaceVariant rounded-[24px] p-6 shadow-elevation1 space-y-4">

@@ -3,7 +3,7 @@ import { Bus, Sun, Moon, Clock, Eye, AlertTriangle, History, CheckCircle2, Chevr
 import { safeFetchJson } from '../../utils/api';
 import BusRouteViewerModal from './BusRouteViewerModal';
 
-const BusRouteWidget = () => {
+const BusRouteWidget = ({ isSidebar = false }) => {
   const [routes, setRoutes] = useState({ morning: null, evening: null });
   const [activeSession, setActiveSession] = useState('morning');
   const [loading, setLoading] = useState(true);
@@ -60,28 +60,42 @@ const BusRouteWidget = () => {
   const activeRoute = activeSession === 'morning' ? routes.morning : routes.evening;
 
   return (
-    <div className="bg-surfaceContainerLowest border border-surfaceVariant rounded-[28px] p-5 shadow-elevation1 space-y-4 text-left font-sans transition-all hover:border-primary/30">
+    <div className={isSidebar ? "space-y-4 text-left font-sans" : "bg-surfaceContainerLowest border border-surfaceVariant rounded-[28px] p-5 shadow-elevation1 space-y-4 text-left font-sans transition-all hover:border-primary/30"}>
       {/* Widget Header */}
-      <div className="flex items-center justify-between gap-2 border-b border-surfaceVariant pb-3">
-        <div className="flex items-center gap-2.5">
-          <div className="w-9 h-9 rounded-2xl bg-primary/10 text-primary flex items-center justify-center flex-shrink-0">
-            <Bus size={20} />
-          </div>
-          <div>
-            <h3 className="text-base font-bold text-onSurface">Today's Bus Routes</h3>
-            <p className="text-[11px] text-onSurfaceVariant">Official College Transport Notice Board</p>
-          </div>
+      {isSidebar ? (
+        <div className="flex items-center justify-between gap-2 border-b border-surfaceVariant pb-2">
+          <p className="text-[11px] text-onSurfaceVariant">Official College Transport Notice Board</p>
+          <button
+            onClick={() => { setShowArchive(true); fetchArchive(); }}
+            className="text-primary hover:text-primaryHover text-xs font-bold flex items-center gap-1 transition-colors cursor-pointer"
+            title="View Historical Route Board Archive"
+          >
+            <History size={14} />
+            <span>Archive</span>
+          </button>
         </div>
+      ) : (
+        <div className="flex items-center justify-between gap-2 border-b border-surfaceVariant pb-3">
+          <div className="flex items-center gap-2.5">
+            <div className="w-9 h-9 rounded-2xl bg-primary/10 text-primary flex items-center justify-center flex-shrink-0">
+              <Bus size={20} />
+            </div>
+            <div>
+              <h3 className="text-base font-bold text-onSurface">Today's Bus Routes</h3>
+              <p className="text-[11px] text-onSurfaceVariant">Official College Transport Notice Board</p>
+            </div>
+          </div>
 
-        <button
-          onClick={() => { setShowArchive(true); fetchArchive(); }}
-          className="text-primary hover:text-primaryHover text-xs font-bold flex items-center gap-1 transition-colors cursor-pointer"
-          title="View Historical Route Board Archive"
-        >
-          <History size={14} />
-          <span className="hidden sm:inline">Archive</span>
-        </button>
-      </div>
+          <button
+            onClick={() => { setShowArchive(true); fetchArchive(); }}
+            className="text-primary hover:text-primaryHover text-xs font-bold flex items-center gap-1 transition-colors cursor-pointer"
+            title="View Historical Route Board Archive"
+          >
+            <History size={14} />
+            <span className="hidden sm:inline">Archive</span>
+          </button>
+        </div>
+      )}
 
       {/* Session Switcher (Morning / Evening) */}
       <div className="grid grid-cols-2 gap-1.5 p-1 bg-surfaceContainerLow rounded-2xl border border-surfaceVariant/60 text-xs font-bold">

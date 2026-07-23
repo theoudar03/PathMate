@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { useApp } from '../contexts/AppContext';
 import TranslateText from '../components/common/TranslateText';
 import FloatingNotice from '../components/notices/FloatingNotice';
-import { Bell, AlertCircle, Clock, X, CheckSquare } from 'lucide-react';
+import { Bell, AlertCircle, Clock, X, CheckSquare, Bus } from 'lucide-react';
 import ToDoWidget from '../components/todo/ToDoWidget';
 import ActivityManagerModal from '../components/todo/ActivityManagerModal';
 import BusRouteWidget from '../components/dashboard/BusRouteWidget';
@@ -106,6 +106,7 @@ const Home = () => {
   const [showTodoModal, setShowTodoModal] = useState(false);
   const [todoDefaultTab, setTodoDefaultTab] = useState('all');
   const [todoRefreshTrigger, setTodoRefreshTrigger] = useState(0);
+  const [showBusRoutes, setShowBusRoutes] = useState(false);
 
   const openTodoModal = (tab = 'all') => {
     setTodoDefaultTab(tab);
@@ -192,11 +193,6 @@ const Home = () => {
           onOpenModal={openTodoModal}
           refreshTrigger={todoRefreshTrigger}
         />
-      </div>
-
-      {/* ── 1.6 TODAY'S BUS ROUTE QUICK ACCESS ──────────────────── */}
-      <div className="stagger-item stagger-delay-1.5">
-        <BusRouteWidget />
       </div>
 
       {/* ── 2. QUICK ACTIONS ─────────────────────────────────────── */}
@@ -413,6 +409,18 @@ const Home = () => {
         <CheckSquare size={20} />
         <span className="font-bold text-sm hidden sm:block">My To-Do</span>
       </button>
+ 
+      {/* Floating Bus Routes Toggle Button (Immediately below To-Do) */}
+      {(studentData?.travel_mode === 'college_bus' || (studentData?.gender === 'Female' && studentData?.isHosteller === true)) && (
+        <button
+          onClick={() => setShowBusRoutes(true)}
+          className="fixed top-64 right-0 z-40 bg-emerald-600 text-white shadow-lg hover:pr-5 hover:bg-emerald-700 transition-all flex items-center gap-2 py-3 px-4 rounded-l-2xl border border-r-0 border-white/20"
+          title="Open Today's Bus Routes"
+        >
+          <Bus size={20} />
+          <span className="font-bold text-sm hidden sm:block">Bus Routes</span>
+        </button>
+      )}
 
       {/* Overlay and Side Drawer Panel via Portal to escape stacking context */}
       {createPortal(
@@ -493,6 +501,36 @@ const Home = () => {
                   </div>
                 ))}
               </div>
+            </div>
+          </div>
+
+          {/* Overlay for Bus Routes Drawer */}
+          {showBusRoutes && (
+            <div 
+              className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[9999] transition-opacity"
+              onClick={() => setShowBusRoutes(false)}
+            />
+          )}
+
+          {/* Side Drawer Panel for Bus Routes */}
+          <div 
+            className={`fixed top-0 right-0 h-full w-full max-w-md bg-white shadow-2xl z-[9999] transform transition-transform duration-300 ease-in-out flex flex-col ${showBusRoutes ? 'translate-x-0' : 'translate-x-full'}`}
+          >
+            <div className="px-6 py-5 border-b border-outline/20 bg-emerald-600 text-white flex items-center justify-between flex-shrink-0">
+              <div className="flex items-center gap-3">
+                <Bus size={22} />
+                <h2 className="text-xl font-black tracking-tight">Today's Bus Routes</h2>
+              </div>
+              <button 
+                onClick={() => setShowBusRoutes(false)}
+                className="p-1.5 hover:bg-white/20 rounded-full transition-colors cursor-pointer"
+              >
+                <X size={20} />
+              </button>
+            </div>
+            
+            <div className="flex-1 overflow-y-auto bg-slate-50 p-6">
+              <BusRouteWidget isSidebar={true} />
             </div>
           </div>
         </>,

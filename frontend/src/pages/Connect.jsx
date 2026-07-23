@@ -6,7 +6,9 @@ import SeniorConnectCard from '../components/senior/SeniorConnectCard';
 
 const Connect = () => {
   const { studentData, completeOnboarding, t } = useApp();
-  const [activeTab, setActiveTab] = useState('roommate'); // 'roommate' | 'senior'
+  const [activeTab, setActiveTab] = useState(() => {
+    return studentData?.isHosteller ? 'roommate' : 'senior';
+  });
 
   // Dynamic DB Datasets
   const [roommates, setRoommates] = useState([]);
@@ -56,7 +58,9 @@ const Connect = () => {
   };
 
   useEffect(() => {
-    fetchRoommates();
+    if (studentData?.isHosteller) {
+      fetchRoommates();
+    }
     fetchSeniors();
   }, [activeTab]);
 
@@ -170,9 +174,9 @@ const Connect = () => {
       {/* M3 Segmented Tab Switcher */}
       <div className="inline-flex border border-outline rounded-full p-0.5 bg-surface" role="tablist">
         {[
-          { id: 'roommate', label: `Safe Roommate Finder (${roommates.length})`, icon: 'group' },
-          { id: 'senior', label: `Senior Connect & Mentors (${seniors.length})`, icon: 'school' },
-        ].map(tab => {
+          { id: 'roommate', label: `Safe Roommate Finder (${roommates.length})`, icon: 'group', show: studentData?.isHosteller },
+          { id: 'senior', label: `Senior Connect & Mentors (${seniors.length})`, icon: 'school', show: true },
+        ].filter(tab => tab.show).map(tab => {
           const isActive = activeTab === tab.id;
           return (
             <button

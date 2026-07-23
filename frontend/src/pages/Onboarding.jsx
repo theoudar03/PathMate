@@ -58,8 +58,10 @@ const Onboarding = ({ isOpen, onClose }) => {
   const [rollNumber, setRollNumber] = useState('');
   const [email, setEmail] = useState('');
   const [preferredLang, setPreferredLang] = useState('en');
+  const [gender, setGender] = useState('Male'); // 'Male' | 'Female'
   const [hosteller, setHosteller] = useState(null); // true = Hosteller, false = Day Scholar
   const [hostelBlock, setHostelBlock] = useState('B-Block (Boys Hostel)');
+  const [travelMode, setTravelMode] = useState('own_transport'); // 'college_bus' | 'own_transport'
 
   // Step 2: Department & Interests
   const [department, setDepartment] = useState('');
@@ -158,7 +160,9 @@ const Onboarding = ({ isOpen, onClose }) => {
           custom_notes: customNotes.trim() || null,
           hostel_block: hosteller ? hostelBlock : null,
           username: username.toLowerCase().trim(),
-          password: password
+          password: password,
+          gender: gender,
+          travel_mode: hosteller ? 'own_transport' : travelMode
         })
       });
 
@@ -186,7 +190,7 @@ const Onboarding = ({ isOpen, onClose }) => {
   };
 
   // Step Nav validation checks
-  const canNextStep1 = fullName.trim().length > 0 && hosteller !== null;
+  const canNextStep1 = fullName.trim().length > 0 && rollNumber.trim().length > 0 && hosteller !== null;
   const canNextStep2 = department !== '' && selectedInterests.length > 0;
   const canNextStep3 = 
     usernameStatus?.available && 
@@ -314,7 +318,7 @@ const Onboarding = ({ isOpen, onClose }) => {
                   {/* Roll Number */}
                   <div className="space-y-1 text-left">
                     <label htmlFor="reg-roll" className="text-[10px] font-bold text-onSurfaceVariant uppercase tracking-wider">
-                      {t('rollNumber')} <span className="text-onSurfaceVariant/60">({t('optional')})</span>
+                      {t('rollNumber')} <span className="text-error">*</span>
                     </label>
                     <div className="relative">
                       <span className="material-symbols-outlined absolute left-3.5 top-3 text-onSurfaceVariant/70 text-[18px]">tag</span>
@@ -325,6 +329,7 @@ const Onboarding = ({ isOpen, onClose }) => {
                         onChange={(e) => setRollNumber(e.target.value)}
                         placeholder={t('rollPlaceholder')}
                         className="w-full pl-10 pr-4 py-2.5 border border-outline/35 rounded-2xl text-sm bg-surfaceContainerLowest focus:border-primary focus:ring-1 focus:ring-primary outline-none"
+                        required
                       />
                     </div>
                   </div>
@@ -375,6 +380,47 @@ const Onboarding = ({ isOpen, onClose }) => {
                   </div>
                 </div>
 
+                {/* Gender Selection */}
+                <div className="space-y-2 text-left animate-fade-in">
+                  <label className="text-[10px] font-bold text-onSurfaceVariant uppercase tracking-wider block">
+                    {t('gender') || 'Gender'} <span className="text-error">*</span>
+                  </label>
+                  <div className="grid grid-cols-2 gap-3">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setGender('Male');
+                        if (hostelBlock === 'Girls-Block (Girls Hostel)') {
+                          setHostelBlock('B-Block (Boys Hostel)');
+                        }
+                      }}
+                      className={`py-3 px-4 text-xs font-bold rounded-2xl border transition-all duration-150 ease-in-out cursor-pointer active:scale-[0.98] focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1 outline-none flex items-center justify-center gap-2 ${
+                        gender === 'Male'
+                          ? 'bg-primary border-primary text-white shadow-elevation2'
+                          : 'border-outline/25 bg-surface text-primary hover:bg-primaryContainer/20 hover:text-[#123669]'
+                      }`}
+                    >
+                      <span className="material-symbols-outlined text-[16px]">male</span>
+                      {t('genderMale') || 'Male'}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setGender('Female');
+                        setHostelBlock('Girls-Block (Girls Hostel)');
+                      }}
+                      className={`py-3 px-4 text-xs font-bold rounded-2xl border transition-all duration-150 ease-in-out cursor-pointer active:scale-[0.98] focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1 outline-none flex items-center justify-center gap-2 ${
+                        gender === 'Female'
+                          ? 'bg-primary border-primary text-white shadow-elevation2'
+                          : 'border-outline/25 bg-surface text-primary hover:bg-primaryContainer/20 hover:text-[#123669]'
+                      }`}
+                    >
+                      <span className="material-symbols-outlined text-[16px]">female</span>
+                      {t('genderFemale') || 'Female'}
+                    </button>
+                  </div>
+                </div>
+
                 {/* Stay Type */}
                 <div className="space-y-2 text-left">
                   <label className="text-[10px] font-bold text-onSurfaceVariant uppercase tracking-wider block">
@@ -383,7 +429,10 @@ const Onboarding = ({ isOpen, onClose }) => {
                   <div className="grid grid-cols-2 gap-3">
                     <button
                       type="button"
-                      onClick={() => setHosteller(true)}
+                      onClick={() => {
+                        setHosteller(true);
+                        setTravelMode('own_transport');
+                      }}
                       className={`py-3 px-4 text-xs font-bold rounded-2xl border transition-all duration-150 ease-in-out cursor-pointer active:scale-[0.98] focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1 outline-none flex items-center justify-center gap-2 ${
                         hosteller === true
                           ? 'bg-primary border-primary text-white shadow-elevation2'
@@ -408,6 +457,24 @@ const Onboarding = ({ isOpen, onClose }) => {
                   </div>
                 </div>
 
+                {/* Mode of Travel (Conditional on Day Scholar) */}
+                {hosteller === false && (
+                  <div className="space-y-1.5 text-left animate-slide-up">
+                    <label htmlFor="reg-travelMode" className="text-[10px] font-bold text-onSurfaceVariant uppercase tracking-wider block">
+                      {t('travelMode') || 'Mode of Travel'} <span className="text-error">*</span>
+                    </label>
+                    <select
+                      id="reg-travelMode"
+                      value={travelMode}
+                      onChange={(e) => setTravelMode(e.target.value)}
+                      className="w-full px-3 py-2.5 border border-outline/35 rounded-2xl text-sm bg-surfaceContainerLowest focus:border-primary focus:ring-1 focus:ring-primary outline-none font-semibold text-onSurface"
+                    >
+                      <option value="own_transport">{t('ownTransport') || 'Out Bus / Own Vehicle'}</option>
+                      <option value="college_bus">{t('collegeBus') || 'College Bus'}</option>
+                    </select>
+                  </div>
+                )}
+
                 {/* Hostel Block Selection */}
                 {hosteller === true && (
                   <div className="space-y-1.5 text-left animate-slide-up">
@@ -420,9 +487,14 @@ const Onboarding = ({ isOpen, onClose }) => {
                       onChange={(e) => setHostelBlock(e.target.value)}
                       className="w-full px-3 py-2.5 border border-outline/35 rounded-2xl text-sm bg-surfaceContainerLowest focus:border-primary focus:ring-1 focus:ring-primary outline-none"
                     >
-                      <option value="B-Block (Boys Hostel)">{t('hostelBBlockOption')}</option>
-                      <option value="A-Block (Boys Hostel)">{t('hostelABlockOption')}</option>
-                      <option value="Girls-Block (Girls Hostel)">{t('hostelGirlsBlockOption')}</option>
+                      {gender === 'Female' ? (
+                        <option value="Girls-Block (Girls Hostel)">{t('hostelGirlsBlockOption')}</option>
+                      ) : (
+                        <>
+                          <option value="B-Block (Boys Hostel)">{t('hostelBBlockOption')}</option>
+                          <option value="A-Block (Boys Hostel)">{t('hostelABlockOption')}</option>
+                        </>
+                      )}
                     </select>
                   </div>
                 )}
@@ -493,6 +565,9 @@ const Onboarding = ({ isOpen, onClose }) => {
                     </label>
                     <VoiceInputButton
                       onTranscript={(text) => setCustomNotes(prev => prev + " " + text)}
+                      onError={(err) => {
+                        if (err) setErrorMsg(err);
+                      }}
                     />
                   </div>
                   <textarea

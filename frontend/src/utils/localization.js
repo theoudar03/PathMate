@@ -34,7 +34,7 @@ export const LOCALIZATION_DICTS = {
     personalInfo: "Personal Information",
     personalSubtitle: "Provide your name and administrative details to start.",
     fullName: "Full Name",
-    rollNumber: "Roll Number",
+    rollNumber: "Register / Roll Number",
     emailAddress: "Email Address",
     preferredLanguage: "Preferred Language",
     stayType: "Stay Type",
@@ -43,6 +43,9 @@ export const LOCALIZATION_DICTS = {
     hostelBlock: "Hostel Residence Block",
     optional: "Optional",
     required: "Required",
+    travelMode: "Mode of Travel",
+    collegeBus: "College Bus",
+    ownTransport: "Out Bus / Own Vehicle",
 
     // Onboarding Profile
     deptInterests: "Department & Interests",
@@ -314,6 +317,9 @@ export const LOCALIZATION_DICTS = {
     hostelBlock: "விடுதி குடியிருப்பு கட்டிடம்",
     optional: "விருப்பத்திற்குரியது",
     required: "தேவைப்படுகிறது",
+    travelMode: "பயண வகை",
+    collegeBus: "கல்லூரி பேருந்து",
+    ownTransport: "சொந்த வாகனம் / பிற பேருந்து",
 
     // Onboarding Profile
     deptInterests: "துறை & ஆர்வங்கள்",
@@ -576,7 +582,7 @@ export const LOCALIZATION_DICTS = {
     personalInfo: "व्यक्तिगत जानकारी",
     personalSubtitle: "शुरू करने के लिए अपना नाम और प्रशासनिक विवरण प्रदान करें।",
     fullName: "पूरा नाम",
-    rollNumber: "अनुक्रमांक",
+    rollNumber: "पंजीकरण / अनुक्रमांक",
     emailAddress: "ईमेल पता",
     preferredLanguage: "पसंदीदा भाषा",
     stayType: "रहने का प्रकार",
@@ -585,6 +591,9 @@ export const LOCALIZATION_DICTS = {
     hostelBlock: "छात्रावास ब्लॉक",
     optional: "वैकल्पिक",
     required: "आवश्यक",
+    travelMode: "यात्रा का साधन",
+    collegeBus: "कॉलेज बस",
+    ownTransport: "स्वयं का वाहन / अन्य बस",
 
     // Onboarding Profile
     deptInterests: "विभाग और रुचियां",

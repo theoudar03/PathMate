@@ -243,6 +243,7 @@ router.post('/register', async (req, res) => {
       }
     );
 
+    let isRegistered = false;
     if (!officialStudent) {
       // Auto-insert record in official_students to ensure smooth registration for all valid students
       await safeDbCall(async () => {
@@ -251,9 +252,11 @@ router.post('/register', async (req, res) => {
           [regNumber, full_name, email || `${username || regNumber.toLowerCase()}@saranathan.ac.in`, department, gender, travel_mode]
         );
       });
+    } else {
+      isRegistered = officialStudent.is_registered;
     }
 
-    if (officialStudent.is_registered) {
+    if (isRegistered) {
       return res.status(400).json({
         error: `An account for Register Number '${regNumber}' has already been registered. Please log in.`
       });

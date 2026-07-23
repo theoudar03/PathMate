@@ -134,6 +134,6 @@ if (process.env.NODE_ENV !== 'test') {
 
 // Export the Express API for Vercel Serverless
 export default app;
-// Trigger migration retry after fixing SQL typos again
+// Trigger migration retry and registration crash fix
 
 

@@ -285,12 +285,21 @@ const CampusMap = () => {
                     className="w-full h-full max-h-[640px] object-contain drop-shadow-sm select-none"
                   >
                     <g className="roads" opacity="0.8">
+                      {/* Main Roads */}
                       <rect x="0" y="175" width="900" height="26" fill="#CBD5E1" />
                       <line x1="0" y1="188" x2="900" y2="188" stroke="#94A3B8" strokeWidth="2" strokeDasharray="8 6" />
                       <rect x="435" y="175" width="30" height="795" fill="#CBD5E1" />
                       <line x1="450" y1="175" x2="450" y2="970" stroke="#94A3B8" strokeWidth="2" strokeDasharray="8 6" />
                       <rect x="0" y="660" width="900" height="26" fill="#CBD5E1" />
                       <line x1="0" y1="673" x2="900" y2="673" stroke="#94A3B8" strokeWidth="2" strokeDasharray="8 6" />
+
+                      {/* New center vertical path from KS block to mechanical workshop */}
+                      <rect x="656" y="175" width="14" height="485" fill="#CBD5E1" />
+                      <line x1="663" y1="175" x2="663" y2="660" stroke="#94A3B8" strokeWidth="1" strokeDasharray="4 3" opacity="0.6" />
+
+                      {/* New horizontal path between Mechanical Lab and KS Block */}
+                      <rect x="465" y="522" width="205" height="11" fill="#CBD5E1" />
+                      <line x1="465" y1="527.5" x2="670" y2="527.5" stroke="#94A3B8" strokeWidth="1" strokeDasharray="4 3" opacity="0.6" />
                     </g>
 
                     <g transform="translate(405, 940)" className="cursor-pointer">

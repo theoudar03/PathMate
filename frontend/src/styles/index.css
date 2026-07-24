@@ -283,3 +283,100 @@
   color: #1E3A8A;
 }
 
+/* ─────────────────────────────────────────────────
+   PREMIUM LANDING PAGE STYLES
+   ───────────────────────────────────────────────── */
+
+/* Infinite Carousel Marquee */
+@keyframes marquee {
+  0% {
+    transform: translateX(0);
+  }
+  100% {
+    transform: translateX(calc(-50% - 12px));
+  }
+}
+
+.animate-marquee {
+  display: flex;
+  width: max-content;
+  gap: 24px;
+  animation: marquee 45s linear infinite;
+}
+
+.animate-marquee:hover {
+  animation-play-state: paused;
+}
+
+/* Timeline animations */
+@keyframes drawLine {
+  from { width: 0; }
+  to { width: 100%; }
+}
+
+@keyframes drawLineVertical {
+  from { height: 0; }
+  to { height: 100%; }
+}
+
+.timeline-connector {
+  position: relative;
+}
+
+.timeline-connector::after {
+  content: '';
+  position: absolute;
+  background: linear-gradient(90deg, #1B4DA6 0%, #D8E2FF 100%);
+  z-index: 0;
+}
+
+/* Badge background glow rotate animation */
+@keyframes rotateGlow {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.glow-spin {
+  position: relative;
+  overflow: hidden;
+}
+
+.glow-spin::before {
+  content: '';
+  position: absolute;
+  top: -50%;
+  left: -50%;
+  width: 200%;
+  height: 200%;
+  background: conic-gradient(#1b4da6, #a855f7, #6366f1, #1b4da6);
+  animation: rotateGlow 4s linear infinite;
+  z-index: 0;
+}
+
+/* Interactive Mockups */
+.mockup-window {
+  box-shadow: 0 20px 50px rgba(15,23,42,0.12);
+  border: 1px solid rgba(226, 232, 240, 0.8);
+  border-radius: 16px;
+  background: #FFFFFF;
+}
+
+.mockup-tab-active {
+  background-color: #D8E2FF !important;
+  color: #001A41 !important;
+  font-weight: 700;
+}
+
+/* Count-up & Scroll reveal triggers */
+.reveal-on-scroll {
+  opacity: 0;
+  transform: translateY(20px);
+  transition: opacity 0.6s cubic-bezier(0.16, 1, 0.3, 1), transform 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.reveal-on-scroll.is-visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+

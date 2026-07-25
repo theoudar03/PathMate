@@ -106,12 +106,64 @@ const LiveNavigationDrawer = ({
 
     const timeMinutes = Math.max(1, Math.round(distanceMeters / 70));
 
-    const steps = [
-      { text: `Start walking from ${useLiveGps ? 'Your Live GPS Location' : originPreset.name}`, icon: 'my_location' },
-      { text: `Head along central paved avenue past Ganesha Temple`, icon: 'straight' },
-      { text: `Pass by ${destinationBuilding.nearby_facilities?.[0] || 'BD Block Library'} on your right`, icon: 'turn_right' },
-      { text: `Arrive at ${destinationBuilding.name} (${destinationBuilding.departments?.[0] || 'Main Wing'})`, icon: 'where_to_vote' }
-    ];
+    // Dynamic Step-by-Step Directions Generator based on Spatial Regions
+    const steps = [];
+    const originName = useLiveGps ? 'Your Live GPS Location' : originPreset.name;
+    const destName = destinationBuilding.name;
+    const destDept = destinationBuilding.departments?.[0] || '';
+    const nearby = destinationBuilding.nearby_facilities?.[0] || '';
+
+    steps.push({ text: `Start walking from ${originName}.`, icon: 'my_location' });
+
+    if (originId === 'main-gate') {
+      steps.push({ text: 'Pass through the main security gate, keeping the Security Room on your left.', icon: 'straight' });
+      steps.push({ text: 'Head north along the main central avenue past the student parking lot.', icon: 'straight' });
+    } else if (originId === 'boys-hostel') {
+      steps.push({ text: 'Depart from the Boys Hostel entrance toward the staff parking lot.', icon: 'south' });
+    } else if (originId === 'girls-hostel') {
+      steps.push({ text: 'Head west from the Girls Hostel gate toward the main central avenue.', icon: 'west' });
+    } else if (originId === 'canteen') {
+      steps.push({ text: 'Exit the Food Court and turn onto the pathway past the ECE block.', icon: 'turn_right' });
+    } else {
+      steps.push({ text: 'Head onto the nearest paved path toward the central corridor.', icon: 'compass_calibration' });
+    }
+
+    const isSportsField = destinationBuilding.category === 'Sports' || ['toilet', 'tnsca-office'].includes(destinationBuilding.id);
+    const isAcademicRow = destinationBuilding.category === 'Academic' && ['ks-block', 'rv-block', 'bd-block', 'js-block', 'temple', 'atm'].includes(destinationBuilding.id);
+    const isWorkshopCanteen = ['mech-workshop', 'me-block', 'mech-lab', 'cafeteria', 'stationery', 'generator-room'].includes(destinationBuilding.id);
+
+    if (isSportsField) {
+      if (originId === 'main-gate') {
+        steps.push({ text: 'Turn left onto the unpaved sports path before Ganesha Temple.', icon: 'turn_left' });
+      } else {
+        steps.push({ text: 'Walk south-west toward the practice grounds on the west side.', icon: 'south_west' });
+      }
+      steps.push({ text: 'Follow the dirt path past the practice nets, keeping Cricket Ground 1 on your right.', icon: 'straight' });
+    } else if (isAcademicRow) {
+      if (originId === 'main-gate') {
+        steps.push({ text: 'Continue straight along the central avenue past the CUB ATM.', icon: 'straight' });
+        steps.push({ text: 'Turn right at Ganesha Temple junction into the academic quad.', icon: 'turn_right' });
+      } else {
+        steps.push({ text: 'Walk south-east past the Staff Parking lot to the academic courtyard.', icon: 'straight' });
+      }
+      if (destinationBuilding.id === 'bd-block') {
+        steps.push({ text: 'Walk north past JS block to reach the BD Block Library complex.', icon: 'north' });
+      } else if (destinationBuilding.id === 'ks-block') {
+        steps.push({ text: 'Proceed south toward K. Santhanam Block.', icon: 'south' });
+      }
+    } else if (isWorkshopCanteen) {
+      steps.push({ text: 'Walk toward the volleyball sand court, turning towards the western labs.', icon: 'turn_left' });
+      steps.push({ text: 'Proceed past the main Canteen building to find the workshop entrance.', icon: 'straight' });
+    } else if (destinationBuilding.id === 'boys-hostel') {
+      steps.push({ text: 'Proceed north all the way to the far end of the campus road, past the bus bay.', icon: 'north' });
+    } else {
+      steps.push({ text: 'Follow the central campus avenue toward the destination building.', icon: 'straight' });
+    }
+
+    if (nearby) {
+      steps.push({ text: `You will find ${nearby} located in the immediate vicinity.`, icon: 'explore' });
+    }
+    steps.push({ text: `Arrive at ${destName}. ${destDept ? `Enter the main foyer for ${destDept}.` : 'Entrance is straight ahead.'}`, icon: 'where_to_vote' });
 
     return { distanceMeters, formattedDistance, timeMinutes, steps };
   };

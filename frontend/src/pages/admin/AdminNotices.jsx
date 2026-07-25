@@ -2,7 +2,20 @@ import React, { useState, useEffect } from 'react';
 import { FileText, Plus, Clock, Eye, AlertCircle, Trash2, Upload, Image as ImageIcon, CheckCircle, X, Edit, Paperclip } from 'lucide-react';
 
 const CATEGORY_OPTIONS = ['General', 'Academic', 'Events & Clubs', 'Exams', 'Emergency', 'Hostel'];
-const TARGET_OPTIONS = ['All Students', 'Hostellers', 'Day Scholars', 'CSE Department', 'ECE Department', 'EEE Department', 'IT Department', 'AI&DS Department', 'Civil Department'];
+const TARGET_OPTIONS = [
+  'All Students',
+  'Hostellers',
+  'Day Scholars',
+  'Computer Science & Engineering',
+  'Computer Science & Engineering (Artificial Intelligence and Machine Learning)',
+  'Artificial Intelligence & Data Science',
+  'Computer Science and Business Systems',
+  'Electronics & Communication Engineering',
+  'Electrical & Electronics Engineering',
+  'Instrumentation & Control Engineering',
+  'Civil Engineering',
+  'Information Technology'
+];
 
 const AdminNotices = () => {
   const [notices, setNotices] = useState([]);

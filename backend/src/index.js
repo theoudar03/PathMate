@@ -92,7 +92,8 @@ const runMigrationsSafely = async () => {
       '17_admin_crud_production.sql',
       '19_bus_routes.sql',
       '20_add_gender_column.sql',
-      '21_add_travel_mode.sql'
+      '21_add_travel_mode.sql',
+      '22_custom_stats.sql'
     ];
 
     for (const file of migrationFiles) {

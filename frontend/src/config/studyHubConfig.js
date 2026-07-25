@@ -1,6 +1,6 @@
 export const STUDY_HUB_CONFIG = {
-  wifiPortalUrl: "http://192.168.1.1:8090", // Configurable campus Wi-Fi login portal URL
-  instagramUrl: "https://www.instagram.com/saranathan_college_official/", // Configurable official Instagram URL
+  wifiPortalUrl: "http://172.16.1.111:8090", // Configurable campus Wi-Fi login portal URL
+  instagramUrl: "https://www.instagram.com/saranathancollege/", // Configurable official Instagram URL
   saraSellUrl: "https://sarasell.netlify.app/", // netlify trade marketplace
   questionPapersDriveUrl: "https://drive.google.com/drive/folders/1jgUywox4M9qGfXDoRf-UMVrFfaKvruOm", // QP Drive Link
   

@@ -24,14 +24,15 @@ const StudyHub = () => {
 
   // Connection guide steps for Campus Wi-Fi
   const wifiSteps = [
-    { nr: "1", text: "Connect to SCE Student Wi-Fi" },
-    { nr: "2", text: "Open Wi-Fi Portal" },
+    { nr: "1", text: "Connect to SCE-STUDENT Wi-Fi (Password: welcome@sara)" },
+    { nr: "2", text: "Open Wi-Fi Portal (172.16.1.111:8090)" },
     { nr: "3", text: "Login using credentials" },
     { nr: "4", text: "Accept policy" },
     { nr: "5", text: "Internet Connected" }
   ];
   
   const [wifiExpanded, setWifiExpanded] = useState(false);
+  const [sarahomeExpanded, setSarahomeExpanded] = useState(false);
 
   return (
     <div className="space-y-10 font-sans animate-fade-in text-left py-6 max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8">
@@ -197,7 +198,7 @@ const StudyHub = () => {
           </h2>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {/* Campus Wi-Fi */}
           <div className="bg-surface border border-surfaceVariant/60 rounded-[24px] p-6 shadow-elevation1 hover:shadow-elevation2 hover:border-primary/20 transition-all duration-200">
             <div className="space-y-4">
@@ -208,7 +209,7 @@ const StudyHub = () => {
                   </div>
                   <div>
                     <h3 className="text-base font-extrabold text-onSurface">{t('campusWifi') || 'Campus Wi-Fi'}</h3>
-                    <span className="text-[10px] bg-primaryContainer/30 text-primary font-bold px-2 py-0.5 rounded-full">SCE_Fortinet</span>
+                    <span className="text-[10px] bg-primaryContainer/30 text-primary font-bold px-2 py-0.5 rounded-full">SCE-STUDENT</span>
                   </div>
                 </div>
               </div>
@@ -258,6 +259,73 @@ const StudyHub = () => {
                   {t('wifiPortalBtn') || 'Open Wi-Fi Portal'}
                 </a>
               </div>
+            </div>
+          </div>
+
+          {/* Sarahome Student Portal */}
+          <div className="bg-surface border border-surfaceVariant/60 rounded-[24px] p-6 shadow-elevation1 hover:shadow-elevation2 hover:border-primary/20 transition-all duration-200 flex flex-col justify-between">
+            <div className="space-y-4 text-left">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 rounded-2xl bg-indigo-500/10 text-indigo-600 flex items-center justify-center">
+                    <span className="material-symbols-outlined text-[24px] select-none">badge</span>
+                  </div>
+                  <div>
+                    <h3 className="text-base font-extrabold text-onSurface">Sarahome</h3>
+                    <span className="text-[10px] bg-indigo-500/10 text-indigo-600 font-bold px-2 py-0.5 rounded-full">http://172.16.1.19/sarahome</span>
+                  </div>
+                </div>
+              </div>
+              <p className="text-xs text-onSurfaceVariant leading-relaxed">
+                View official academic details including bio-data, attendance report, internals, semester marks, and marksheets.
+              </p>
+
+              {/* Expandable Sarahome Accordion */}
+              <div className="border border-outline/20 rounded-xl overflow-hidden bg-surfaceContainerLow/30">
+                <button
+                  type="button"
+                  onClick={() => setSarahomeExpanded(!sarahomeExpanded)}
+                  className="w-full px-4 py-3 flex items-center justify-between text-xs font-bold text-onSurface hover:bg-surfaceContainerHigh transition-colors outline-none"
+                >
+                  <span className="flex items-center gap-1.5">
+                    <span className="material-symbols-outlined text-[16px] text-indigo-600">help_outline</span>
+                    Sarahome Guide
+                  </span>
+                  <span className={`material-symbols-outlined text-[16px] text-onSurfaceVariant transition-transform duration-200 ${sarahomeExpanded ? 'rotate-180' : ''}`}>
+                    expand_more
+                  </span>
+                </button>
+                
+                {sarahomeExpanded && (
+                  <div className="p-4 bg-surfaceContainerLowest border-t border-outline/10 space-y-2 animate-slide-down">
+                    {[
+                      { nr: 1, text: "Connect to SCE-STUDENT Wi-Fi" },
+                      { nr: 2, text: "Open the link: http://172.16.1.19/sarahome" },
+                      { nr: 3, text: "Login using your batch number as username and password" },
+                      { nr: 4, text: "View detailed academic reports and profile details" }
+                    ].map((step) => (
+                      <div key={step.nr} className="flex items-start gap-3 text-xs leading-normal">
+                        <div className="w-5 h-5 rounded-full bg-indigo-500/10 text-indigo-600 font-bold flex items-center justify-center flex-shrink-0 mt-0.5">
+                          {step.nr}
+                        </div>
+                        <span className="text-onSurfaceVariant font-medium">{step.text}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="pt-6">
+              <a
+                href="http://172.16.1.19/sarahome"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="w-full inline-flex items-center justify-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold py-3 px-6 rounded-full transition-all focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 shadow-sm"
+              >
+                <span className="material-symbols-outlined text-[16px] select-none">open_in_new</span>
+                Open Sarahome Portal
+              </a>
             </div>
           </div>
 

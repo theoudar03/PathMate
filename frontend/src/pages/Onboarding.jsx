@@ -44,7 +44,7 @@ const validatePasswordLocal = (password) => {
   return null;
 };
 
-const Onboarding = ({ isOpen, onClose }) => {
+const Onboarding = ({ isOpen, onClose, onOpenLogin }) => {
   const navigate = useNavigate();
   const { completeOnboarding, t, language } = useApp();
 
@@ -264,8 +264,8 @@ const Onboarding = ({ isOpen, onClose }) => {
                 
                 {/* Label */}
                 <span
-                  className={`text-[9px] sm:text-[10px] font-extrabold uppercase mt-2 tracking-wider ${
-                    isActive ? 'text-primary' : 'text-onSurfaceVariant'
+                  className={`text-[9px] sm:text-[10px] font-extrabold uppercase mt-2 tracking-wider text-center leading-tight ${
+                    isActive ? 'text-primary block' : 'text-onSurfaceVariant/60 hidden sm:block'
                   }`}
                 >
                   {t(s.key)}
@@ -497,7 +497,15 @@ const Onboarding = ({ isOpen, onClose }) => {
               </div>
 
               {/* Footer */}
-              <div className="border-t border-surfaceVariant/60 pt-5 flex justify-end">
+              <div className="border-t border-surfaceVariant/60 pt-5 flex justify-between items-center">
+                <button
+                  type="button"
+                  onClick={onOpenLogin}
+                  className="text-xs font-bold text-primary hover:underline flex items-center gap-1.5 cursor-pointer bg-transparent border-0 outline-none"
+                >
+                  <span className="material-symbols-outlined text-[16px] font-bold">login</span>
+                  <span>Already have an account</span>
+                </button>
                 <button
                   type="button"
                   onClick={() => setStep(2)}

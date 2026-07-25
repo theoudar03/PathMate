@@ -1295,4 +1295,39 @@ router.delete('/bus-routes/:id', async (req, res) => {
   }
 });
 
+// GET /api/admin/campus-stats
+router.get('/campus-stats', async (req, res) => {
+  try {
+    const result = await db.query('SELECT * FROM campus_stats WHERE id = 1');
+    const stats = result.rows[0] || { students_guided: 1485, campus_locations: 25, active_services: 8 };
+    res.json(stats);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// POST /api/admin/campus-stats
+router.post('/campus-stats', async (req, res) => {
+  try {
+    const { students_guided, campus_locations, active_services } = req.body;
+    
+    const result = await db.query(
+      `INSERT INTO campus_stats (id, students_guided, campus_locations, active_services, updated_at)
+       VALUES (1, $1, $2, $3, NOW())
+       ON CONFLICT (id) DO UPDATE SET
+         students_guided = EXCLUDED.students_guided,
+         campus_locations = EXCLUDED.campus_locations,
+         active_services = EXCLUDED.active_services,
+         updated_at = NOW()
+       RETURNING *`,
+      [parseInt(students_guided, 10) || 0, parseInt(campus_locations, 10) || 0, parseInt(active_services, 10) || 0]
+    );
+    
+    await logActivity(req.admin?.id, 'update_campus_stats', `Updated campus stats: Students Guided=${students_guided}, Locations=${campus_locations}, Services=${active_services}`);
+    res.json(result.rows[0]);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 export default router;

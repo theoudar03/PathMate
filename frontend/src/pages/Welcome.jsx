@@ -158,10 +158,10 @@ const Welcome = () => {
   // Landing Page Interactive States
   const [activePreviewTab, setActivePreviewTab] = useState('dashboard');
   const [statsData, setStatsData] = useState({
-    totalStudents: 1200,
-    activeLocations: 18,
-    activeServices: 20,
-    aiChatsToday: 142
+    totalStudents: 0,
+    activeLocations: 0,
+    activeServices: 0,
+    aiChatsToday: 0
   });
 
   // Fetch statistics from backend
@@ -170,10 +170,10 @@ const Welcome = () => {
       .then(res => res.json())
       .then(data => {
         setStatsData({
-          totalStudents: data.totalStudents || 1485,
-          activeLocations: 18,
-          activeServices: (data.activeClubs || 12) + (data.activeEvents || 8),
-          aiChatsToday: data.aiChatsToday || 142
+          totalStudents: data.totalStudents || 0,
+          activeLocations: data.activeLocations || 0,
+          activeServices: data.activeServices || 0,
+          aiChatsToday: data.aiChatsToday || 0
         });
       })
       .catch(err => {
@@ -234,6 +234,13 @@ const Welcome = () => {
     { text: "Connecting with compatibility matches before day one was amazing.", author: "Archana M", dept: "IT", year: "1st Year", rating: 5, avatar: "AM" },
     { text: "All syllabus resources and Wi-Fi configurations are in one dashboard.", author: "Hariharan V", dept: "EEE", year: "1st Year", rating: 5, avatar: "HV" }
   ];
+
+  const [testimonialsList, setTestimonialsList] = useState(() => 
+    TESTIMONIALS.map(item => ({
+      ...item,
+      rating: Math.floor(Math.random() * 5) + 1
+    }))
+  );
 
   return (
     <div className="relative min-h-screen w-full bg-slate-50 text-slate-800 font-sans flex flex-col overflow-x-hidden selection:bg-primaryContainer selection:text-onPrimaryContainer">
@@ -433,7 +440,7 @@ const Welcome = () => {
             {/* Simulated Address Bar */}
             <div className="bg-white border border-slate-200/60 rounded-lg px-3 py-1 text-[10px] text-slate-500 font-medium flex items-center gap-1.5 min-w-[200px] max-w-[320px] select-none mx-auto sm:mx-0">
               <span className="material-symbols-outlined text-[11px] text-success">lock</span>
-              <span className="truncate">pathmate.saranathan.ac.in/freshman</span>
+              <span className="truncate">https://pathmate-sce.web.app/dashboard</span>
             </div>
           </div>
 
@@ -469,7 +476,7 @@ const Welcome = () => {
                     <h4 className="text-xs sm:text-sm font-bold text-slate-800">Welcome, Sanjay Kumar</h4>
                     <p className="text-[10px] text-slate-500 font-semibold">1st Year • Computer Science & Engineering</p>
                   </div>
-                  <span className="text-[9px] bg-primaryContainer text-onPrimaryContainer px-2 py-0.5 rounded-full font-bold">Hosteller • B-Block</span>
+                  <span className="text-[9px] bg-primaryContainer text-onPrimaryContainer px-2 py-0.5 rounded-full font-bold">Hosteller • Boys Hostel</span>
                 </div>
                 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -494,10 +501,10 @@ const Welcome = () => {
                 <div className="border border-slate-100 rounded-xl p-3 bg-slate-50/20">
                   <p className="text-[10px] font-extrabold text-slate-500 uppercase tracking-wider mb-2">Grounded AI Campus Assistant Shortcut</p>
                   <div className="flex gap-2">
-                    <button type="button" className="flex-1 py-2 px-3 bg-primary hover:bg-primaryHover text-white text-[11px] font-bold rounded-lg flex items-center justify-center gap-1.5 transition-all shadow-sm">
+                    <button onClick={() => { resetAllData(); setActiveDialog('register'); }} type="button" className="flex-1 py-2 px-3 bg-primary hover:bg-primaryHover text-white text-[11px] font-bold rounded-lg flex items-center justify-center gap-1.5 transition-all shadow-sm cursor-pointer">
                       <span className="material-symbols-outlined text-xs">explore</span> Navigate Campus Buildings
                     </button>
-                    <button type="button" className="flex-1 py-2 px-3 border border-slate-200 text-slate-700 text-[11px] font-bold rounded-lg flex items-center justify-center gap-1.5 hover:bg-slate-50 transition-all">
+                    <button onClick={() => { resetAllData(); setActiveDialog('register'); }} type="button" className="flex-1 py-2 px-3 border border-slate-200 text-slate-700 text-[11px] font-bold rounded-lg flex items-center justify-center gap-1.5 hover:bg-slate-50 transition-all cursor-pointer">
                       <span className="material-symbols-outlined text-xs">smart_toy</span> Ask Grounded Chatbot
                     </button>
                   </div>
@@ -706,7 +713,8 @@ const Welcome = () => {
           ].map((item, index) => (
             <div 
               key={index} 
-              className="card group p-6 bg-white border border-slate-200/40 hover:scale-[1.02] hover:shadow-md transition-all duration-300 flex flex-col text-left justify-between"
+              onClick={() => { resetAllData(); setActiveDialog('register'); }}
+              className="card group p-6 bg-white border border-slate-200/40 hover:scale-[1.02] hover:shadow-md hover:border-primary/20 transition-all duration-300 flex flex-col text-left justify-between cursor-pointer"
             >
               <div>
                 <div className={`w-10 h-10 rounded-xl ${item.color} flex items-center justify-center mb-4 transition-transform group-hover:rotate-6 duration-300`}>
@@ -714,6 +722,10 @@ const Welcome = () => {
                 </div>
                 <h3 className="text-base font-extrabold text-slate-800 leading-tight">{item.title}</h3>
                 <p className="text-xs sm:text-sm text-slate-500 font-semibold mt-1.5 leading-relaxed">{item.desc}</p>
+              </div>
+              <div className="mt-5 flex items-center gap-1 text-[11px] font-black text-primary transition-all group-hover:translate-x-1.5">
+                <span>Access Feature</span>
+                <span className="material-symbols-outlined text-[13px] font-black">arrow_forward</span>
               </div>
             </div>
           ))}
@@ -801,15 +813,20 @@ const Welcome = () => {
         {/* Continuous auto-scrolling marquee track container */}
         <div className="relative w-full overflow-hidden py-4 select-none">
           <div className="animate-marquee">
-            {TESTIMONIALS.concat(TESTIMONIALS).map((item, idx) => (
+            {testimonialsList.concat(testimonialsList).map((item, idx) => (
               <div 
                 key={idx}
                 className="w-[280px] sm:w-[320px] bg-white border border-slate-200/40 p-5 rounded-2xl shadow-sm flex flex-col justify-between flex-shrink-0"
               >
                 <div>
-                  <div className="flex gap-1 mb-2 text-yellow-500 select-none">
-                    {Array.from({ length: item.rating }).map((_, i) => (
-                      <span key={i} className="material-symbols-outlined text-base">star</span>
+                  <div className="flex gap-1 mb-2 select-none">
+                    {Array.from({ length: 5 }).map((_, i) => (
+                      <span 
+                        key={i} 
+                        className={`material-symbols-outlined text-base ${i < item.rating ? 'text-yellow-500' : 'text-slate-350'}`}
+                      >
+                        star
+                      </span>
                     ))}
                   </div>
                   <p className="text-xs sm:text-sm font-semibold text-slate-700 italic leading-relaxed">
@@ -1033,6 +1050,7 @@ const Welcome = () => {
         <Onboarding 
           isOpen={true} 
           onClose={() => setActiveDialog(null)} 
+          onOpenLogin={() => setActiveDialog('login')}
         />
       )}
 

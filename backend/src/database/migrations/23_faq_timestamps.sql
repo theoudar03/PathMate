@@ -1,0 +1,3 @@
+-- Migration 23: Add missing created_at and updated_at timestamp columns to faqs table
+ALTER TABLE faqs ADD COLUMN IF NOT EXISTS created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP;
+ALTER TABLE faqs ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP;

@@ -23,6 +23,16 @@ const AdminDashboard = () => {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
+  // Custom campus telemetry stats state
+  const [telemetry, setTelemetry] = useState({
+    students_guided: 1485,
+    campus_locations: 25,
+    active_services: 8
+  });
+  const [telemetryLoading, setTelemetryLoading] = useState(true);
+  const [saveLoading, setSaveLoading] = useState(false);
+  const [saveStatus, setSaveStatus] = useState(null);
+
   const fetchStats = async () => {
     setRefreshing(true);
     try {
@@ -41,8 +51,52 @@ const AdminDashboard = () => {
     }
   };
 
+  const fetchTelemetry = async () => {
+    try {
+      const token = localStorage.getItem('pm_admin_token');
+      const res = await safeFetchJson('/api/admin/campus-stats', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (res.ok && res.data) {
+        setTelemetry(res.data);
+      }
+    } catch (err) {
+      console.error("Error fetching telemetry:", err);
+    } finally {
+      setTelemetryLoading(false);
+    }
+  };
+
+  const handleSaveTelemetry = async (e) => {
+    e.preventDefault();
+    setSaveLoading(true);
+    setSaveStatus(null);
+    try {
+      const token = localStorage.getItem('pm_admin_token');
+      const res = await safeFetchJson('/api/admin/campus-stats', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(telemetry)
+      });
+      if (res.ok) {
+        setSaveStatus('success');
+        fetchStats();
+      } else {
+        setSaveStatus('error');
+      }
+    } catch (err) {
+      setSaveStatus('error');
+    } finally {
+      setSaveLoading(false);
+    }
+  };
+
   useEffect(() => {
     fetchStats();
+    fetchTelemetry();
   }, []);
 
   const chartData = [
@@ -217,6 +271,92 @@ const AdminDashboard = () => {
           </div>
         </div>
 
+      </div>
+
+      {/* Telemetry Settings Form */}
+      <div className="bg-surface border border-surfaceVariant/60 rounded-3xl p-6 shadow-sm max-w-2xl text-left">
+        <div className="border-b border-surfaceVariant/60 pb-3 mb-4 flex items-center gap-2.5">
+          <div className="p-2.5 bg-primary/10 text-primary rounded-xl">
+            <span className="material-symbols-outlined text-[20px] font-bold">query_stats</span>
+          </div>
+          <div>
+            <h3 className="text-base font-black text-onSurface">Manage PathMate by the Numbers</h3>
+            <p className="text-[11px] text-onSurfaceVariant/85 font-semibold">
+              Configure the telemetry statistics displayed in "PathMate by the Numbers" on the student landing welcome dashboard.
+            </p>
+          </div>
+        </div>
+
+        {telemetryLoading ? (
+          <div className="py-6 text-center text-xs text-onSurfaceVariant font-bold">
+            Loading telemetry metrics...
+          </div>
+        ) : (
+          <form onSubmit={handleSaveTelemetry} className="space-y-4">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div>
+                <label className="block text-[10px] font-black text-onSurfaceVariant mb-1 uppercase tracking-wider">Students Guided</label>
+                <input
+                  type="number"
+                  required
+                  min="0"
+                  value={telemetry.students_guided}
+                  onChange={e => setTelemetry({...telemetry, students_guided: parseInt(e.target.value, 10) || 0})}
+                  className="w-full p-2.5 border rounded-xl bg-surfaceContainerLow font-bold text-xs"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[10px] font-black text-onSurfaceVariant mb-1 uppercase tracking-wider">Campus Locations</label>
+                <input
+                  type="number"
+                  required
+                  min="0"
+                  value={telemetry.campus_locations}
+                  onChange={e => setTelemetry({...telemetry, campus_locations: parseInt(e.target.value, 10) || 0})}
+                  className="w-full p-2.5 border rounded-xl bg-surfaceContainerLow font-bold text-xs"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[10px] font-black text-onSurfaceVariant mb-1 uppercase tracking-wider">Active Services</label>
+                <input
+                  type="number"
+                  required
+                  min="0"
+                  value={telemetry.active_services}
+                  onChange={e => setTelemetry({...telemetry, active_services: parseInt(e.target.value, 10) || 0})}
+                  className="w-full p-2.5 border rounded-xl bg-surfaceContainerLow font-bold text-xs"
+                />
+              </div>
+            </div>
+
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 pt-2">
+              <button
+                type="submit"
+                disabled={saveLoading}
+                className="flex items-center justify-center gap-1.5 px-6 py-2.5 bg-primary hover:bg-primaryHover text-white rounded-full text-xs font-bold transition-all disabled:opacity-50 min-h-[38px] active:scale-[0.98] cursor-pointer"
+                style={{ boxShadow: '0 1px 3px rgba(27,77,166,0.2), 0 4px 12px rgba(27,77,166,0.16)' }}
+              >
+                {saveLoading && <span className="animate-spin text-xs">...</span>}
+                <span>Save Telemetry Settings</span>
+              </button>
+
+              {saveStatus === 'success' && (
+                <span className="text-emerald-700 text-xs font-bold flex items-center gap-1.5 bg-emerald-50 border border-emerald-250 px-3 py-1.5 rounded-xl">
+                  <span className="material-symbols-outlined text-[16px]">check_circle</span>
+                  Successfully saved to database!
+                </span>
+              )}
+              {saveStatus === 'error' && (
+                <span className="text-rose-750 text-xs font-bold flex items-center gap-1.5 bg-rose-50 border border-rose-250 px-3 py-1.5 rounded-xl">
+                  <span className="material-symbols-outlined text-[16px]">error_outline</span>
+                  Failed to save.
+                </span>
+              )}
+            </div>
+          </form>
+        )}
       </div>
 
     </div>

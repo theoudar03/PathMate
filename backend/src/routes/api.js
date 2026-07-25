@@ -1699,42 +1699,44 @@ router.post('/roommates/profile', async (req, res) => {
  */
 router.get('/stats', async (req, res) => {
   try {
-    const [usersCount, eventsCount, clubsCount, noticesCount, tasksCount] = await Promise.all([
-      db.query(`SELECT COUNT(*) FROM users`),
+    const [eventsCount, clubsCount, noticesCount, tasksCount, campusStatsResult] = await Promise.all([
       db.query(`SELECT COUNT(*) FROM events`),
       db.query(`SELECT COUNT(*) FROM clubs`),
       db.query(`SELECT COUNT(*) FROM notices`),
-      db.query(`SELECT COUNT(*) FILTER (WHERE status = 'completed') AS completed, COUNT(*) FILTER (WHERE status = 'pending') AS pending FROM student_tasks`)
+      db.query(`SELECT COUNT(*) FILTER (WHERE status = 'completed') AS completed, COUNT(*) FILTER (WHERE status = 'pending') AS pending FROM student_tasks`),
+      db.query(`SELECT * FROM campus_stats WHERE id = 1`)
     ]);
 
-    const totalStudents = parseInt(usersCount.rows[0]?.count || 0, 10) + 1450; // Total registered + SCE 1st yr strength
     const activeEvents = parseInt(eventsCount.rows[0]?.count || 0, 10);
     const activeClubs = parseInt(clubsCount.rows[0]?.count || 0, 10);
     const totalNotices = parseInt(noticesCount.rows[0]?.count || 0, 10);
     const completedTasks = parseInt(tasksCount.rows[0]?.completed || 0, 10);
     const pendingTasks = parseInt(tasksCount.rows[0]?.pending || 0, 10);
 
+    const stats = campusStatsResult.rows[0] || { students_guided: 1485, campus_locations: 25, active_services: 8 };
+
     res.json({
-      totalStudents,
+      totalStudents: stats.students_guided,
+      activeLocations: stats.campus_locations,
+      activeServices: stats.active_services,
       activeEvents,
       activeClubs,
       totalNotices,
       completedTasks,
       pendingTasks,
-      studyMaterials: 38,
-      aiChatsToday: 142
+      aiChatsToday: 0
     });
   } catch (error) {
-    // Fallback metrics
     res.json({
       totalStudents: 1485,
-      activeEvents: 8,
-      activeClubs: 12,
-      totalNotices: 14,
-      completedTasks: 5,
-      pendingTasks: 3,
-      studyMaterials: 38,
-      aiChatsToday: 142
+      activeLocations: 25,
+      activeServices: 8,
+      activeEvents: 0,
+      activeClubs: 0,
+      totalNotices: 0,
+      completedTasks: 0,
+      pendingTasks: 0,
+      aiChatsToday: 0
     });
   }
 });

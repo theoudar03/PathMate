@@ -326,12 +326,14 @@ const AdminRoommates = () => {
                   className="w-full p-2.5 border border-outline rounded-xl bg-surface"
                 >
                   <option value="Computer Science & Engineering">Computer Science & Engineering</option>
-                  <option value="Electronics & Communication">Electronics & Communication</option>
-                  <option value="Information Technology">Information Technology</option>
-                  <option value="Electrical & Electronics">Electrical & Electronics</option>
-                  <option value="AI & Data Science">AI & Data Science</option>
-                  <option value="Mechanical Engineering">Mechanical Engineering</option>
+                  <option value="Computer Science & Engineering (Artificial Intelligence and Machine Learning)">Computer Science & Engineering (Artificial Intelligence and Machine Learning)</option>
+                  <option value="Artificial Intelligence & Data Science">Artificial Intelligence & Data Science</option>
+                  <option value="Computer Science and Business Systems">Computer Science and Business Systems</option>
+                  <option value="Electronics & Communication Engineering">Electronics & Communication Engineering</option>
+                  <option value="Electrical & Electronics Engineering">Electrical & Electronics Engineering</option>
+                  <option value="Instrumentation & Control Engineering">Instrumentation & Control Engineering</option>
                   <option value="Civil Engineering">Civil Engineering</option>
+                  <option value="Information Technology">Information Technology</option>
                 </select>
               </div>
 

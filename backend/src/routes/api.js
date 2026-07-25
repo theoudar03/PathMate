@@ -2,7 +2,7 @@ import express from 'express';
 import bcrypt from 'bcryptjs';
 import db from '../database/index.js';
 import { GoogleGenerativeAI } from '@google/generative-ai';
-import { generateEmbeddings, mapTextToInterests, rankAndExplainMatches, generateChecklistFromProcess, answerGroundedQuestion, generateDigest, translateText, generateWebsiteSummary, parseNavigationQuery } from '../services/gemini.js';
+import { generateEmbeddings, mapTextToInterests, rankAndExplainMatches, generateChecklistFromProcess, answerGroundedQuestion, generateDigest, translateText, generateWebsiteSummary, parseNavigationQuery, askGeminiHybrid } from '../services/gemini.js';
 import { fetchWebsiteContent, getRelevantUrl } from '../services/scraper.js';
 import { authenticateToken } from '../middleware/auth.js';
 import dns from 'dns';
@@ -917,53 +917,137 @@ router.get('/committees', async (req, res) => {
   }
 });
 
+router.get('/suggested-faqs', async (req, res) => {
+  try {
+    const result = await safeDbCall(
+      async () => {
+        const queryRes = await db.query(
+          'SELECT id, question, answer, category, icon FROM faqs WHERE is_suggested = true AND is_approved = true ORDER BY id ASC'
+        );
+        return queryRes.rows;
+      },
+      async () => {
+        // Fallback to in-memory MOCK_STORE faqs if database is unconfigured/fails
+        return (MOCK_STORE.faqs || [])
+          .filter(f => f.is_suggested && f.is_approved)
+          .map(f => ({ id: f.id, question: f.question, answer: f.answer, category: f.category, icon: f.icon || 'help' }));
+      }
+    );
+    res.json(result);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+const fetchWebSearchContext = async (query) => {
+  try {
+    console.log(`[Web Search] Fetching DuckDuckGo results for: ${query}`);
+    const searchUrl = `https://html.duckduckgo.com/html/?q=${encodeURIComponent(query)}`;
+    const searchRes = await fetch(searchUrl, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+      }
+    });
+    const searchHtml = await searchRes.text();
+    const regex = /<a class="result__snippet"[^>]*>([\s\S]*?)<\/a>/g;
+    let match;
+    const snippets = [];
+    while ((match = regex.exec(searchHtml)) !== null && snippets.length < 5) {
+      snippets.push(match[1].replace(/<[^>]*>/g, '').trim());
+    }
+    return snippets.join("\n---\n");
+  } catch (err) {
+    console.warn("Failed to retrieve real-time search context:", err.message);
+    return "";
+  }
+};
+
 router.post('/chat', async (req, res) => {
   const { userId, query: userQuery, language = 'en', history = [] } = req.body;
 
   try {
-    // === PRIORITY 1: LOCAL DATABASE CHECK ===
-    const localResult = await resolveLocalKnowledge(userQuery, userId);
+    // === DECISION FLOW: GREETING, DATABASE PRIORITY, GEMINI HYBRID ===
+    const cleanQuery = userQuery.toLowerCase().trim();
+    
+    // 1. Warm Greeting Check
+    const isGreeting = /^(hi|hello|hey|greetings|good morning|good evening|good afternoon|how are you|who are you|what is pathmate|what are you|namaste|vanakkam)\b/i.test(cleanQuery);
     
     let answerText = "";
-    let isGrounded = false;
     let finalSource = null;
     let dbSourceTable = null;
 
-    if (localResult.resolved) {
-      if (localResult.isContext) {
-         // Pass the chunks to answerGroundedQuestion as context
-         const fallbackRes = await answerGroundedQuestion(userQuery, localResult.answer, history);
-         answerText = fallbackRes.answer;
-         isGrounded = fallbackRes.isGrounded;
-         finalSource = isGrounded ? "PathMate Database (Regulations/Docs)" : null;
-      } else {
-         answerText = localResult.answer;
-         isGrounded = true;
-         dbSourceTable = localResult.sourceTable;
-         finalSource = "PathMate Database";
+    // Priority 0: Exact or near-exact match in the faqs table (case-insensitive)
+    const faqMatch = await safeDbCall(
+      async () => {
+        const res = await db.query(
+          'SELECT answer, category FROM faqs WHERE is_approved = true AND TRIM(LOWER(question)) = TRIM(LOWER($1)) LIMIT 1',
+          [userQuery]
+        );
+        return res.rows[0];
+      },
+      async () => {
+        return (MOCK_STORE.faqs || []).find(f => f.question.toLowerCase().trim() === cleanQuery && f.is_approved) || null;
       }
-    } else {
-      // === PRIORITY 2: WEBSITE CRAWLER RETRIEVAL ===
-      const url = getRelevantUrl(userQuery);
-      console.log(`[Priority 2] Scraping: ${url}`);
-      let websiteText = "";
-      try {
-        websiteText = await fetchWebsiteContent(url);
-      } catch (err) {
-        console.warn("Failed to scrape official website:", err.message);
-      }
+    );
 
-      // === PRIORITY 3: GEMINI SUMMARIZATION ===
-      if (websiteText) {
-        answerText = await generateWebsiteSummary(userQuery, websiteText, history);
-        isGrounded = true;
-        finalSource = "Official Saranathan College Website";
+    if (faqMatch) {
+      answerText = faqMatch.answer;
+      finalSource = "PathMate FAQ Database";
+      dbSourceTable = "faqs";
+    } else if (isGreeting) {
+      answerText = "Hello! 👋 I'm PathMate, your AI campus companion for Saranathan College of Engineering. I can help you with college information, navigation, academics, clubs, events, and even answer general questions. How can I help you today?";
+    } else {
+      // Determine if query is college-specific (word-boundary matching to avoid false positives)
+      const collegeKeywords = [
+        'admission', 'department', 'faculty', 'fees', 'timetable', 'class', 'period', 'schedule', 
+        'club', 'event', 'navigation', 'campus', 'bus', 'hostel', 'library', 'lab', 'placement', 
+        'regulation', 'study hub', 'canteen', 'food court', 'office', 'policy', 'calendar', 'exam', 
+        'marks', 'santhi', 'valavan', 'saranathan', 'sce', 'scholarship', 'roommate', 'senior', 'syllabus', 
+        'curriculum', 'hall', 'auditorium', 'block', 'ece', 'cse', 'eee', 'aids', 'aiml', 'csbs', 
+        'mech', 'civil', 'stationery', 'generator', 'toilet', 'warden', 'hod', 'principal',
+        'attendance', 'semester', 'cgpa', 'gpa', 'anna university', 'regulation 2021'
+      ];
+      const isCollegeRelated = collegeKeywords.some(keyword => {
+        const regex = new RegExp(`\\b${keyword.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i');
+        return regex.test(cleanQuery);
+      });
+
+      if (isCollegeRelated) {
+        // Priority 1: Search the Internal Knowledge Database
+        const localResult = await resolveLocalKnowledge(userQuery, userId);
+        let localGrounded = false;
+        
+        if (localResult.resolved) {
+          if (localResult.isContext) {
+             const fallbackRes = await answerGroundedQuestion(userQuery, localResult.answer, history);
+             answerText = fallbackRes.answer;
+             localGrounded = !!fallbackRes.isGrounded;
+             dbSourceTable = fallbackRes.sourceTable || 'chatbot_chunks';
+             finalSource = localGrounded ? "PathMate Database (Regulations/Docs)" : null;
+          } else {
+             answerText = localResult.answer;
+             localGrounded = true;
+             dbSourceTable = localResult.sourceTable;
+             finalSource = "PathMate Database";
+          }
+        }
+        
+        // If not resolved locally OR if resolved context failed to locate grounded data
+        if (!localResult.resolved || (localResult.isContext && !localGrounded)) {
+          // Priority 2: Use Google Gemini API with real-time web search context
+          const searchContext = await fetchWebSearchContext(userQuery);
+          const geminiRes = await askGeminiHybrid(userQuery, history, true, searchContext);
+          answerText = geminiRes.answer;
+          finalSource = null;
+          
+          // Append warning note for general knowledge college questions
+          answerText += `\n\n⚠️ This answer is based on general knowledge and may not reflect the latest official college information.`;
+        }
       } else {
-        // Fallback to standard grounded prompt if scraping is completely empty
-        const fallbackRes = await answerGroundedQuestion(userQuery, "No scraped website text available due to connection/timeout.", history);
-        answerText = fallbackRes.answer;
-        isGrounded = fallbackRes.isGrounded;
-        finalSource = isGrounded ? "PathMate Database" : null;
+        // General query: Answer directly using Gemini API with real-time web search context
+        const searchContext = await fetchWebSearchContext(userQuery);
+        const geminiRes = await askGeminiHybrid(userQuery, history, false, searchContext);
+        answerText = geminiRes.answer;
       }
     }
 
@@ -976,8 +1060,8 @@ router.post('/chat', async (req, res) => {
       }
     }
 
-    // Append standard Grounded Source block if grounded
-    if (isGrounded && finalSource) {
+    // Append standard Grounded Source block if source was found
+    if (finalSource) {
       answerText += `\n\n**Source**\n${finalSource}`;
     }
 
@@ -1000,37 +1084,11 @@ router.post('/chat', async (req, res) => {
       }
     );
 
-    let responsePayload = {
+    const responsePayload = {
       answer: answerText,
-      isGrounded,
+      isGrounded: true,
       sourceTable: finalSource
     };
-
-    // If not grounded, return escalation draft email
-    if (!isGrounded) {
-      const student = await safeDbCall(
-        async () => {
-          const userRes = await db.query('SELECT u.name, d.name as dept FROM users u LEFT JOIN departments d ON u.department_id = d.id WHERE u.id = $1', [userId]);
-          return userRes.rows[0] || { name: 'Freshman', dept: 'Engineering' };
-        },
-        async () => {
-          const u = MOCK_STORE.users.find(x => x.id === userId) || { name: 'Freshman', department_id: 1 };
-          const d = MOCK_STORE.departments.find(x => x.id === u.department_id)?.name || 'Engineering';
-          return { name: u.name, dept: d };
-        }
-      );
-      
-      let draft = `Respected Administrative Coordinator,\n\nI am a first-year student (${student.name}) of the ${student.dept} department. I had a question regarding: "${userQuery}". Could you please guide me to the correct counselor?\n\nSincerely,\n${student.name}`;
-      
-      if (language && language !== 'en') {
-        try {
-          draft = await translateText(draft, language);
-        } catch (err) {
-          console.warn("Failed to translate escalation draft:", err.message);
-        }
-      }
-      responsePayload.escalationDraft = draft;
-    }
 
     res.json(responsePayload);
   } catch (error) {

@@ -3,7 +3,7 @@ import { Send, Bot, User, Trash2, Copy, Check } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import SourceTag from './SourceTag';
-import EscalationDraftCard from './EscalationDraftCard';
+
 import VoiceInputButton from '../onboarding/VoiceInputButton';
 import { useApp } from '../../contexts/AppContext';
 import TranslateText from '../common/TranslateText';
@@ -247,10 +247,7 @@ const ChatWindow = () => {
           id: botMsgId,
           sender: 'bot',
           text: '',
-          sources: data.sourceTable ? [data.sourceTable] : [],
-          showEscalation: !data.isGrounded,
-          unresolvedQuery: !data.isGrounded ? queryText : undefined,
-          escalationDraft: data.escalationDraft
+          sources: data.sourceTable ? [data.sourceTable] : []
         };
 
         setMessages(prev => [...prev, newBotMsg]);
@@ -387,9 +384,6 @@ const ChatWindow = () => {
                   </div>
                 )}
 
-                {isBot && msg.showEscalation && (
-                  <EscalationDraftCard unresolvedQuery={msg.unresolvedQuery} />
-                )}
               </div>
             </div>
           );

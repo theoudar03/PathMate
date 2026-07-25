@@ -1,13 +1,219 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { CAMPUS_MAP_DATA } from '../../config/mapData';
-import { MapPin, Navigation, Layers, Eye, Building, Clock, Users, Award, X, Lightbulb, Play, Square, Navigation2, PartyPopper, CheckCircle2 } from 'lucide-react';
+import * as maplibregl from 'maplibre-gl';
+import 'maplibre-gl/dist/maplibre-gl.css';
+import { CAMPUS_MAP_DATA, isValidGps } from '../../config/mapData';
+import { 
+  MapPin, 
+  Navigation, 
+  Layers, 
+  Eye, 
+  Building, 
+  Clock, 
+  Users, 
+  X, 
+  Lightbulb, 
+  Navigation2, 
+  PartyPopper, 
+  Maximize, 
+  Minimize, 
+  Locate, 
+  Compass, 
+  Plus, 
+  Minus 
+} from 'lucide-react';
 
 const ORIGIN_PRESETS_MAP = {
-  'main-gate': { name: 'Main Entrance Gate', lat: 10.7542, lng: 78.6538 },
-  'boys-hostel': { name: 'Boys Hostel', lat: 10.7588, lng: 78.6522 },
-  'girls-hostel': { name: 'Girls Hostel', lat: 10.7580, lng: 78.6530 },
-  'central-library': { name: 'Central Library', lat: 10.7572, lng: 78.6520 },
-  'canteen': { name: 'Main Canteen', lat: 10.7566, lng: 78.6513 }
+  'main-gate': { name: 'Main Entrance Gate', lat: 10.7520, lng: 78.6541 },
+  'boys-hostel': { name: 'Boys Hostel', lat: 10.7584, lng: 78.6514 },
+  'girls-hostel': { name: 'Girls Hostel', lat: 10.7580, lng: 78.6522 },
+  'central-library': { name: 'Central Library', lat: 10.7568, lng: 78.6520 },
+  'canteen': { name: 'Main Canteen', lat: 10.7568, lng: 78.6512 }
+};
+
+// Topological Road Waypoints for clear, obstacle-free paths
+const WAYPOINTS = {
+  'main_gate': [78.6534, 10.7544],
+  'parking_junction': [78.6514, 10.7548],
+  'sports_junction': [78.6504, 10.7548],
+  'volleyball_junction': [78.6512, 10.7552],
+  'ks_block_junction': [78.6510, 10.7558],
+  'academic_cross_1': [78.6513, 10.7558],
+  'eastern_road_1': [78.6516, 10.7558],
+  'generator_junction': [78.6510, 10.7564],
+  'academic_cross_2': [78.6513, 10.7564],
+  'eastern_road_2': [78.6516, 10.7564],
+  'cafeteria_junction': [78.6510, 10.7568],
+  'academic_cross_3': [78.6513, 10.7568],
+  'eastern_road_3': [78.6516, 10.7568],
+  'me_block_junction': [78.6510, 10.7572],
+  'eastern_road_4': [78.6516, 10.7572],
+  'workshop_junction': [78.6510, 10.7576],
+  'eastern_road_5': [78.6516, 10.7576],
+  'hostel_junction': [78.6512, 10.7584],
+  'cricket_main_junction': [78.6504, 10.7582],
+  'cricket_2_junction': [78.6504, 10.7566],
+  'tnsca_junction': [78.6502, 10.7572]
+};
+
+const GRAPH = {
+  'main_gate': ['parking_junction'],
+  'parking_junction': ['main_gate', 'sports_junction', 'volleyball_junction'],
+  'sports_junction': ['parking_junction'],
+  'volleyball_junction': ['parking_junction', 'ks_block_junction'],
+  'ks_block_junction': ['volleyball_junction', 'academic_cross_1', 'generator_junction'],
+  'academic_cross_1': ['ks_block_junction', 'eastern_road_1'],
+  'eastern_road_1': ['academic_cross_1', 'eastern_road_2'],
+  'generator_junction': ['ks_block_junction', 'academic_cross_2', 'cafeteria_junction'],
+  'academic_cross_2': ['generator_junction', 'eastern_road_2'],
+  'eastern_road_2': ['eastern_road_1', 'academic_cross_2', 'eastern_road_3'],
+  'cafeteria_junction': ['generator_junction', 'academic_cross_3', 'me_block_junction', 'cricket_2_junction'],
+  'academic_cross_3': ['cafeteria_junction', 'eastern_road_3'],
+  'eastern_road_3': ['eastern_road_2', 'academic_cross_3', 'eastern_road_4'],
+  'me_block_junction': ['cafeteria_junction', 'workshop_junction', 'tnsca_junction'],
+  'workshop_junction': ['me_block_junction', 'hostel_junction'],
+  'eastern_road_4': ['eastern_road_3', 'eastern_road_5'],
+  'eastern_road_5': ['eastern_road_4', 'hostel_junction'],
+  'hostel_junction': ['workshop_junction', 'eastern_road_5', 'cricket_main_junction'],
+  'cricket_main_junction': ['hostel_junction'],
+  'cricket_2_junction': ['cafeteria_junction'],
+  'tnsca_junction': ['me_block_junction']
+};
+
+const BUILDING_TO_WAYPOINT = {
+  'main-gate': 'main_gate',
+  'security-room': 'main_gate',
+  'parking-lot': 'parking_junction',
+  'football-ground': 'parking_junction',
+  'cricket-ground-1': 'sports_junction',
+  'toilet': 'sports_junction',
+  'volleyball-court': 'volleyball_junction',
+  'basketball-court': 'volleyball_junction',
+  'ks-block': 'ks_block_junction',
+  'me-block': 'me_block_junction',
+  'mech-workshop': 'workshop_junction',
+  'generator-room': 'generator_junction',
+  'mech-lab': 'ks_block_junction',
+  'cafeteria': 'cafeteria_junction',
+  'stationery': 'cafeteria_junction',
+  'atm': 'ks_block_junction',
+  'temple': 'eastern_road_1',
+  'rv-block': 'eastern_road_1',
+  'js-block': 'eastern_road_2',
+  'bd-block': 'eastern_road_3',
+  'staff-parking': 'eastern_road_4',
+  'bus-boarding': 'eastern_road_5',
+  'boys-hostel': 'hostel_junction',
+  'main-cricket': 'cricket_main_junction',
+  'cricket-ground-2': 'cricket_2_junction',
+  'tnsca-office': 'tnsca_junction'
+};
+
+const findWalkingPath = (startId, endId) => {
+  const startNode = BUILDING_TO_WAYPOINT[startId] || 'main_gate';
+  const endNode = BUILDING_TO_WAYPOINT[endId] || 'main_gate';
+  
+  if (startNode === endNode) {
+    return [WAYPOINTS[startNode]];
+  }
+
+  const queue = [[startNode]];
+  const visited = new Set([startNode]);
+
+  while (queue.length > 0) {
+    const path = queue.shift();
+    const node = path[path.length - 1];
+
+    if (node === endNode) {
+      return path.map(name => WAYPOINTS[name]);
+    }
+
+    const neighbors = GRAPH[node] || [];
+    for (const neighbor of neighbors) {
+      if (!visited.has(neighbor)) {
+        visited.add(neighbor);
+        queue.push([...path, neighbor]);
+      }
+    }
+  }
+
+  return [WAYPOINTS[startNode], WAYPOINTS[endNode]];
+};
+
+const getClosestWaypoint = (coords) => {
+  let closestKey = 'main_gate';
+  let minDistance = Infinity;
+
+  Object.entries(WAYPOINTS).forEach(([key, pt]) => {
+    const dx = coords.lng - pt[0];
+    const dy = coords.lat - pt[1];
+    const dist = dx * dx + dy * dy;
+    if (dist < minDistance) {
+      minDistance = dist;
+      closestKey = key;
+    }
+  });
+
+  return closestKey;
+};
+
+// Base Style containing all three Google raster sources for quick toggle layer visibility
+const BASE_MAP_STYLE = {
+  version: 8,
+  sources: {
+    'google-satellite': {
+      type: 'raster',
+      tiles: [
+        'https://mt0.google.com/vt/lyrs=s&x={x}&y={y}&z={z}',
+        'https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}',
+        'https://mt2.google.com/vt/lyrs=s&x={x}&y={y}&z={z}',
+        'https://mt3.google.com/vt/lyrs=s&x={x}&y={y}&z={z}'
+      ],
+      tileSize: 256,
+      attribution: 'Google Maps Satellite | SCE'
+    },
+    'google-hybrid': {
+      type: 'raster',
+      tiles: [
+        'https://mt0.google.com/vt/lyrs=y&x={x}&y={y}&z={z}',
+        'https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}',
+        'https://mt2.google.com/vt/lyrs=y&x={x}&y={y}&z={z}',
+        'https://mt3.google.com/vt/lyrs=y&x={x}&y={y}&z={z}'
+      ],
+      tileSize: 256,
+      attribution: 'Google Maps Hybrid | SCE'
+    },
+    'google-roadmap': {
+      type: 'raster',
+      tiles: [
+        'https://mt0.google.com/vt/lyrs=m&x={x}&y={y}&z={z}',
+        'https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}',
+        'https://mt2.google.com/vt/lyrs=m&x={x}&y={y}&z={z}',
+        'https://mt3.google.com/vt/lyrs=m&x={x}/y={y}&z={z}'
+      ],
+      tileSize: 256,
+      attribution: 'Google Maps Roadmap | SCE'
+    }
+  },
+  layers: [
+    {
+      id: 'satellite-layer',
+      type: 'raster',
+      source: 'google-satellite',
+      layout: { visibility: 'none' }
+    },
+    {
+      id: 'hybrid-layer',
+      type: 'raster',
+      source: 'google-hybrid',
+      layout: { visibility: 'none' }
+    },
+    {
+      id: 'roadmap-layer',
+      type: 'raster',
+      source: 'google-roadmap',
+      layout: { visibility: 'none' }
+    }
+  ]
 };
 
 const SatelliteMapView = ({ 
@@ -19,14 +225,15 @@ const SatelliteMapView = ({
   isNavigating = false,
   onToggleNavigation
 }) => {
-  const [mapType, setMapType] = useState('hybrid'); // Default 'hybrid' (Satellite + Building Labels)
+  const [mapType, setMapType] = useState('hybrid');
   const [selectedBuilding, setSelectedBuilding] = useState(activeDestination || CAMPUS_MAP_DATA[0]);
-  const [leafletReady, setLeafletReady] = useState(false);
   const [hasArrived, setHasArrived] = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState(false);
 
   const mapContainerRef = useRef(null);
   const mapInstanceRef = useRef(null);
-  const tileLayerRef = useRef(null);
+  const markersRef = useRef([]);
+  const userMarkerRef = useRef(null);
   const lastFitBoundsKey = useRef('');
 
   // Sync activeDestination from props if passed
@@ -34,74 +241,74 @@ const SatelliteMapView = ({
     if (activeDestination) {
       setSelectedBuilding(activeDestination);
       setHasArrived(false);
+      
+      // Fly to target destination
+      if (mapInstanceRef.current && activeDestination.gps) {
+        mapInstanceRef.current.flyTo({
+          center: [activeDestination.gps.lng, activeDestination.gps.lat],
+          zoom: 18,
+          pitch: 45,
+          speed: 1.2,
+          curve: 1.4,
+          essential: true
+        });
+      }
     }
   }, [activeDestination]);
 
-  // Dynamically load Leaflet CDN if not already loaded
+  // Map Initialization
   useEffect(() => {
-    if (window.L) {
-      setLeafletReady(true);
-      return;
-    }
+    if (!mapContainerRef.current || mapInstanceRef.current) return;
 
-    const existingCss = document.getElementById('leaflet-css');
-    if (!existingCss) {
-      const link = document.createElement('link');
-      link.id = 'leaflet-css';
-      link.rel = 'stylesheet';
-      link.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';
-      document.head.appendChild(link);
-    }
-
-    const existingScript = document.getElementById('leaflet-js');
-    if (!existingScript) {
-      const script = document.createElement('script');
-      script.id = 'leaflet-js';
-      script.src = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';
-      script.onload = () => setLeafletReady(true);
-      document.head.appendChild(script);
-    } else {
-      existingScript.addEventListener('load', () => setLeafletReady(true));
-    }
-  }, []);
-
-  // Helper to get exact Google Maps tile URL for chosen map mode
-  const getGoogleTileUrl = (type) => {
-    if (type === 'satellite') {
-      return 'https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}';
-    } else if (type === 'roadmap') {
-      return 'https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}';
-    }
-    return 'https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}';
-  };
-
-  // Initialize Leaflet Map Instance
-  useEffect(() => {
-    if (!leafletReady || !mapContainerRef.current || mapInstanceRef.current) return;
-
-    const L = window.L;
-    const map = L.map(mapContainerRef.current, {
-      center: [10.7565, 78.6520],
-      zoom: 17,
+    // Default center at Saranathan Campus
+    const map = new maplibregl.Map({
+      container: mapContainerRef.current,
+      style: BASE_MAP_STYLE,
+      center: [78.6520, 10.7565],
+      zoom: 16.5,
+      pitch: 0,
+      bearing: 0,
       maxZoom: 20,
-      minZoom: 14,
-      zoomControl: false,
-      dragging: true,
-      touchZoom: true,
-      scrollWheelZoom: true,
-      doubleClickZoom: true
+      minZoom: 13
     });
 
-    const tileLayer = L.tileLayer(getGoogleTileUrl(mapType), {
-      maxZoom: 20,
-      subdomains: ['mt0', 'mt1', 'mt2', 'mt3'],
-      attribution: 'Google Maps Satellite | Saranathan College of Engineering'
-    }).addTo(map);
-
-    tileLayerRef.current = tileLayer;
     mapInstanceRef.current = map;
 
-    L.control.zoom({ position: 'topright' }).addTo(map);
+    map.on('load', () => {
+      // Toggle initial map type layer visibility
+      map.setLayoutProperty(`${mapType}-layer`, 'visibility', 'visible');
+
+      // Add route GeoJSON source and layer
+      map.addSource('route', {
+        type: 'geojson',
+        data: {
+          type: 'Feature',
+          properties: {},
+          geometry: {
+            type: 'LineString',
+            coordinates: []
+          }
+        }
+      });
+
+      map.addLayer({
+        id: 'route-line',
+        type: 'line',
+        source: 'route',
+        layout: {
+          'line-join': 'round',
+          'line-cap': 'round'
+        },
+        paint: {
+          'line-color': '#2563EB',
+          'line-width': 5.5,
+          'line-opacity': 0.85
+        }
+      });
+
+      // Add markers
+      renderBuildingMarkers();
+    });
 
     return () => {
       if (mapInstanceRef.current) {
@@ -109,51 +316,132 @@ const SatelliteMapView = ({
         mapInstanceRef.current = null;
       }
     };
-  }, [leafletReady]);
+  }, []);
 
-  // Update Tile Layer when mapType changes
+  // Update Tile Layers when mapType changes
   useEffect(() => {
-    if (!mapInstanceRef.current || !tileLayerRef.current || !window.L) return;
-    tileLayerRef.current.setUrl(getGoogleTileUrl(mapType));
+    const map = mapInstanceRef.current;
+    if (!map || !map.isStyleLoaded()) return;
+
+    ['satellite', 'hybrid', 'roadmap'].forEach(type => {
+      map.setLayoutProperty(
+        `${type}-layer`,
+        'visibility',
+        type === mapType ? 'visible' : 'none'
+      );
+    });
   }, [mapType]);
 
-  // Camera Focus & Arrival Distance Calculation (NO CUSTOM PIN OVERLAYS ON MAP)
-  useEffect(() => {
-    if (!mapInstanceRef.current || !window.L) return;
-    const L = window.L;
+  // Create clean location markers for buildings (clutter-free)
+  const renderBuildingMarkers = () => {
     const map = mapInstanceRef.current;
+    if (!map) return;
 
-    // 1. Determine Source Address Coordinates
-    let sourceLat = 10.7542;
-    let sourceLng = 78.6538;
+    // Clear old markers
+    markersRef.current.forEach(m => m.remove());
+    markersRef.current = [];
 
-    if (originId === 'gps' && userLocation && userLocation.lat && userLocation.lng) {
-      sourceLat = userLocation.lat;
-      sourceLng = userLocation.lng;
+    CAMPUS_MAP_DATA.forEach(building => {
+      if (building.hideMarker) return;
+      if (!building.gps) return;
+      if (!isValidGps(building.gps)) {
+        console.warn(`[GPS Validation] Skipping out-of-bounds marker for "${building.name}":`, building.gps);
+        return;
+      }
+
+      const el = document.createElement('div');
+      el.className = 'cursor-pointer group relative';
+      el.style.width = '26px';
+      el.style.height = '26px';
+
+      // SVG dynamic marker structure (Material Design 3 style)
+      el.innerHTML = `
+        <div class="w-6 h-6 rounded-full bg-primary hover:bg-primaryHover text-white flex items-center justify-center border-2 border-white shadow-elevation2 transition-all transform hover:scale-115 active:scale-95 duration-150">
+          <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-map-pin"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>
+        </div>
+      `;
+
+      el.addEventListener('click', (e) => {
+        e.stopPropagation();
+        setSelectedBuilding(building);
+        setHasArrived(false);
+        map.flyTo({
+          center: [building.gps.lng, building.gps.lat],
+          zoom: 18,
+          pitch: 45,
+          speed: 1.2
+        });
+      });
+
+      const marker = new maplibregl.Marker({ element: el })
+        .setLngLat([building.gps.lng, building.gps.lat])
+        .addTo(map);
+
+      markersRef.current.push(marker);
+    });
+  };
+
+  // Camera, Navigation & GPS Location Logic
+  useEffect(() => {
+    const map = mapInstanceRef.current;
+    if (!map || !map.isStyleLoaded()) return;
+
+    // 1. Source Origin Coordinates
+    let sourceLat = 10.7544;
+    let sourceLng = 78.6534;
+
+    if (originId === 'gps' && userLocation?.lat && userLocation?.lng) {
+      if (isValidGps(userLocation)) {
+        sourceLat = userLocation.lat;
+        sourceLng = userLocation.lng;
+      } else {
+        console.warn(`[GPS Validation] User location is out-of-bounds:`, userLocation);
+      }
     } else if (ORIGIN_PRESETS_MAP[originId]) {
-      sourceLat = ORIGIN_PRESETS_MAP[originId].lat;
-      sourceLng = ORIGIN_PRESETS_MAP[originId].lng;
+      const preset = ORIGIN_PRESETS_MAP[originId];
+      if (isValidGps({ lat: preset.lat, lng: preset.lng })) {
+        sourceLat = preset.lat;
+        sourceLng = preset.lng;
+      } else {
+        console.warn(`[GPS Validation] Preset location "${originId}" is out-of-bounds:`, preset);
+      }
     }
 
-    const startCoords = [sourceLat, sourceLng];
+    // Update User Animated Geolocation Marker Pin
+    if (userLocation?.lat && userLocation?.lng && isValidGps(userLocation)) {
+      if (!userMarkerRef.current) {
+        const el = document.createElement('div');
+        el.className = 'relative flex items-center justify-center w-8 h-8 pointer-events-none';
+        el.innerHTML = `
+          <span class="absolute inline-flex w-full h-full rounded-full bg-blue-400 opacity-75 animate-ping"></span>
+          <span class="relative inline-flex rounded-full h-4 w-4 bg-blue-600 border-2 border-white shadow-lg"></span>
+        `;
+        userMarkerRef.current = new maplibregl.Marker({ element: el })
+          .setLngLat([userLocation.lng, userLocation.lat])
+          .addTo(map);
+      } else {
+        userMarkerRef.current.setLngLat([userLocation.lng, userLocation.lat]);
+      }
+    }
 
-    // 2. Determine Destination Building
+    // 2. Target Destination Coordinate Details
     const targetBuilding = activeDestination || (searchQuery ? CAMPUS_MAP_DATA.find(b => 
       b.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       b.departments.some(d => d.toLowerCase().includes(searchQuery.toLowerCase()))
     ) : null) || selectedBuilding || CAMPUS_MAP_DATA[0];
 
-    if (targetBuilding && targetBuilding.gps) {
-      const destCoords = [targetBuilding.gps.lat, targetBuilding.gps.lng];
+    if (targetBuilding && targetBuilding.gps && isValidGps(targetBuilding.gps)) {
+      const destLat = targetBuilding.gps.lat;
+      const destLng = targetBuilding.gps.lng;
 
-      // Check arrival distance (<= 15 meters)
+      // 3. Haversine distance tracking
       const R = 6371e3;
-      const φ1 = sourceLat * Math.PI/180;
-      const φ2 = targetBuilding.gps.lat * Math.PI/180;
-      const Δφ = (targetBuilding.gps.lat - sourceLat) * Math.PI/180;
-      const Δλ = (targetBuilding.gps.lng - sourceLng) * Math.PI/180;
-      const a = Math.sin(Δφ/2) * Math.sin(Δφ/2) + Math.cos(φ1) * Math.cos(φ2) * Math.sin(Δλ/2) * Math.sin(Δλ/2);
-      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+      const φ1 = sourceLat * Math.PI / 180;
+      const φ2 = destLat * Math.PI / 180;
+      const Δφ = (destLat - sourceLat) * Math.PI / 180;
+      const Δλ = (destLng - sourceLng) * Math.PI / 180;
+      const a = Math.sin(Δφ / 2) * Math.sin(Δφ / 2) + Math.cos(φ1) * Math.cos(φ2) * Math.sin(Δλ / 2) * Math.sin(Δλ / 2);
+      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
       const distanceMeters = Math.round(R * c);
 
       if (isNavigating && distanceMeters <= 20) {
@@ -162,19 +450,106 @@ const SatelliteMapView = ({
         setHasArrived(false);
       }
 
-      // Camera view focus on destination building
-      const currentFitKey = `${startCoords[0]}_${startCoords[1]}_${destCoords[0]}_${destCoords[1]}_${targetBuilding.id}_${isNavigating}`;
-      if (lastFitBoundsKey.current !== currentFitKey) {
-        lastFitBoundsKey.current = currentFitKey;
-        const bounds = L.latLngBounds([startCoords, destCoords]);
-        map.fitBounds(bounds, { padding: [70, 70], maxZoom: 18 });
+      // Draw walking route line dynamically along waypoints
+      if (isNavigating) {
+        let pathPoints = [];
+        
+        if (originId === 'gps' && userLocation?.lat && userLocation?.lng) {
+          const closestNode = getClosestWaypoint(userLocation);
+          const waypointPath = findWalkingPath(closestNode, targetBuilding.id);
+          pathPoints = [[userLocation.lng, userLocation.lat], ...waypointPath];
+        } else {
+          pathPoints = findWalkingPath(originId, targetBuilding.id);
+        }
+
+        // Add destination coordinate at the end to make it snap perfectly
+        pathPoints.push([destLng, destLat]);
+
+        const routeSource = map.getSource('route');
+        if (routeSource) {
+          routeSource.setData({
+            type: 'Feature',
+            geometry: {
+              type: 'LineString',
+              coordinates: pathPoints
+            }
+          });
+        }
+      } else {
+        // Clear route line
+        const routeSource = map.getSource('route');
+        if (routeSource) {
+          routeSource.setData({
+            type: 'Feature',
+            geometry: {
+              type: 'LineString',
+              coordinates: []
+            }
+          });
+        }
+      }
+
+      // Update Fit camera bounds viewport key
+      const boundsKey = `${sourceLat}_${sourceLng}_${destLat}_${destLng}_${targetBuilding.id}_${isNavigating}`;
+      if (lastFitBoundsKey.current !== boundsKey) {
+        lastFitBoundsKey.current = boundsKey;
+        
+        let coordinates = [
+          [sourceLng, sourceLat],
+          [destLng, destLat]
+        ];
+
+        if (isNavigating) {
+          if (originId === 'gps' && userLocation?.lat && userLocation?.lng) {
+            const closestNode = getClosestWaypoint(userLocation);
+            const waypointPath = findWalkingPath(closestNode, targetBuilding.id);
+            coordinates = [[userLocation.lng, userLocation.lat], ...waypointPath, [destLng, destLat]];
+          } else {
+            coordinates = [...findWalkingPath(originId, targetBuilding.id), [destLng, destLat]];
+          }
+        }
+        
+        const bounds = coordinates.reduce((acc, coord) => {
+          return acc.extend(coord);
+        }, new maplibregl.LngLatBounds(coordinates[0], coordinates[0]));
+
+        map.fitBounds(bounds, {
+          padding: 85,
+          maxZoom: 18.5,
+          duration: 1600
+        });
       }
     }
-  }, [leafletReady, selectedBuilding, activeDestination, searchQuery, userLocation, originId, isNavigating]);
+  }, [selectedBuilding, activeDestination, searchQuery, userLocation, originId, isNavigating]);
+
+  // Floating Control Bar Button Actions
+  const zoomIn = () => mapInstanceRef.current?.zoomIn();
+  const zoomOut = () => mapInstanceRef.current?.zoomOut();
+  const resetNorth = () => mapInstanceRef.current?.resetNorthPitch();
+  
+  const locateMe = () => {
+    if (userLocation?.lat && userLocation?.lng && mapInstanceRef.current) {
+      mapInstanceRef.current.flyTo({
+        center: [userLocation.lng, userLocation.lat],
+        zoom: 18.5,
+        pitch: 45,
+        speed: 1.5
+      });
+    }
+  };
+
+  const toggleFullscreen = () => {
+    setIsFullscreen(prev => !prev);
+    setTimeout(() => {
+      mapInstanceRef.current?.resize();
+    }, 100);
+  };
 
   return (
-    <div className="relative w-full h-[480px] sm:h-[650px] rounded-3xl overflow-hidden shadow-elevation2 border border-outline/30 bg-slate-100 select-none text-left font-sans animate-fade-in touch-pan-y">
-      {/* Light MD3 Floating Header Control Bar */}
+    <div className={`relative w-full rounded-3xl overflow-hidden shadow-elevation2 border border-outline/30 bg-slate-100 select-none text-left font-sans animate-fade-in touch-pan-y transition-all ${
+      isFullscreen ? 'fixed inset-0 z-[1000] rounded-none border-none h-screen' : 'h-[480px] sm:h-[650px]'
+    }`}>
+      {/* Floating Header public bar */}
       <div className="absolute top-3 left-3 right-3 sm:top-4 sm:left-4 sm:right-16 z-[500] flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 bg-white/95 backdrop-blur-md px-3.5 py-2.5 rounded-2xl sm:rounded-full border border-outline/25 shadow-md text-onSurface">
         <div className="flex items-center gap-2">
           <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-primary text-white flex items-center justify-center font-bold text-xs shadow-xs flex-shrink-0">
@@ -188,11 +563,11 @@ const SatelliteMapView = ({
           </div>
         </div>
 
-        {/* Map Type Switcher Controls */}
+        {/* Map Type Toggle */}
         <div className="flex items-center gap-1 bg-surfaceContainerLow p-1 rounded-full border border-outline/20 text-xs w-full sm:w-auto justify-between sm:justify-start">
           <button
             onClick={() => setMapType('hybrid')}
-            className={`flex-1 sm:flex-initial px-3 py-1 rounded-full text-[10px] sm:text-[11px] font-bold transition-all flex items-center justify-center gap-1 ${
+            className={`flex-1 sm:flex-initial px-3 py-1 rounded-full text-[10px] sm:text-[11px] font-bold transition-all flex items-center justify-center gap-1 cursor-pointer ${
               mapType === 'hybrid' ? 'bg-primary text-white shadow-xs' : 'text-onSurfaceVariant hover:bg-slate-200/60'
             }`}
           >
@@ -202,7 +577,7 @@ const SatelliteMapView = ({
 
           <button
             onClick={() => setMapType('satellite')}
-            className={`flex-1 sm:flex-initial px-3 py-1 rounded-full text-[10px] sm:text-[11px] font-bold transition-all flex items-center justify-center gap-1 ${
+            className={`flex-1 sm:flex-initial px-3 py-1 rounded-full text-[10px] sm:text-[11px] font-bold transition-all flex items-center justify-center gap-1 cursor-pointer ${
               mapType === 'satellite' ? 'bg-primary text-white shadow-xs' : 'text-onSurfaceVariant hover:bg-slate-200/60'
             }`}
           >
@@ -212,7 +587,7 @@ const SatelliteMapView = ({
 
           <button
             onClick={() => setMapType('roadmap')}
-            className={`flex-1 sm:flex-initial px-3 py-1 rounded-full text-[10px] sm:text-[11px] font-bold transition-all flex items-center justify-center gap-1 ${
+            className={`flex-1 sm:flex-initial px-3 py-1 rounded-full text-[10px] sm:text-[11px] font-bold transition-all flex items-center justify-center gap-1 cursor-pointer ${
               mapType === 'roadmap' ? 'bg-primary text-white shadow-xs' : 'text-onSurfaceVariant hover:bg-slate-200/60'
             }`}
           >
@@ -222,7 +597,31 @@ const SatelliteMapView = ({
         </div>
       </div>
 
-      {/* Destination Arrival Celebration Message Pill */}
+      {/* Floating controls panel */}
+      <div className="absolute right-3 bottom-24 sm:top-20 sm:bottom-auto sm:right-4 z-[500] flex flex-col gap-2 bg-white/90 backdrop-blur-md p-1.5 rounded-2xl shadow-md border border-outline/20">
+        <button onClick={zoomIn} className="p-2 hover:bg-slate-100 text-slate-700 rounded-xl cursor-pointer" title="Zoom In">
+          <Plus size={16} />
+        </button>
+        <button onClick={zoomOut} className="p-2 hover:bg-slate-100 text-slate-700 rounded-xl cursor-pointer" title="Zoom Out">
+          <Minus size={16} />
+        </button>
+        <button onClick={resetNorth} className="p-2 hover:bg-slate-100 text-slate-700 rounded-xl cursor-pointer" title="Recenter Compass">
+          <Compass size={16} />
+        </button>
+        <button 
+          onClick={locateMe} 
+          disabled={!userLocation} 
+          className={`p-2 rounded-xl cursor-pointer ${userLocation ? 'hover:bg-slate-100 text-blue-600' : 'text-slate-350'}`} 
+          title="Center on GPS Location"
+        >
+          <Locate size={16} />
+        </button>
+        <button onClick={toggleFullscreen} className="p-2 hover:bg-slate-100 text-slate-700 rounded-xl cursor-pointer" title="Toggle Fullscreen">
+          <Maximize size={16} />
+        </button>
+      </div>
+
+      {/* Destination Arrival Celebration Pill */}
       {hasArrived && (
         <div className="absolute top-20 left-4 right-4 z-[550] bg-emerald-600 text-white px-4 py-3 rounded-2xl shadow-2xl border-2 border-white animate-bounce flex items-center justify-between">
           <div className="flex items-center gap-3">
@@ -232,7 +631,7 @@ const SatelliteMapView = ({
               <p className="text-[11px] font-bold text-emerald-100 mt-0.5">Welcome to {selectedBuilding?.name || 'Destination'}! Have a great day!</p>
             </div>
           </div>
-          <button onClick={() => setHasArrived(false)} className="p-1 hover:bg-emerald-700 rounded-full">
+          <button onClick={() => setHasArrived(false)} className="p-1 hover:bg-emerald-700 rounded-full cursor-pointer">
             <X size={16} />
           </button>
         </div>
@@ -241,13 +640,102 @@ const SatelliteMapView = ({
       {/* Small Clean Helpful Banner Pill */}
       <div className="absolute bottom-4 left-4 z-[490] max-w-[85vw] sm:max-w-md bg-amber-50/95 backdrop-blur-md text-amber-900 text-[10.5px] font-bold px-3.5 py-1.5 rounded-full border border-amber-300 shadow-md flex items-center gap-1.5">
         <Lightbulb size={13} className="text-amber-600 flex-shrink-0" />
-        <span className="truncate">💡 Hybrid view is highly recommended to view building labels over satellite imagery.</span>
+        <span className="truncate">💡 Use compass & zoom floating bar on the right to tilt & rotate 3D maps.</span>
       </div>
 
-      {/* Leaflet Map Container */}
+      {/* MapLibre Map Container */}
       <div ref={mapContainerRef} className="w-full h-full z-0 touch-pan-y" />
 
-      {/* Floating Light MD3 Building Information Card Removed */}
+      {/* Restore Floating Light MD3 Building Information Card Popup */}
+      {selectedBuilding && (
+        <div className="relative sm:absolute sm:top-28 sm:right-4 sm:bottom-4 sm:w-96 w-full bg-white border border-outline/30 rounded-3xl p-4 sm:p-5 text-onSurface z-[600] flex flex-col justify-between shadow-elevation3 animate-scale-up overflow-y-auto mt-4 sm:mt-0 max-h-[400px] sm:max-h-none text-left">
+          <div className="space-y-3 sm:space-y-4">
+            <div className="flex justify-between items-start border-b border-outline/20 pb-3">
+              <div>
+                <span className="text-[10px] font-black uppercase tracking-wider text-primary bg-primaryContainer/60 px-2.5 py-0.5 rounded-full border border-primaryContainer">
+                  {selectedBuilding.category}
+                </span>
+                <h2 className="text-base font-black text-onSurface mt-1.5 leading-tight">{selectedBuilding.name}</h2>
+              </div>
+              <button
+                onClick={() => setSelectedBuilding(null)}
+                className="p-1.5 rounded-full hover:bg-slate-100 text-gray-400 hover:text-gray-700 transition-colors cursor-pointer"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="w-full h-32 sm:h-36 rounded-2xl overflow-hidden bg-slate-100 border border-outline/20 shadow-xs relative">
+              <img
+                src={selectedBuilding.image || '/assets/campus-bg.jpg'}
+                alt={selectedBuilding.name}
+                className="w-full h-full object-cover"
+                onError={(e) => {
+                  e.target.onerror = null;
+                  e.target.src = '/assets/campus-bg.jpg';
+                }}
+              />
+            </div>
+
+            <p className="text-xs text-onSurfaceVariant leading-relaxed">
+              {selectedBuilding.description}
+            </p>
+
+            {selectedBuilding.departments && selectedBuilding.departments.length > 0 && (
+              <div>
+                <strong className="text-[11px] font-bold text-gray-500 uppercase tracking-wider block mb-1.5 flex items-center gap-1">
+                  <Building size={14} className="text-primary" /> Departments & Wings
+                </strong>
+                <div className="flex flex-wrap gap-1.5">
+                  {selectedBuilding.departments.map(d => (
+                    <span key={d} className="px-2.5 py-1 rounded-lg bg-slate-100 text-slate-800 text-[11px] font-semibold border border-outline/20">
+                      {d}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <div className="grid grid-cols-1 gap-2 text-xs bg-slate-50 p-3 rounded-2xl border border-outline/20">
+              <div className="flex items-center gap-2 text-onSurfaceVariant">
+                <Clock size={14} className="text-primary flex-shrink-0" />
+                <span><strong className="text-onSurface">Hours:</strong> {selectedBuilding.office_timing || '8:30 AM - 5:00 PM'}</span>
+              </div>
+              {selectedBuilding.faculty && (
+                <div className="flex items-center gap-2 text-onSurfaceVariant">
+                  <Users size={14} className="text-green-600 flex-shrink-0" />
+                  <span><strong className="text-onSurface">Head:</strong> {selectedBuilding.faculty.join(', ')}</span>
+                </div>
+              )}
+            </div>
+          </div>
+
+          <div className="pt-4 border-t border-outline/20 mt-3 space-y-2">
+            {!isNavigating ? (
+              <button
+                onClick={() => {
+                  if (onToggleNavigation) onToggleNavigation(true);
+                  if (onSelectBuildingForNavigation) onSelectBuildingForNavigation(selectedBuilding);
+                }}
+                className="w-full bg-gradient-to-r from-primary to-[#2563EB] hover:from-primaryHover hover:to-primary text-white py-3.5 rounded-2xl font-black text-xs shadow-lg flex items-center justify-center gap-2 transition-all active:scale-[0.98] border border-primary/20 cursor-pointer"
+              >
+                <Navigation2 size={16} className="fill-white" />
+                <span>Start Live Navigation</span>
+              </button>
+            ) : (
+              <button
+                onClick={() => {
+                  if (onToggleNavigation) onToggleNavigation(false);
+                }}
+                className="w-full bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 py-3.5 rounded-2xl font-black text-xs shadow-sm flex items-center justify-center gap-2 transition-all active:scale-[0.98] cursor-pointer"
+              >
+                <X size={16} className="text-rose-600" />
+                <span>Stop Live Navigation</span>
+              </button>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 };

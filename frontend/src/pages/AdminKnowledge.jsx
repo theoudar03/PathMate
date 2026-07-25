@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Database, FileText, Upload, RefreshCw, Trash2, CheckCircle, AlertCircle, Plus, Edit, HelpCircle, Check, X, BookOpen } from 'lucide-react';
+import { Database, FileText, Upload, RefreshCw, Trash2, CheckCircle, AlertCircle, Plus, Edit, HelpCircle, Check, X, BookOpen, Star } from 'lucide-react';
 import { safeFetchJson } from '../utils/api';
 
 const AdminKnowledge = () => {
@@ -14,7 +14,7 @@ const AdminKnowledge = () => {
   // Form states
   const [showFaqModal, setShowFaqModal] = useState(false);
   const [selectedFaq, setSelectedFaq] = useState(null);
-  const [faqForm, setFaqForm] = useState({ question: '', answer: '', category: 'General', is_approved: true });
+  const [faqForm, setFaqForm] = useState({ question: '', answer: '', category: 'General', is_approved: true, is_suggested: false, icon: 'help' });
 
   const [showAnswerModal, setShowAnswerModal] = useState(false);
   const [selectedUnknown, setSelectedUnknown] = useState(null);
@@ -109,7 +109,7 @@ const AdminKnowledge = () => {
 
       setShowFaqModal(false);
       setSelectedFaq(null);
-      setFaqForm({ question: '', answer: '', category: 'General', is_approved: true });
+      setFaqForm({ question: '', answer: '', category: 'General', is_approved: true, is_suggested: false, icon: 'help' });
       fetchFaqs();
     } catch (e) {
       alert('An unexpected error occurred while saving FAQ.');
@@ -223,7 +223,7 @@ const AdminKnowledge = () => {
           <button
             onClick={() => {
               setSelectedFaq(null);
-              setFaqForm({ question: '', answer: '', category: 'General', is_approved: true });
+              setFaqForm({ question: '', answer: '', category: 'General', is_approved: true, is_suggested: false, icon: 'help' });
               setShowFaqModal(true);
             }}
             className="bg-primary hover:bg-primaryHover text-onPrimary font-extrabold text-xs px-5 py-3 rounded-2xl shadow-md transition-all flex items-center gap-2"
@@ -273,13 +273,18 @@ const AdminKnowledge = () => {
               {faqs.map((faq) => (
                 <div key={faq.id} className="bg-surface border border-surfaceVariant/60 rounded-2xl p-5 shadow-2xs space-y-2 flex flex-col justify-between">
                   <div>
-                    <div className="flex items-center justify-between gap-2 mb-1.5">
+                    <div className="flex items-center gap-2 mb-1.5 flex-wrap">
                       <span className="text-[9px] font-black px-2.5 py-0.5 rounded-full bg-primaryContainer text-onPrimaryContainer uppercase tracking-wider">
                         {faq.category || 'General'}
                       </span>
                       <span className="text-[10px] text-emerald-700 font-bold flex items-center gap-1">
                         <CheckCircle size={12} /> Approved Grounding
                       </span>
+                      {faq.is_suggested && (
+                        <span className="text-[10px] text-amber-700 font-bold flex items-center gap-1 ml-1 bg-amber-50 px-1.5 py-0.5 rounded-lg border border-amber-200">
+                          <Star size={10} className="fill-amber-500 text-amber-500" /> Suggested
+                        </span>
+                      )}
                     </div>
                     <h4 className="font-bold text-onSurface text-sm leading-snug">{faq.question}</h4>
                     <p className="text-xs text-onSurfaceVariant mt-2 leading-relaxed bg-surfaceContainerLow/60 p-3 rounded-xl border border-outline/10">
@@ -291,7 +296,14 @@ const AdminKnowledge = () => {
                     <button
                       onClick={() => {
                         setSelectedFaq(faq);
-                        setFaqForm({ question: faq.question, answer: faq.answer, category: faq.category || 'General', is_approved: faq.is_approved });
+                        setFaqForm({ 
+                          question: faq.question, 
+                          answer: faq.answer, 
+                          category: faq.category || 'General', 
+                          is_approved: faq.is_approved,
+                          is_suggested: !!faq.is_suggested,
+                          icon: faq.icon || 'help'
+                        });
                         setShowFaqModal(true);
                       }}
                       className="p-1.5 text-onSurfaceVariant hover:text-primary rounded-lg hover:bg-surfaceVariant transition-colors"
@@ -440,6 +452,33 @@ const AdminKnowledge = () => {
                 <label className="block font-bold text-onSurfaceVariant mb-1 uppercase">Answer</label>
                 <textarea required rows={4} value={faqForm.answer} onChange={e => setFaqForm({...faqForm, answer: e.target.value})} placeholder="Grounding answer text..." className="w-full p-2.5 border rounded-xl bg-surfaceContainerLow" />
               </div>
+              <div className="flex items-center gap-2 py-1">
+                <label className="flex items-center gap-2 font-bold text-onSurfaceVariant cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={faqForm.is_suggested}
+                    onChange={e => setFaqForm({...faqForm, is_suggested: e.target.checked})}
+                    className="w-4 h-4 rounded text-primary border-outline focus:ring-primary"
+                  />
+                  <span>Show as Suggested Question in Chatbot</span>
+                </label>
+              </div>
+              {faqForm.is_suggested && (
+                <div>
+                  <label className="block font-bold text-onSurfaceVariant mb-1 uppercase">Suggestion Icon</label>
+                  <select value={faqForm.icon} onChange={e => setFaqForm({...faqForm, icon: e.target.value})} className="w-full p-2.5 border rounded-xl bg-surfaceContainerLow font-bold">
+                    <option value="help">help (Default)</option>
+                    <option value="event">event (Calendar/Date)</option>
+                    <option value="bed">bed (Hostel/Stay)</option>
+                    <option value="task">task (Verification/Documents)</option>
+                    <option value="shield">shield (Safety/Rules)</option>
+                    <option value="restaurant">restaurant (Dining/Canteen)</option>
+                    <option value="menu_book">menu_book (Academics/Library)</option>
+                    <option value="explore">explore (Navigation/Maps)</option>
+                    <option value="school">school (Scholarships/Departments)</option>
+                  </select>
+                </div>
+              )}
               <div className="pt-3 flex justify-end gap-2">
                 <button type="button" onClick={() => setShowFaqModal(false)} className="px-4 py-2 bg-surfaceVariant rounded-xl font-bold">Cancel</button>
                 <button type="submit" disabled={actionLoading} className="px-5 py-2 bg-primary text-onPrimary font-bold rounded-xl shadow-md">

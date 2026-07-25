@@ -471,12 +471,12 @@ router.get('/knowledge/faqs', async (req, res) => {
 // POST Create FAQ
 router.post('/knowledge/faqs', async (req, res) => {
   try {
-    const { question, answer, category = 'General' } = req.body;
+    const { question, answer, category = 'General', is_suggested = false, icon = 'help' } = req.body;
     if (!question || !answer) return res.status(400).json({ error: 'Question and Answer are required' });
 
     const result = await db.query(
-      'INSERT INTO faqs (question, answer, category) VALUES ($1, $2, $3) RETURNING *',
-      [question, answer, category]
+      'INSERT INTO faqs (question, answer, category, is_suggested, icon) VALUES ($1, $2, $3, $4, $5) RETURNING *',
+      [question, answer, category, is_suggested, icon]
     );
 
     await logActivity(req.admin?.id, 'faq_created', `Added FAQ: ${question.slice(0, 40)}...`);
@@ -490,7 +490,7 @@ router.post('/knowledge/faqs', async (req, res) => {
 router.put('/knowledge/faqs/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    const { question, answer, category, is_approved } = req.body;
+    const { question, answer, category, is_approved, is_suggested, icon } = req.body;
 
     const result = await db.query(
       `UPDATE faqs SET 
@@ -498,9 +498,11 @@ router.put('/knowledge/faqs/:id', async (req, res) => {
         answer = COALESCE($2, answer),
         category = COALESCE($3, category),
         is_approved = COALESCE($4, is_approved),
+        is_suggested = COALESCE($5, is_suggested),
+        icon = COALESCE($6, icon),
         updated_at = NOW()
-       WHERE id = $5 RETURNING *`,
-      [question, answer, category, is_approved, id]
+       WHERE id = $7 RETURNING *`,
+      [question, answer, category, is_approved, is_suggested, icon, id]
     );
 
     await logActivity(req.admin?.id, 'faq_updated', `Updated FAQ ID: ${id}`);

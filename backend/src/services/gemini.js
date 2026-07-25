@@ -13,6 +13,27 @@ if (apiKey && apiKey !== 'YOUR_GEMINI_API_KEY' && apiKey.trim() !== '') {
   console.warn("WARNING: GEMINI_API_KEY is not configured! Gemini service will operate in local simulation mode.");
 }
 
+// Helper: Call Gemini with multi-model fallback chain
+const callWithFallback = async (prompt, generationConfig = {}) => {
+  const models = ["gemini-1.5-flash", "gemini-2.0-flash", "gemini-2.5-flash"];
+  let lastError = null;
+
+  for (const modelName of models) {
+    try {
+      console.log(`[Gemini Chain] Attempting request using model: ${modelName}`);
+      const model = genAI.getGenerativeModel({ model: modelName, generationConfig });
+      const result = await model.generateContent(prompt);
+      const responseText = result.response.text();
+      console.log(`[Gemini Chain] SUCCESS with model: ${modelName}`);
+      return { responseText, modelUsed: modelName };
+    } catch (err) {
+      console.warn(`[Gemini Chain] FAILED with model ${modelName}: ${err.message}`);
+      lastError = err;
+    }
+  }
+  throw lastError || new Error("All models in the fallback chain failed.");
+};
+
 // Helper: Call Gemini or fallback to simulator
 const callGeminiJson = async (prompt, schema, mockFallback) => {
   if (!genAI) {
@@ -21,17 +42,25 @@ const callGeminiJson = async (prompt, schema, mockFallback) => {
   }
 
   try {
-    const model = genAI.getGenerativeModel({
-      model: "gemini-2.5-flash",
-      generationConfig: {
-        responseMimeType: "application/json",
-        responseSchema: schema
-      }
-    });
+    // Append JSON instruction to the prompt for robust parsing
+    const jsonPrompt = prompt + "\n\nIMPORTANT: Return your response as a valid JSON object. Do not wrap it in markdown code fences.";
 
-    const result = await model.generateContent(prompt);
-    const responseText = result.response.text();
-    return JSON.parse(responseText);
+    const { responseText } = await callWithFallback(jsonPrompt);
+    const trimmedText = responseText.trim();
+
+    // Robust regex-based JSON extraction
+    const match = trimmedText.match(/\{[\s\S]*\}/);
+    if (match) {
+      try {
+        return JSON.parse(match[0]);
+      } catch (parseErr) {
+        console.warn("JSON parse failed from Gemini response:", parseErr.message, "Raw:", trimmedText.substring(0, 200));
+      }
+    }
+
+    // If we couldn't parse JSON, fall back to mock
+    console.warn("Gemini returned non-JSON response, using mock fallback. Raw:", trimmedText.substring(0, 200));
+    return mockFallback();
   } catch (error) {
     console.error("Gemini API calling error! Falling back to local simulation:", error.message);
     return mockFallback();
@@ -353,11 +382,10 @@ Text to translate:
   }
 
   try {
-    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
-    const result = await model.generateContent(prompt);
-    return result.response.text().trim();
+    const { responseText } = await callWithFallback(prompt);
+    return responseText.trim();
   } catch (error) {
-    console.error("Gemini translation error:", error.message);
+    console.error("Gemini translation error in chain:", error.message);
     if (targetLanguage === 'ta') {
       return `[தமிழ்] ${text}`;
     } else {
@@ -395,11 +423,10 @@ Return only the summarized answer.`;
   }
 
   try {
-    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
-    const result = await model.generateContent(prompt);
-    return result.response.text().trim();
+    const { responseText } = await callWithFallback(prompt);
+    return responseText.trim();
   } catch (error) {
-    console.error("Gemini website summary error:", error.message);
+    console.error("Gemini website summary error in chain:", error.message);
     return `Here is a summary from the official website regarding your query about "${userQuery}". For full procedures, please visit saranathan.ac.in.`;
   }
 };
@@ -466,3 +493,87 @@ Return structured JSON.`;
 
   return callGeminiJson(prompt, schema, mockFallback);
 };
+
+export const askGeminiHybrid = async (userQuery, history = [], isCollegeRelated = false, searchContext = "") => {
+  if (!genAI) {
+    console.log("Simulating Gemini response (API key missing)...");
+    const q = userQuery.toLowerCase();
+    if (/hi|hello|hey|greetings|who are you/i.test(q)) {
+      return {
+        answer: "Hello! 👋 I'm PathMate, your AI campus companion for Saranathan College of Engineering. I can help you with college information, navigation, academics, clubs, events, and even answer general questions. How can I help you today?",
+        isSensitive: false
+      };
+    }
+    if (q.includes('programming') || q.includes('python') || q.includes('java') || q.includes('code') || q.includes('c ')) {
+      return {
+        answer: "Programming is the process of creating a set of instructions that tell a computer how to perform a task. Python is highly readable and great for beginners, whereas languages like C or Java provide stronger control over hardware and memory allocation. Focus on understanding key concepts like variables, loops, and functions first!",
+        isSensitive: false
+      };
+    }
+    return {
+      answer: `Here is general guidance regarding your query: "${userQuery}". For official regulations, please visit the administrative office or check the central study portal.`,
+      isSensitive: false
+    };
+  }
+
+  const formattedHistory = history.map(h => `${h.role === 'user' ? 'User' : 'Assistant'}: ${h.text}`).join('\n');
+  const historyPrompt = history.length > 0 ? `\n=== RECENT CONVERSATION HISTORY ===\n${formattedHistory}\n================================\n` : '';
+
+  let contextPrompt = "";
+  if (searchContext) {
+    contextPrompt = `\n=== REAL-TIME WEB SEARCH RESULTS (CURRENT AS OF 2026) ===\n${searchContext}\n=======================================================\nUse the search results above as the single source of truth for current affairs, dynamic information, or latest real-world facts. Always prioritize these search results over your static pre-trained knowledge.\n`;
+  }
+
+  const prompt = `You are PathMate, a friendly, professional, and encouraging AI assistant for Saranathan College of Engineering (SCE). You are smart and capable of answering ANY question.
+${historyPrompt}${contextPrompt}
+The user is asking: "${userQuery}"
+
+Your objective is to provide a helpful, accurate, easy-to-understand response to ANY question the user asks.
+Follow these guidelines:
+1. SENSITIVITY CHECK: If the query involves violence, self-harm, illegal activities, harassment, discrimination, personal data, hate speech, explicit content, or dangerous activities, politely decline the query and state that you cannot assist with unsafe topics. Set isSensitive to true.
+2. GREETINGS: If the query is a simple greeting (Hi, hello, hey, who are you, etc.), respond warmly introducing yourself exactly like this:
+"Hello! 👋 I'm PathMate, your AI campus companion for Saranathan College of Engineering. I can help you with college information, navigation, academics, clubs, events, and even answer general questions. How can I help you today?"
+3. GENERAL KNOWLEDGE: You MUST answer ALL general knowledge questions directly, accurately, and concisely. This includes but is not limited to: current affairs, politics, history, geography, science, mathematics, technology, coding, programming, career advice, interview preparation, motivation, health, sports, entertainment, and any other topic. You are NOT limited to college topics only. Answer like a knowledgeable AI assistant. Use bullet points where appropriate.
+4. COLLEGE QUESTIONS: If the query is about Saranathan College or engineering college topics, answer based on general engineering college knowledge. Be professional, clear, and welcoming.
+5. NEVER say "I don't have information", "I cannot answer", "this is outside my scope", or "I am limited to college topics". You must ALWAYS provide a helpful answer to any safe question.
+
+Return the response inside a JSON object:
+{
+  "answer": "response text...",
+  "isSensitive": false
+}`;
+
+  try {
+    const { responseText } = await callWithFallback(prompt);
+    const trimmedText = responseText.trim();
+    
+    // Attempt parsing
+    const match = trimmedText.match(/\{[\s\S]*\}/);
+    if (match) {
+      try {
+        const parsed = JSON.parse(match[0]);
+        if (parsed && typeof parsed.answer === 'string') {
+          return {
+            answer: parsed.answer,
+            isSensitive: !!parsed.isSensitive
+          };
+        }
+      } catch (err) {
+        console.warn("JSON parsing of Gemini response failed:", err.message, "Raw text:", trimmedText);
+      }
+    }
+    
+    // Safe text fallback
+    return {
+      answer: trimmedText.replace(/```json|```/g, '').trim(),
+      isSensitive: false
+    };
+  } catch (error) {
+    console.error("Gemini API hybrid assistant error:", error.message);
+    return {
+      answer: `Here is some general advice regarding "${userQuery}". It is always helpful to double-check with senior guides or your academic class advisor for specific department rules.`,
+      isSensitive: false
+    };
+  }
+};
+

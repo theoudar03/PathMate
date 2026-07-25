@@ -3,11 +3,11 @@ import { CAMPUS_MAP_DATA } from '../../config/mapData';
 import { Navigation, MapPin, Compass, Clock, Footprints, CheckCircle2, AlertCircle, Navigation2, X, StopCircle, PartyPopper } from 'lucide-react';
 
 const ORIGIN_PRESETS = [
-  { id: 'main-gate', name: 'Main Entrance Security Gate', coords: { lat: 10.7542, lng: 78.6538 } },
-  { id: 'boys-hostel', name: 'Boys Hostel Entrance', coords: { lat: 10.7588, lng: 78.6522 } },
-  { id: 'girls-hostel', name: 'Girls Hostel Entrance', coords: { lat: 10.7580, lng: 78.6530 } },
-  { id: 'central-library', name: 'BD Block Library Ground', coords: { lat: 10.7572, lng: 78.6520 } },
-  { id: 'canteen', name: 'Main Canteen & Food Court', coords: { lat: 10.7566, lng: 78.6513 } }
+  { id: 'main-gate', name: 'Main Entrance Security Gate', coords: { lat: 10.7542, lng: 78.6516 } },
+  { id: 'boys-hostel', name: 'Boys Hostel Entrance', coords: { lat: 10.7584, lng: 78.6514 } },
+  { id: 'girls-hostel', name: 'Girls Hostel Entrance', coords: { lat: 10.7580, lng: 78.6522 } },
+  { id: 'central-library', name: 'BD Block Library Ground', coords: { lat: 10.7568, lng: 78.6520 } },
+  { id: 'canteen', name: 'Main Canteen & Food Court', coords: { lat: 10.7568, lng: 78.6512 } }
 ];
 
 const LiveNavigationDrawer = ({ 

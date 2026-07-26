@@ -3,7 +3,7 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import db from '../database/index.js';
 import { mapTextToInterests } from '../services/gemini.js';
-import { authenticateToken, JWT_SECRET, loginRateLimiter } from '../middleware/auth.js';
+import { authenticateToken, JWT_SECRET, loginRateLimiter, registerRateLimiter } from '../middleware/auth.js';
 
 export { authenticateToken };
 
@@ -188,7 +188,7 @@ router.get('/check-username', async (req, res) => {
  * 2. POST /auth/register
  * Validates official student register number, username & password, and creates account in Postgres
  */
-router.post('/register', async (req, res) => {
+router.post('/register', registerRateLimiter, async (req, res) => {
   const {
     full_name,
     roll_number,
@@ -740,6 +740,135 @@ router.get('/me', authenticateToken, async (req, res) => {
     });
   } catch (error) {
     res.status(500).json({ error: error.message });
+  }
+});
+
+/**
+ * 8. PUT /auth/profile
+ * Updates the authenticated user's profile details including name, stay type, department, and interests
+ */
+router.put('/profile', authenticateToken, async (req, res) => {
+  const {
+    full_name,
+    email,
+    stay_type,
+    hostel_block,
+    travel_mode,
+    department,
+    interests = []
+  } = req.body;
+
+  const userId = req.user?.id || req.user?.userId;
+  if (!userId) return res.status(401).json({ success: false, error: 'Invalid authentication token' });
+
+  try {
+    await safeDbCall(
+      async () => {
+        // Resolve department ID
+        let deptId = null;
+        if (department) {
+          const deptRes = await db.query('SELECT id FROM departments WHERE name ILIKE $1 OR full_name ILIKE $1', [`%${department}%`]);
+          if (deptRes.rows.length > 0) {
+            deptId = deptRes.rows[0].id;
+          }
+        }
+
+        // Update user basic info
+        await db.query(
+          `UPDATE users 
+           SET full_name = COALESCE($1, full_name),
+               name = COALESCE($1, name),
+               email = COALESCE($2, email),
+               stay_type = COALESCE($3, stay_type),
+               hosteller = ($3 = 'hostel'),
+               hostel_block = COALESCE($4, hostel_block),
+               travel_mode = COALESCE($5, travel_mode),
+               department_id = COALESCE($6, department_id),
+               updated_at = now()
+           WHERE id = $7`,
+          [full_name, email, stay_type, hostel_block, travel_mode, deptId, userId]
+        );
+
+        // Update interests (if interests array is provided)
+        if (Array.isArray(interests)) {
+          // Delete old interests
+          await db.query('DELETE FROM user_interests WHERE user_id = $1', [userId]);
+          
+          // Fetch existing interest IDs mapping
+          const dbInterestsRes = await db.query('SELECT id, label FROM interests');
+          const dbInterests = dbInterestsRes.rows;
+
+          for (const interestLabel of interests) {
+            let interest = dbInterests.find(i => i.label.toLowerCase() === interestLabel.toLowerCase());
+            let interestId;
+            if (!interest) {
+              // Create interest if it doesn't exist
+              const newInterestRes = await db.query('INSERT INTO interests (label) VALUES ($1) RETURNING id', [interestLabel]);
+              interestId = newInterestRes.rows[0].id;
+            } else {
+              interestId = interest.id;
+            }
+            await db.query('INSERT INTO user_interests (user_id, interest_id) VALUES ($1, $2) ON CONFLICT DO NOTHING', [userId, interestId]);
+          }
+        }
+      },
+      async () => {
+        // Mock fallback
+        const u = MOCK_STORE.users.find(x => x.id === userId);
+        if (u) {
+          if (full_name) { u.full_name = full_name; u.name = full_name; }
+          if (email) u.email = email;
+          if (stay_type) { u.stay_type = stay_type; u.hosteller = (stay_type === 'hostel'); }
+          if (hostel_block) u.hostel_block = hostel_block;
+          if (travel_mode) u.travel_mode = travel_mode;
+          if (interests) u.interests = interests;
+        }
+      }
+    );
+
+    // Fetch the updated user profile to return
+    const updatedUser = await safeDbCall(
+      async () => {
+        const userRes = await db.query(
+          `SELECT u.id, u.username, u.full_name, u.name, u.register_number, u.roll_number, u.email, 
+                  u.stay_type, u.hostel_block, u.role, u.status, u.created_at, u.gender, u.travel_mode,
+                  d.name as department_name, d.full_name as department
+           FROM users u
+           LEFT JOIN departments d ON u.department_id = d.id
+           WHERE u.id = $1`,
+          [userId]
+        );
+        return userRes.rows[0];
+      },
+      async () => {
+        return MOCK_STORE.users.find(x => x.id === userId);
+      }
+    );
+
+    const userInterests = await getUserInterests(userId);
+
+    return res.json({
+      success: true,
+      message: 'Profile updated successfully',
+      user: {
+        id: updatedUser.id,
+        username: updatedUser.username,
+        full_name: updatedUser.full_name || updatedUser.name,
+        name: updatedUser.full_name || updatedUser.name,
+        register_number: updatedUser.register_number || updatedUser.roll_number,
+        email: updatedUser.email,
+        department: updatedUser.department || updatedUser.department_name || 'Computer Science & Engineering',
+        hosteller: updatedUser.stay_type === 'hostel',
+        role: updatedUser.role || 'student',
+        status: updatedUser.status || 'active',
+        created_at: updatedUser.created_at,
+        gender: updatedUser.gender || 'Male',
+        travel_mode: updatedUser.travel_mode || 'own_transport',
+        interests: userInterests
+      }
+    });
+  } catch (error) {
+    return res.status(500).json({ success: false, error: error.message });
   }
 });
 

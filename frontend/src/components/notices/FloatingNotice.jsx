@@ -6,7 +6,7 @@ import remarkGfm from 'remark-gfm';
 import ImageViewerModal from './ImageViewerModal';
 import PdfViewerModal from './PdfViewerModal';
 
-const FloatingNotice = ({ notice, onClose }) => {
+const FloatingNotice = ({ notice, onClose, onMarkRead }) => {
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
   const [isImageViewerOpen, setIsImageViewerOpen] = useState(false);
   const [activePdf, setActivePdf] = useState(null); // { url, name, size }
@@ -267,7 +267,10 @@ const FloatingNotice = ({ notice, onClose }) => {
           <p className="text-xs text-gray-400 font-mono">Notice ID: #{notice.id}</p>
           <div className="flex items-center gap-2">
             <button 
-              onClick={onClose}
+              onClick={() => {
+                if (onMarkRead) onMarkRead(notice.id);
+                onClose();
+              }}
               className="flex items-center gap-2 px-5 py-2.5 bg-primary text-white text-xs font-black rounded-full shadow-sm hover:bg-primaryHover transition-all active:scale-[0.98]"
             >
               <Check size={16} />

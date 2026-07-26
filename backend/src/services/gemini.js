@@ -254,7 +254,7 @@ export const answerGroundedQuestion = async (userQuery, sqlContext, history = []
   const formattedHistory = history.map(h => `${h.role === 'user' ? 'User' : 'Assistant'}: ${h.text}`).join('\n');
   const historyPrompt = history.length > 0 ? `\n=== RECENT CONVERSATION HISTORY ===\n${formattedHistory}\n============================\n` : '';
 
-  const prompt = `You are PathMate, a freshman orientation chatbot for Saranathan College of Engineering (SCE).${historyPrompt}
+  const prompt = `You are PathMate, a friendly, warm, and professional freshman campus assistant for Saranathan College of Engineering (SCE).${historyPrompt}
 The user is asking the following question:
 "${userQuery}"
 
@@ -264,8 +264,9 @@ ${sqlContext}
 ============================
 
 Strictly follow these rules:
-1. If the SQL database records contain the answer, set isGrounded = true and answer the question. Quote the location block and details. Identify the source_table from which this was found (e.g. 'timetable', 'faculty', 'clubs', 'events', 'emergency_contacts').
-2. If the SQL database records DO NOT contain the answer, or are insufficient, set isGrounded = false, write a polite notification answer that the information is missing from the orientation files, and set sourceTable = null.
+1. If the SQL database records contain the answer, set isGrounded = true and answer the question. Rewrite the database info naturally as if talking directly to the student in a chat. DO NOT dump raw database text, do not paste regulation pages, and do not repeat user questions. Keep it to 1 to 4 sentences, maximum 80 words. Suggest the follow-up prompt: "Would you like more details?".
+2. If the SQL database records DO NOT contain the answer, or are insufficient, set isGrounded = false, write a friendly response that the official information could not be found, and set sourceTable = null.
+3. Keep the response concise, friendly, and helpful for a new freshman. Do not explain greetings or define common words.
 
 Format your response as a JSON object matching the requested schema.`;
 
@@ -524,18 +525,20 @@ export const askGeminiHybrid = async (userQuery, history = [], isCollegeRelated 
     contextPrompt = `\n=== REAL-TIME WEB SEARCH RESULTS (CURRENT AS OF 2026) ===\n${searchContext}\n=======================================================\nUse the search results above as the single source of truth for current affairs, dynamic information, or latest real-world facts. Always prioritize these search results over your static pre-trained knowledge.\n`;
   }
 
-  const prompt = `You are PathMate, a friendly, professional, and encouraging AI assistant for Saranathan College of Engineering (SCE). You are smart and capable of answering ANY question.
+  const prompt = `You are PathMate, a friendly, professional, warm, and human campus assistant for Saranathan College of Engineering (SCE). You respond naturally as if chatting directly with a college fresher student.
 ${historyPrompt}${contextPrompt}
 The user is asking: "${userQuery}"
 
-Your objective is to provide a helpful, accurate, easy-to-understand response to ANY question the user asks.
+Your objective is to provide a helpful, natural, easy-to-understand response to ANY question the user asks.
 Follow these guidelines:
 1. SENSITIVITY CHECK: If the query involves violence, self-harm, illegal activities, harassment, discrimination, personal data, hate speech, explicit content, or dangerous activities, politely decline the query and state that you cannot assist with unsafe topics. Set isSensitive to true.
-2. GREETINGS: If the query is a simple greeting (Hi, hello, hey, who are you, etc.), respond warmly introducing yourself exactly like this:
-"Hello! 👋 I'm PathMate, your AI campus companion for Saranathan College of Engineering. I can help you with college information, navigation, academics, clubs, events, and even answer general questions. How can I help you today?"
-3. GENERAL KNOWLEDGE: You MUST answer ALL general knowledge questions directly, accurately, and concisely. This includes but is not limited to: current affairs, politics, history, geography, science, mathematics, technology, coding, programming, career advice, interview preparation, motivation, health, sports, entertainment, and any other topic. You are NOT limited to college topics only. Answer like a knowledgeable AI assistant. Use bullet points where appropriate.
-4. COLLEGE QUESTIONS: If the query is about Saranathan College or engineering college topics, answer based on general engineering college knowledge. Be professional, clear, and welcoming.
-5. NEVER say "I don't have information", "I cannot answer", "this is outside my scope", or "I am limited to college topics". You must ALWAYS provide a helpful answer to any safe question.
+2. GREETINGS & INTRODUCTIONS: If the query is a greeting (e.g., Hi, hello, hey, hyy, hlo, yo, good morning, what's up, who are you), greet them warmly and introduce yourself naturally:
+"Hey! 👋 Welcome to PathMate. I'm your AI campus companion for Saranathan College of Engineering. I can help you with academics, campus navigation, departments, clubs, events, hostel, placements, regulations, and even general questions. What would you like to know today?"
+Never explain the meaning of greetings, dictionary definitions, or abbreviations (like "hyy", "hlo"). Treat them simply as casual greetings.
+3. CONVERSATIONAL STYLE: Speak naturally like a friendly guide. Avoid academic/textbook jargon. NEVER answer like Google Search, Wikipedia, documentation, or a blog article. Do not use robotic patterns, dictionary-style outlines, or dry definitions. Be warm, reassuring, and guide the student.
+4. ANSWER LENGTH & CONCISENESS: Keep responses adapted to the complexity of the question. Answer simple questions with short answers, medium with medium, and complex with detail. Avoid long numbered essays or repeating information. Answer first, explain briefly only if needed.
+5. NO SEARCH-ENGINE PHRASES: Do not use phrases like "The term refers to...", "It can have several meanings...", "Depending on the context..." unless explicitly asked.
+6. NATURAL FOLLOW-UPS: End helpful responses with natural, conversational follow-up questions to keep the chat flow (e.g., "Would you like me to show the route?", "I can also explain that in simpler words.", "Need more details?", "Would you like the official college info too?").
 
 Return the response inside a JSON object:
 {
@@ -576,4 +579,313 @@ Return the response inside a JSON object:
     };
   }
 };
+
+/**
+ * 5. Detect Conversational Intent using Gemini Flash
+ */
+export const detectIntent = async (userQuery, history = []) => {
+  if (!genAI) {
+    // Basic regex-based intent classification if no API key
+    const lower = userQuery.toLowerCase().trim();
+    if (/^(hi|hello|hey|heyy|heyyy|hyy|hlo|hy|yo|greetings|good morning|good evening|good afternoon|good night|namaste|vanakkam)\b/i.test(lower)) {
+      return "GREETING";
+    }
+    if (/^(who are you|what are you|introduce yourself|tell me about yourself|your name)\b/i.test(lower)) {
+      return "IDENTITY";
+    }
+    if (/^(how are you|what are you doing|what's up|whats up|sup|are you busy|how is your day|nice to meet you)\b/i.test(lower)) {
+      return "CASUAL";
+    }
+    if (/^(thank you|thanks|awesome|good job|you're amazing|nice|great)\b/i.test(lower)) {
+      return "APPRECIATION";
+    }
+    if (/^(bye|see you|goodbye|take care|see you later)\b/i.test(lower)) {
+      return "FAREWELL";
+    }
+    if (lower.includes("college") || lower.includes("saranathan") || lower.includes("sce") || lower.includes("hostel") || lower.includes("timetable") || lower.includes("faculty")) {
+      return "COLLEGE_RELATED";
+    }
+    if (lower.includes("code") || lower.includes("programming") || lower.includes("python") || lower.includes("javascript") || lower.includes("html") || lower.includes("java")) {
+      return "CODING";
+    }
+    return "UNKNOWN";
+  }
+
+  const formattedHistory = history.map(h => `${h.role === 'user' ? 'User' : 'Assistant'}: ${h.text}`).join('\n');
+  const historyPrompt = history.length > 0 ? `\n=== RECENT CONVERSATION HISTORY ===\n${formattedHistory}\n============================\n` : '';
+
+  const prompt = `You are a conversational intent classifier. Classify the user's latest query into EXACTLY one of these intent categories.
+Categories:
+- GREETING: Casual greetings like hi, hello, hey, hyy, hlo, good morning, namaste, etc.
+- IDENTITY: Asking who you are, what you do, your name, or asking you to introduce yourself.
+- CASUAL: General chit-chat or questions like how are you, what's up, what are you doing, nice to meet you.
+- APPRECIATION: Expressions of thanks, praise, appreciation (e.g. thanks, you are amazing, awesome).
+- FAREWELL: Goodbye, bye, see you later, take care, etc.
+- COLLEGE_RELATED: Specific query about Saranathan College of Engineering (SCE), courses, hostel, timetable, regulations, faculty, clubs, navigation, or circulars.
+- CODING: Requests to write code, program, format tech answers, debug, or write scripts.
+- SENSITIVE: Inappropriate, explicit, self-harm, harassment, or dangerous content.
+- GENERAL_KNOWLEDGE: General facts, world details, history, geography, science (non-college and non-coding).
+- UNKNOWN: Anything else that doesn't fit the above categories.
+
+${historyPrompt}
+User Query: "${userQuery}"
+
+Respond with ONLY the name of the category (e.g., GREETING, IDENTITY, CASUAL, APPRECIATION, FAREWELL, COLLEGE_RELATED, CODING, SENSITIVE, GENERAL_KNOWLEDGE, UNKNOWN). Do not include any other text or explanation.`;
+
+  try {
+    const { responseText } = await callWithFallback(prompt);
+    const cleaned = responseText.trim().toUpperCase();
+    
+    const categories = ["GREETING", "IDENTITY", "CASUAL", "APPRECIATION", "FAREWELL", "COLLEGE_RELATED", "CODING", "SENSITIVE", "GENERAL_KNOWLEDGE", "UNKNOWN"];
+    for (const cat of categories) {
+      if (cleaned.includes(cat)) {
+        return cat;
+      }
+    }
+    return "UNKNOWN";
+  } catch (err) {
+    console.error("detectIntent failed, falling back to UNKNOWN:", err.message);
+    return "UNKNOWN";
+  }
+};
+
+/**
+ * 6. Ask Gemini using dynamic intent-based system instructions
+ */
+export const askGeminiWithIntent = async (userQuery, history = [], intent = "UNKNOWN", searchContext = "") => {
+  if (!genAI) {
+    console.log("Simulating askGeminiWithIntent (API key missing)...");
+    if (intent === 'GREETING') {
+      return { answer: "Hey! 👋 Great to connect. How is your day going?", isSensitive: false };
+    }
+    if (intent === 'IDENTITY') {
+      return { answer: "I'm PathMate, your AI companion for Saranathan College of Engineering! I can help you with campus navigation, departments, events, and academics.", isSensitive: false };
+    }
+    if (intent === 'CASUAL') {
+      return { answer: "I'm doing great, thanks for checking in! 😊 Just here and ready to help you with anything you need.", isSensitive: false };
+    }
+    if (intent === 'APPRECIATION') {
+      return { answer: "You're very welcome! I'm happy to help. Let me know if there's anything else you need.", isSensitive: false };
+    }
+    if (intent === 'FAREWELL') {
+      return { answer: "Goodbye! 👋 Hope you have a wonderful time ahead. Come back whenever you need help!", isSensitive: false };
+    }
+    return { answer: `This is a simulated response to your question: "${userQuery}". Let me know if you need any other guidance!`, isSensitive: false };
+  }
+
+  let systemInstruction = "";
+  switch (intent) {
+    case "GREETING":
+      systemInstruction = "You are PathMate. Welcome the student warmly. Respond naturally as if continuing a real conversation. Keep it short, friendly, and avoid introducing yourself unless the user asks. Respond differently to repeated greetings.";
+      break;
+    case "IDENTITY":
+      systemInstruction = "You are PathMate, the AI campus companion for Saranathan College of Engineering. Introduce yourself warmly, explain what you can help with, and invite the user to ask anything.";
+      break;
+    case "CASUAL":
+      systemInstruction = "You are a friendly conversational AI. Respond naturally, briefly, and warmly. Don't redirect every answer to your features.";
+      break;
+    case "APPRECIATION":
+      systemInstruction = "Thank the user politely. Keep the conversation positive. Optionally ask if they need any more help.";
+      break;
+    case "FAREWELL":
+      systemInstruction = "Say goodbye warmly and encourage the user to return whenever they need help.";
+      break;
+    case "COLLEGE_RELATED":
+      systemInstruction = "If official information exists in the Knowledge Database, use it. Otherwise, answer using Gemini while clearly distinguishing unofficial guidance if necessary.";
+      break;
+    case "GENERAL_KNOWLEDGE":
+      systemInstruction = "Answer conversationally like ChatGPT. Do not sound like a search engine or encyclopedia.";
+      break;
+    case "CODING":
+      systemInstruction = "Answer with concise explanations, markdown formatting, and code blocks where appropriate.";
+      break;
+    case "SENSITIVE":
+      systemInstruction = "Politely decline to assist with unsafe or sensitive topics. Always be helpful and safe.";
+      break;
+    case "UNKNOWN":
+    default:
+      systemInstruction = "Answer naturally as a helpful campus assistant. Do not use robotic patterns, dictionary-style outlines, or dry definitions.";
+      break;
+  }
+
+  const coreRules = `
+CONVERSATIONAL RULES:
+1. NEVER repeat identical wording or use hardcoded templates.
+2. Avoid repetitive introductions. Never say "I'm PathMate..." if the user already knows who you are or if you've already introduced yourself in the conversation history.
+3. Remember previous conversation context. Follow-up queries should build on previous messages instead of restarting the conversation.
+4. Keep the response natural, warm, and conversational (never look like an encyclopedia or search engine). Answer first, explain concisely only if needed.
+`;
+
+  const formattedHistory = history.map(h => `${h.role === 'user' ? 'User' : 'Assistant'}: ${h.text}`).join('\n');
+  const historyPrompt = history.length > 0 ? `\n=== RECENT CONVERSATION HISTORY ===\n${formattedHistory}\n================================\n` : '';
+
+  let contextPrompt = "";
+  if (searchContext) {
+    contextPrompt = `\n=== REAL-TIME WEB SEARCH RESULTS (CURRENT AS OF 2026) ===\n${searchContext}\n=======================================================\nUse the search results above as the single source of truth for current affairs, dynamic information, or latest real-world facts. Always prioritize these search results over your static pre-trained knowledge.\n`;
+  }
+
+  const prompt = `System Instruction: ${systemInstruction}
+${coreRules}
+${historyPrompt}${contextPrompt}
+The user is asking: "${userQuery}"
+
+Return the response inside a JSON object:
+{
+  "answer": "response text...",
+  "isSensitive": false
+}`;
+
+  try {
+    const { responseText } = await callWithFallback(prompt);
+    const trimmedText = responseText.trim();
+    
+    const match = trimmedText.match(/\{[\s\S]*\}/);
+    if (match) {
+      try {
+        const parsed = JSON.parse(match[0]);
+        if (parsed && typeof parsed.answer === 'string') {
+          return {
+            answer: parsed.answer,
+            isSensitive: !!parsed.isSensitive
+          };
+        }
+      } catch (err) {
+        console.warn("JSON parsing of Gemini response failed:", err.message, "Raw text:", trimmedText);
+      }
+    }
+    
+    return {
+      answer: trimmedText.replace(/```json|```/g, '').trim(),
+      isSensitive: false
+    };
+  } catch (error) {
+    console.error("Gemini askGeminiWithIntent error:", error.message);
+    return {
+      answer: `I'm here to help with "${userQuery}". Let me know if you'd like to check details or ask another question!`,
+      isSensitive: false
+    };
+  }
+};
+
+/**
+ * 7. Ask Gemini for Academic questions with strict length limit (100 - 180 words) and token optimization prompts
+ */
+export const askGeminiAcademic = async (userQuery, history = []) => {
+  if (!genAI) {
+    console.log("Simulating askGeminiAcademic (API key missing)...");
+    return { answer: `This is a simulated academic response for "${userQuery}". Ohm's Law states that the current through a conductor between two points is directly proportional to the voltage across the two points.` };
+  }
+
+  const systemInstruction = `
+You are a helpful campus and academic assistant. Answer the student's question directly, clearly, and concisely in simple English.
+Use bullet points when appropriate. Always use proper markdown formatting for readability.
+Avoid essays, unnecessary introductions, repeating the user's question, or verbose conclusions.
+Keep your response short, professional, friendly, and easy to read, with a maximum of 120 words unless more detail is requested.
+Answer first, explain briefly only if needed.
+`;
+
+  const formattedHistory = history.map(h => `${h.role === 'user' ? 'User' : 'Assistant'}: ${h.text}`).join('\n');
+  const historyPrompt = history.length > 0 ? `\n=== RECENT CONVERSATION HISTORY ===\n${formattedHistory}\n================================\n` : '';
+
+  const prompt = `System Instruction: ${systemInstruction}
+${historyPrompt}
+The student asks: "${userQuery}"
+
+Return the response inside a JSON object:
+{
+  "answer": "response text..."
+}`;
+
+  try {
+    const { responseText } = await callWithFallback(prompt);
+    const trimmedText = responseText.trim();
+    
+    const match = trimmedText.match(/\{[\s\S]*\}/);
+    if (match) {
+      try {
+        const parsed = JSON.parse(match[0]);
+        if (parsed && typeof parsed.answer === 'string') {
+          return {
+            answer: parsed.answer
+          };
+        }
+      } catch (err) {
+        console.warn("JSON parsing of Gemini response failed:", err.message, "Raw text:", trimmedText);
+      }
+    }
+    
+    return {
+      answer: trimmedText.replace(/```json|```/g, '').trim()
+    };
+  } catch (error) {
+    console.error("Gemini askGeminiAcademic error:", error.message);
+    throw error;
+  }
+};
+
+/**
+ * 8. Ask Gemini to answer using only official website context text (Strict Grounding, No Hallucinations)
+ */
+export const askGeminiWithWebsiteContext = async (userQuery, websiteText, history = []) => {
+  if (!genAI) {
+    console.log("Simulating askGeminiWithWebsiteContext (API key missing)...");
+    return { answer: "I couldn't verify the latest official information." };
+  }
+
+  const systemInstruction = `
+You are the official Saranathan College of Engineering guide.
+Answer the student's question using ONLY the facts provided in the official website text.
+
+=== OFFICIAL WEBSITE TEXT ===
+${websiteText}
+============================
+
+STRICT COMPLIANCE RULES:
+1. Your answer must be derived directly and strictly from the official website text provided above.
+2. If the website text does not contain enough information or facts to fully answer the student's question, you MUST reply with exactly: "I couldn't verify the latest official information."
+3. Do NOT invent, guess, assume, or extrapolate any names, dates, rules, placements, or contact info. If it is not in the text, you do not know it.
+4. Keep the response friendly, professional, clear, and easy to read.
+5. Maximum word count is 120 words.
+6. Do NOT mention "According to the provided text..." or "Based on the website...". Just answer the question directly.
+`;
+
+  const formattedHistory = history.map(h => `${h.role === 'user' ? 'User' : 'Assistant'}: ${h.text}`).join('\n');
+  const historyPrompt = history.length > 0 ? `\n=== RECENT CONVERSATION HISTORY ===\n${formattedHistory}\n================================\n` : '';
+
+  const prompt = `System Instruction: ${systemInstruction}
+${historyPrompt}
+The student asks: "${userQuery}"
+
+Return the response inside a JSON object:
+{
+  "answer": "response text or 'I couldn\'t verify the latest official information.'"
+}`;
+
+  try {
+    const { responseText } = await callWithFallback(prompt);
+    const trimmedText = responseText.trim();
+    
+    const match = trimmedText.match(/\{[\s\S]*\}/);
+    if (match) {
+      try {
+        const parsed = JSON.parse(match[0]);
+        if (parsed && typeof parsed.answer === 'string') {
+          return {
+            answer: parsed.answer
+          };
+        }
+      } catch (err) {
+        console.warn("JSON parsing of Gemini response failed:", err.message, "Raw text:", trimmedText);
+      }
+    }
+    
+    return {
+      answer: trimmedText.replace(/```json|```/g, '').trim()
+    };
+  } catch (error) {
+    console.error("Gemini askGeminiWithWebsiteContext error:", error.message);
+    return { answer: "I couldn't verify the latest official information." };
+  }
+};
+
 

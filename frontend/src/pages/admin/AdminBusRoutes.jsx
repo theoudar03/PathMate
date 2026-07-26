@@ -186,99 +186,171 @@ const AdminBusRoutes = () => {
         </button>
       </div>
 
-      {/* Routes Table */}
-      <div className="bg-white border border-surfaceVariant rounded-2xl overflow-hidden shadow-xs">
-        {loading ? (
-          <div className="p-12 text-center text-xs text-onSurfaceVariant font-semibold">Loading bus routes from PostgreSQL...</div>
-        ) : routes.length > 0 ? (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse text-xs">
-              <thead>
-                <tr className="bg-surfaceContainerLow border-b border-surfaceVariant text-onSurfaceVariant font-bold uppercase tracking-wider">
-                  <th className="p-4">Route Image</th>
-                  <th className="p-4">Title & Details</th>
-                  <th className="p-4">Session</th>
-                  <th className="p-4">Date</th>
-                  <th className="p-4">Status</th>
-                  <th className="p-4 text-right">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-surfaceVariant/60">
-                {routes.map((rt) => (
-                  <tr key={rt.id} className="hover:bg-surfaceContainer/40 transition-colors">
-                    <td className="p-4">
-                      <div className="relative w-16 h-12 rounded-xl bg-surfaceContainer overflow-hidden border border-outline/30 group cursor-pointer" onClick={() => { setSelectedItem(rt); setShowPreviewModal(true); }}>
-                        <img src={rt.image_url} alt={rt.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform" />
-                        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center text-white transition-opacity">
-                          <Eye size={14} />
-                        </div>
-                      </div>
-                    </td>
-                    <td className="p-4">
-                      <p className="font-bold text-onSurface text-sm">{rt.title}</p>
-                      <p className="text-[11px] text-onSurfaceVariant line-clamp-1">{rt.description || 'Official bus route notice'}</p>
-                    </td>
-                    <td className="p-4">
-                      {rt.session === 'morning' ? (
-                        <span className="inline-flex items-center gap-1 bg-amber-50 text-amber-700 font-bold px-2.5 py-1 rounded-full text-[10px]">
-                          <Sun size={12} /> Morning Route
-                        </span>
-                      ) : (
-                        <span className="inline-flex items-center gap-1 bg-indigo-50 text-indigo-700 font-bold px-2.5 py-1 rounded-full text-[10px]">
-                          <Moon size={12} /> Evening Route
-                        </span>
-                      )}
-                    </td>
-                    <td className="p-4 font-mono text-onSurfaceVariant">
-                      {rt.route_date ? new Date(rt.route_date).toLocaleDateString() : 'Today'}
-                    </td>
-                    <td className="p-4">
-                      {rt.status === 'active' ? (
-                        <span className="bg-emerald-50 text-emerald-700 font-bold px-2.5 py-1 rounded-full text-[10px] inline-flex items-center gap-1">
-                          <CheckCircle2 size={12} /> Active (Live)
-                        </span>
-                      ) : (
-                        <span className="bg-slate-100 text-slate-600 font-bold px-2.5 py-1 rounded-full text-[10px] inline-flex items-center gap-1">
-                          <Archive size={12} /> Archived
-                        </span>
-                      )}
-                    </td>
-                    <td className="p-4 text-right">
-                      <div className="flex items-center justify-end gap-2">
-                        <button
-                          onClick={() => { setSelectedItem(rt); setShowPreviewModal(true); }}
-                          className="p-1.5 rounded-lg text-onSurfaceVariant hover:bg-surfaceVariant/60 transition-colors cursor-pointer"
-                          title="View High-Res Image"
-                        >
-                          <Eye size={16} />
-                        </button>
-                        <button
-                          onClick={() => openEditModal(rt)}
-                          className="p-1.5 rounded-lg text-primary hover:bg-primaryContainer/50 transition-colors cursor-pointer"
-                          title="Edit Route Details"
-                        >
-                          <Edit size={16} />
-                        </button>
-                        <button
-                          onClick={() => { setSelectedItem(rt); setShowDeleteModal(true); }}
-                          className="p-1.5 rounded-lg text-error hover:bg-errorContainer/50 transition-colors cursor-pointer"
-                          title="Delete Route"
-                        >
-                          <Trash2 size={16} />
-                        </button>
-                      </div>
-                    </td>
+      {/* Routes Container */}
+      {loading ? (
+        <div className="bg-white border border-surfaceVariant rounded-2xl p-12 text-center text-xs text-onSurfaceVariant font-semibold">
+          Loading bus routes from PostgreSQL...
+        </div>
+      ) : routes.length > 0 ? (
+        <>
+          {/* Mobile Card Grid (< 640px) */}
+          <div className="grid grid-cols-1 gap-4 sm:hidden">
+            {routes.map((rt) => (
+              <div key={rt.id} className="bg-white border border-surfaceVariant rounded-2xl p-4 space-y-3.5 shadow-sm text-left">
+                <div className="flex items-center gap-3">
+                  <div className="relative w-16 h-12 rounded-xl bg-surfaceContainer overflow-hidden border border-outline/30 shrink-0 cursor-pointer" onClick={() => { setSelectedItem(rt); setShowPreviewModal(true); }}>
+                    <img src={rt.image_url} alt={rt.title} className="w-full h-full object-cover" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="font-bold text-onSurface text-sm truncate">{rt.title}</p>
+                    <p className="text-[11px] text-onSurfaceVariant truncate">{rt.description || 'Official bus route notice'}</p>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2 text-[11px] bg-slate-50 p-2.5 rounded-xl border border-outline/5">
+                  <div>
+                    <span className="block text-[9px] uppercase font-bold text-onSurfaceVariant/60">Session</span>
+                    {rt.session === 'morning' ? (
+                      <span className="inline-flex items-center gap-1 text-amber-700 font-bold text-[10px] mt-0.5">
+                        <Sun size={12} /> Morning Route
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1 text-indigo-700 font-bold text-[10px] mt-0.5">
+                        <Moon size={12} /> Evening Route
+                      </span>
+                    )}
+                  </div>
+                  <div>
+                    <span className="block text-[9px] uppercase font-bold text-onSurfaceVariant/60">Date</span>
+                    <span className="font-semibold text-onSurface">{rt.route_date ? new Date(rt.route_date).toLocaleDateString() : 'Today'}</span>
+                  </div>
+                </div>
+
+                <div className="pt-2 border-t border-outline/5 flex items-center justify-between">
+                  <span className={`px-2.5 py-1 rounded-full text-[9px] font-black uppercase border tracking-wider ${
+                    rt.status === 'active' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-slate-100 text-slate-600 border-slate-300'
+                  }`}>
+                    {rt.status === 'active' ? 'Active' : 'Archived'}
+                  </span>
+                  <div className="flex items-center gap-1">
+                    <button
+                      onClick={() => { setSelectedItem(rt); setShowPreviewModal(true); }}
+                      className="p-1.5 rounded-lg text-onSurfaceVariant hover:bg-slate-100 transition-colors"
+                      title="View High-Res Image"
+                    >
+                      <Eye size={15} />
+                    </button>
+                    <button
+                      onClick={() => openEditModal(rt)}
+                      className="p-1.5 rounded-lg text-primary hover:bg-slate-100 transition-colors"
+                      title="Edit Details"
+                    >
+                      <Edit size={15} />
+                    </button>
+                    <button
+                      onClick={() => { setSelectedItem(rt); setShowDeleteModal(true); }}
+                      className="p-1.5 rounded-lg text-error hover:bg-rose-50 transition-colors"
+                      title="Delete Route"
+                    >
+                      <Trash2 size={15} />
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Desktop Table View (>= 640px) */}
+          <div className="hidden sm:block bg-white border border-surfaceVariant rounded-2xl overflow-hidden shadow-xs">
+            <div className="overflow-x-auto">
+              <table className="w-full text-left border-collapse text-xs">
+                <thead>
+                  <tr className="bg-surfaceContainerLow border-b border-surfaceVariant text-onSurfaceVariant font-bold uppercase tracking-wider">
+                    <th className="p-4">Route Image</th>
+                    <th className="p-4">Title & Details</th>
+                    <th className="p-4">Session</th>
+                    <th className="p-4">Date</th>
+                    <th className="p-4">Status</th>
+                    <th className="p-4 text-right">Actions</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody className="divide-y divide-surfaceVariant/60">
+                  {routes.map((rt) => (
+                    <tr key={rt.id} className="hover:bg-surfaceContainer/40 transition-colors">
+                      <td className="p-4">
+                        <div className="relative w-16 h-12 rounded-xl bg-surfaceContainer overflow-hidden border border-outline/30 group cursor-pointer" onClick={() => { setSelectedItem(rt); setShowPreviewModal(true); }}>
+                          <img src={rt.image_url} alt={rt.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform" />
+                          <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center text-white transition-opacity">
+                            <Eye size={14} />
+                          </div>
+                        </div>
+                      </td>
+                      <td className="p-4">
+                        <p className="font-bold text-onSurface text-sm">{rt.title}</p>
+                        <p className="text-[11px] text-onSurfaceVariant line-clamp-1">{rt.description || 'Official bus route notice'}</p>
+                      </td>
+                      <td className="p-4">
+                        {rt.session === 'morning' ? (
+                          <span className="inline-flex items-center gap-1 bg-amber-50 text-amber-700 font-bold px-2.5 py-1 rounded-full text-[10px]">
+                            <Sun size={12} /> Morning Route
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 bg-indigo-50 text-indigo-700 font-bold px-2.5 py-1 rounded-full text-[10px]">
+                            <Moon size={12} /> Evening Route
+                          </span>
+                        )}
+                      </td>
+                      <td className="p-4 font-mono text-onSurfaceVariant">
+                        {rt.route_date ? new Date(rt.route_date).toLocaleDateString() : 'Today'}
+                      </td>
+                      <td className="p-4">
+                        {rt.status === 'active' ? (
+                          <span className="bg-emerald-50 text-emerald-700 font-bold px-2.5 py-1 rounded-full text-[10px] inline-flex items-center gap-1">
+                            <CheckCircle2 size={12} /> Active (Live)
+                          </span>
+                        ) : (
+                          <span className="bg-slate-100 text-slate-600 font-bold px-2.5 py-1 rounded-full text-[10px] inline-flex items-center gap-1">
+                            <Archive size={12} /> Archived
+                          </span>
+                        )}
+                      </td>
+                      <td className="p-4 text-right">
+                        <div className="flex items-center justify-end gap-2">
+                          <button
+                            onClick={() => { setSelectedItem(rt); setShowPreviewModal(true); }}
+                            className="p-1.5 rounded-lg text-onSurfaceVariant hover:bg-surfaceVariant/60 transition-colors cursor-pointer"
+                            title="View High-Res Image"
+                          >
+                            <Eye size={16} />
+                          </button>
+                          <button
+                            onClick={() => openEditModal(rt)}
+                            className="p-1.5 rounded-lg text-primary hover:bg-primaryContainer/50 transition-colors cursor-pointer"
+                            title="Edit Route Details"
+                          >
+                            <Edit size={16} />
+                          </button>
+                          <button
+                            onClick={() => { setSelectedItem(rt); setShowDeleteModal(true); }}
+                            className="p-1.5 rounded-lg text-error hover:bg-errorContainer/50 transition-colors cursor-pointer"
+                            title="Delete Route"
+                          >
+                            <Trash2 size={16} />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
-        ) : (
-          <div className="p-12 text-center text-xs text-onSurfaceVariant">
-            No bus route publications found in database. Click "Publish New Bus Route Board" to upload today's route.
-          </div>
-        )}
-      </div>
+        </>
+      ) : (
+        <div className="bg-white border border-surfaceVariant rounded-2xl p-12 text-center text-xs text-onSurfaceVariant">
+          No bus route publications found in database. Click "Publish New Bus Route Board" to upload today's route.
+        </div>
+      )}
 
       {/* Upload / Edit Modal */}
       {showModal && (

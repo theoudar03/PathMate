@@ -140,6 +140,171 @@ const InteractiveChecklistMock = () => {
   );
 };
 
+const ReviewCarousel = ({ reviews }) => {
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const [isPaused, setIsPaused] = useState(false);
+  const [width, setWidth] = useState(window.innerWidth);
+  const touchStart = useRef(0);
+  const touchEnd = useRef(0);
+  const scrollContainerRef = useRef(null);
+
+  useEffect(() => {
+    const handleResize = () => setWidth(window.innerWidth);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  const visibleCount = width >= 1024 ? 3 : width >= 640 ? 2 : 1;
+
+  useEffect(() => {
+    if (isPaused || reviews.length <= visibleCount) return;
+    const interval = setInterval(() => {
+      handleNext();
+    }, 4500);
+    return () => clearInterval(interval);
+  }, [isPaused, reviews.length, visibleCount]);
+
+  const handlePrev = () => {
+    setCurrentIndex(prev => (prev === 0 ? Math.max(0, reviews.length - visibleCount) : prev - 1));
+  };
+
+  const handleNext = () => {
+    setCurrentIndex(prev => {
+      const maxIdx = Math.max(0, reviews.length - visibleCount);
+      return prev >= maxIdx ? 0 : prev + 1;
+    });
+  };
+
+  const handleTouchStart = (e) => {
+    touchStart.current = e.targetTouches[0].clientX;
+  };
+
+  const handleTouchMove = (e) => {
+    touchEnd.current = e.targetTouches[0].clientX;
+  };
+
+  const handleTouchEnd = () => {
+    const threshold = 50;
+    if (touchStart.current - touchEnd.current > threshold) {
+      handleNext();
+    } else if (touchStart.current - touchEnd.current < -threshold) {
+      handlePrev();
+    }
+  };
+
+  if (!reviews || reviews.length === 0) {
+    return (
+      <div className="text-center py-10 bg-slate-100/50 border border-dashed border-slate-200 rounded-3xl max-w-lg mx-auto">
+        <span className="material-symbols-outlined text-slate-350 text-4xl block mb-2 select-none">rate_review</span>
+        <p className="text-xs text-slate-500 font-bold uppercase tracking-wider">No Student Reviews Yet</p>
+        <p className="text-[11px] text-slate-400 mt-1">Be the first student to submit a review from your Dashboard!</p>
+      </div>
+    );
+  }
+
+  // Active index bounds check
+  const activeIndex = Math.min(currentIndex, Math.max(0, reviews.length - visibleCount));
+
+  return (
+    <div 
+      className="relative w-full max-w-6xl mx-auto px-4 md:px-12 select-none"
+      onMouseEnter={() => setIsPaused(true)}
+      onMouseLeave={() => setIsPaused(false)}
+      onTouchStart={handleTouchStart}
+      onTouchMove={handleTouchMove}
+      onTouchEnd={handleTouchEnd}
+    >
+      <div className="overflow-hidden w-full py-4">
+        <div 
+          ref={scrollContainerRef}
+          className="flex transition-transform duration-500 ease-out gap-6"
+          style={{ transform: `translateX(-${activeIndex * (100 / visibleCount)}%)` }}
+        >
+          {reviews.map((item, idx) => {
+            const initials = (item.student_name || 'Verified Student')
+              .split(' ')
+              .map(n => n[0])
+              .join('')
+              .slice(0, 2)
+              .toUpperCase();
+
+            return (
+              <div 
+                key={idx}
+                className="w-full sm:w-[calc(50%-12px)] lg:w-[calc(33.333%-16px)] flex-shrink-0 bg-white/70 backdrop-blur-md border border-slate-200/40 p-6 rounded-[24px] shadow-xs flex flex-col justify-between hover:shadow-md transition-all hover:scale-[1.01] duration-300 relative overflow-hidden group"
+              >
+                {item.featured && (
+                  <span className="absolute top-4 right-4 flex items-center gap-1 text-[8.5px] font-black text-amber-800 bg-amber-100/90 border border-amber-200 px-2 py-0.5 rounded-full uppercase tracking-wider shadow-3xs select-none">
+                    <span className="material-symbols-outlined text-[10px] fill-current">star</span>
+                    Featured
+                  </span>
+                )}
+                <div>
+                  <div className="flex gap-0.5 mb-3">
+                    {Array.from({ length: 5 }).map((_, i) => (
+                      <span 
+                        key={i} 
+                        className={`material-symbols-outlined text-base ${i < item.rating ? 'text-amber-500 fill-current' : 'text-slate-350'}`}
+                        style={{ fontVariationSettings: i < item.rating ? "'FILL' 1" : "'FILL' 0" }}
+                      >
+                        star
+                      </span>
+                    ))}
+                  </div>
+                  <h4 className="text-sm font-extrabold text-slate-800 tracking-tight leading-tight line-clamp-1">{item.title}</h4>
+                  <p className="text-[12px] leading-relaxed text-slate-500 font-semibold mt-2.5 line-clamp-4">
+                    "{item.description}"
+                  </p>
+                </div>
+                
+                <div className="flex items-center justify-between mt-6 pt-4 border-t border-slate-100">
+                  <div className="flex items-center gap-3">
+                    <div className="w-8.5 h-8.5 rounded-xl bg-primaryContainer text-primary font-black text-xs flex items-center justify-center shadow-3xs uppercase">
+                      {initials}
+                    </div>
+                    <div className="text-left leading-none">
+                      <div className="flex items-center gap-1.5">
+                        <p className="text-xs font-black text-slate-800">{item.student_name}</p>
+                        {item.visibility !== 'anonymous' && (
+                          <span className="material-symbols-outlined text-[11px] text-primary fill-current select-none" title="Verified Student">verified</span>
+                        )}
+                      </div>
+                      <span className="text-[9.5px] text-slate-400 font-bold mt-1 block">{item.department} • Year {item.year}</span>
+                    </div>
+                  </div>
+                  <div className="text-[9.5px] text-slate-400 font-semibold bg-slate-50 px-2 py-1 rounded-lg">
+                    {new Date(item.created_at || item.created_date).toLocaleDateString([], { month: 'short', day: 'numeric' })}
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Manual Left/Right Controls */}
+      {reviews.length > visibleCount && (
+        <>
+          <button 
+            onClick={handlePrev}
+            className="absolute left-0 top-1/2 -translate-y-1/2 w-9.5 h-9.5 rounded-full bg-white border border-slate-200 shadow-sm hover:bg-slate-50 text-slate-700 flex items-center justify-center cursor-pointer active:scale-90 transition-all z-10"
+            aria-label="Previous Review"
+          >
+            <span className="material-symbols-outlined text-[18px]">chevron_left</span>
+          </button>
+          <button 
+            onClick={handleNext}
+            className="absolute right-0 top-1/2 -translate-y-1/2 w-9.5 h-9.5 rounded-full bg-white border border-slate-200 shadow-sm hover:bg-slate-50 text-slate-700 flex items-center justify-center cursor-pointer active:scale-90 transition-all z-10"
+            aria-label="Next Review"
+          >
+            <span className="material-symbols-outlined text-[18px]">chevron_right</span>
+          </button>
+        </>
+      )}
+    </div>
+  );
+};
+
 const Welcome = () => {
   const navigate = useNavigate();
   const { completeOnboarding, resetAllData, t, language, setLanguage } = useApp();
@@ -227,20 +392,22 @@ const Welcome = () => {
     }
   };
 
-  const TESTIMONIALS = [
-    { text: "PathMate made my first week incredibly easy.", author: "Aravind K", dept: "ECE", year: "1st Year", rating: 5, avatar: "AK" },
-    { text: "The AI Assistant answered every doubt instantly.", author: "Priyanka S", dept: "CSE", year: "1st Year", rating: 5, avatar: "PS" },
-    { text: "Campus Navigation helped me reach my classroom without getting lost.", author: "Sanjay R", dept: "MECH", year: "1st Year", rating: 5, avatar: "SR" },
-    { text: "Connecting with compatibility matches before day one was amazing.", author: "Archana M", dept: "IT", year: "1st Year", rating: 5, avatar: "AM" },
-    { text: "All syllabus resources and Wi-Fi configurations are in one dashboard.", author: "Hariharan V", dept: "EEE", year: "1st Year", rating: 5, avatar: "HV" }
-  ];
+  const [reviews, setReviews] = useState([]);
+  const [reviewsStats, setReviewsStats] = useState({ averageRating: 0, totalReviews: 0, categories: [] });
+  const [loadingReviews, setLoadingReviews] = useState(true);
 
-  const [testimonialsList, setTestimonialsList] = useState(() => 
-    TESTIMONIALS.map(item => ({
-      ...item,
-      rating: Math.floor(Math.random() * 5) + 1
-    }))
-  );
+  useEffect(() => {
+    fetch('/api/reviews/public')
+      .then(res => res.json())
+      .then(data => {
+        if (data.success) {
+          setReviews(data.reviews || []);
+          setReviewsStats(data.stats || { averageRating: 0, totalReviews: 0, categories: [] });
+        }
+      })
+      .catch(err => console.error("Failed to load public reviews:", err))
+      .finally(() => setLoadingReviews(false));
+  }, []);
 
   return (
     <div className="relative min-h-screen w-full bg-slate-50 text-slate-800 font-sans flex flex-col overflow-x-hidden selection:bg-primaryContainer selection:text-onPrimaryContainer">
@@ -802,51 +969,53 @@ const Welcome = () => {
       </section>
 
       {/* ─────────────────────────────────────────────────
-         9. STUDENT TESTIMONIALS (Auto-scrolling infinite track)
+         9. STUDENT TESTIMONIALS (Dynamic Reviews & Carousel)
          ───────────────────────────────────────────────── */}
       <section id="testimonials" className="relative z-10 w-full py-12 border-t border-slate-200/50 overflow-hidden bg-slate-100/50">
-        <div className="max-w-5xl mx-auto px-6 text-center space-y-2 mb-10">
-          <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-800 tracking-tight">{t('testimonialsTitle')}</h2>
-          <p className="text-xs sm:text-sm text-slate-500 font-semibold">{t('testimonialsSubtitle')}</p>
+        <div className="max-w-5xl mx-auto px-6 text-center space-y-2 mb-8">
+          <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-800 tracking-tight">What Students Say About PathMate</h2>
+          <p className="text-xs sm:text-sm text-slate-500 font-semibold">Real, unedited reviews directly from verified Saranathan freshman students.</p>
         </div>
 
-        {/* Continuous auto-scrolling marquee track container */}
-        <div className="relative w-full overflow-hidden py-4 select-none">
-          <div className="animate-marquee">
-            {testimonialsList.concat(testimonialsList).map((item, idx) => (
-              <div 
-                key={idx}
-                className="w-[280px] sm:w-[320px] bg-white border border-slate-200/40 p-5 rounded-2xl shadow-sm flex flex-col justify-between flex-shrink-0"
-              >
-                <div>
-                  <div className="flex gap-1 mb-2 select-none">
-                    {Array.from({ length: 5 }).map((_, i) => (
-                      <span 
-                        key={i} 
-                        className={`material-symbols-outlined text-base ${i < item.rating ? 'text-yellow-500' : 'text-slate-350'}`}
-                      >
-                        star
-                      </span>
-                    ))}
-                  </div>
-                  <p className="text-xs sm:text-sm font-semibold text-slate-700 italic leading-relaxed">
-                    "{item.text}"
-                  </p>
-                </div>
-                
-                <div className="flex items-center gap-3 mt-4 pt-3 border-t border-slate-100">
-                  <div className="w-8 h-8 rounded-full bg-primary/10 text-primary font-bold text-xs flex items-center justify-center">
-                    {item.avatar}
-                  </div>
-                  <div className="text-left leading-none">
-                    <p className="text-xs font-bold text-slate-800">{item.author}</p>
-                    <span className="text-[9.5px] text-slate-400 font-semibold">{item.dept} • {item.year}</span>
-                  </div>
-                </div>
+        {/* Overall Rating & Feature Breakdown */}
+        {reviewsStats && reviewsStats.totalReviews > 0 && (
+          <div className="max-w-4xl mx-auto px-6 mb-8 grid grid-cols-1 md:grid-cols-3 gap-6 items-center bg-white/40 border border-slate-200/50 p-6 rounded-3xl backdrop-blur-md text-slate-800 shadow-xs">
+            <div className="text-center md:border-r border-slate-200/60 py-2">
+              <span className="text-5xl font-black text-slate-800 tracking-tight">{reviewsStats.averageRating}</span>
+              <span className="text-sm font-bold text-slate-400">/5</span>
+              <div className="flex justify-center gap-0.5 my-2">
+                {Array.from({ length: 5 }).map((_, i) => (
+                  <span 
+                    key={i} 
+                    className={`material-symbols-outlined text-xl ${i < Math.round(reviewsStats.averageRating) ? 'text-amber-500 fill-current' : 'text-slate-350'}`}
+                    style={{ fontVariationSettings: i < Math.round(reviewsStats.averageRating) ? "'FILL' 1" : "'FILL' 0" }}
+                  >
+                    star
+                  </span>
+                ))}
               </div>
-            ))}
+              <p className="text-xs text-slate-500 font-bold uppercase tracking-wider">Overall Campus Rating</p>
+              <p className="text-[10px] text-slate-400 font-semibold mt-1">Based on {reviewsStats.totalReviews} verified reviews</p>
+            </div>
+            
+            <div className="md:col-span-2 text-left space-y-2.5">
+              <h3 className="text-xs font-black uppercase tracking-widest text-slate-500">Feature Average Ratings</h3>
+              <div className="flex flex-wrap gap-2 pt-1">
+                {reviewsStats.categories.map((c, i) => (
+                  <div key={i} className="flex items-center gap-1.5 bg-white border border-slate-200/40 px-3 py-1.5 rounded-full text-[11px] font-extrabold text-slate-700 shadow-3xs hover:border-primary/20 transition-all select-none">
+                    <span>{c.category}</span>
+                    <span className="flex items-center text-amber-600 gap-0.5">
+                      <span className="material-symbols-outlined text-[12px] fill-current">star</span>
+                      {c.avg_rating}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
           </div>
-        </div>
+        )}
+
+        <ReviewCarousel reviews={reviews} />
       </section>
 
       {/* ─────────────────────────────────────────────────

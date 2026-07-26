@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useApp } from '../contexts/AppContext';
 import { STUDY_HUB_CONFIG } from '../config/studyHubConfig';
 
@@ -11,6 +11,38 @@ const StudyHub = () => {
 
   // State for Learning Resources active category list dialog/accordion
   const [activeCategory, setActiveCategory] = useState(null);
+
+  // Dynamic study materials from DB
+  const [materials, setMaterials] = useState([]);
+  const [deptsList, setDeptsList] = useState([]);
+  const [loadingMats, setLoadingMats] = useState(true);
+  const [filtDept, setFiltDept] = useState('all');
+  const [filtSem, setFiltSem] = useState('all');
+
+  useEffect(() => {
+    // Fetch departments for dropdown
+    fetch('/api/departments')
+      .then(res => res.json())
+      .then(data => { if (Array.isArray(data)) setDeptsList(data); })
+      .catch(err => console.error("Error loading departments:", err));
+  }, []);
+
+  useEffect(() => {
+    setLoadingMats(true);
+    let url = '/api/study-materials';
+    const queryParts = [];
+    if (filtDept !== 'all') queryParts.push(`departmentId=${filtDept}`);
+    if (filtSem !== 'all') queryParts.push(`semester=${filtSem}`);
+    if (queryParts.length > 0) url += '?' + queryParts.join('&');
+
+    fetch(url)
+      .then(res => res.json())
+      .then(data => {
+        if (Array.isArray(data)) setMaterials(data);
+      })
+      .catch(err => console.error("Error loading materials:", err))
+      .finally(() => setLoadingMats(false));
+  }, [filtDept, filtSem]);
 
   // Toggle department accordion
   const toggleDept = (deptId) => {
@@ -76,10 +108,10 @@ const StudyHub = () => {
           </h2>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           
           {/* Previous Year Question Papers */}
-          <div className="bg-surface border border-surfaceVariant/60 rounded-[24px] p-6 shadow-elevation1 flex flex-col justify-between hover:shadow-elevation2 hover:border-primary/20 transition-all duration-200">
+          <div className="card-premium p-6 flex flex-col justify-between">
             <div className="space-y-4">
               <div className="flex items-center gap-3">
                 <div className="w-12 h-12 rounded-2xl bg-primary/10 text-primary flex items-center justify-center">
@@ -110,7 +142,7 @@ const StudyHub = () => {
           </div>
 
           {/* Curriculum & Syllabus Accordion Card */}
-          <div className="bg-surface border border-surfaceVariant/60 rounded-[24px] p-6 shadow-elevation1 hover:shadow-elevation2 hover:border-primary/20 transition-all duration-200">
+          <div className="card-premium p-6 flex flex-col justify-between">
             <div className="space-y-4">
               <div className="flex items-center justify-between gap-3">
                 <div className="flex items-center gap-3">
@@ -137,7 +169,7 @@ const StudyHub = () => {
               </div>
 
               {/* Department Accordion List */}
-              <div className="space-y-2 max-h-[220px] overflow-y-auto pr-1">
+              <div className="space-y-2 max-h-[160px] overflow-y-auto pr-1">
                 {filteredDepts.length > 0 ? (
                   filteredDepts.map((dept) => {
                     const isExpanded = expandedDept === dept.id;
@@ -146,33 +178,31 @@ const StudyHub = () => {
                         <button
                           type="button"
                           onClick={() => toggleDept(dept.id)}
-                          className="w-full px-4 py-3 flex items-center justify-between text-xs font-bold text-onSurface hover:bg-surfaceContainerHigh transition-colors outline-none"
+                          className="w-full px-3 py-2 flex items-center justify-between text-xs font-bold text-onSurface hover:bg-surfaceContainerHigh transition-colors outline-none"
                         >
                           <span>{dept.name}</span>
-                          <span className={`material-symbols-outlined text-[16px] text-onSurfaceVariant transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`}>
+                          <span className={`material-symbols-outlined text-[14px] text-onSurfaceVariant transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`}>
                             expand_more
                           </span>
                         </button>
                         
                         {isExpanded && (
-                          <div className="px-4 pb-3.5 pt-1.5 bg-surfaceContainerLowest border-t border-outline/10 flex flex-wrap gap-2 animate-slide-down">
+                          <div className="px-3 pb-2.5 pt-1.5 bg-surfaceContainerLowest border-t border-outline/10 flex flex-wrap gap-2 animate-slide-down">
                             <a
                               href={dept.curriculumUrl}
                               target="_blank"
                               rel="noopener noreferrer"
-                              className="inline-flex items-center gap-1.5 border border-outline/30 hover:bg-primary/5 text-primary text-[11px] font-bold py-1.5 px-3 rounded-lg transition-colors outline-none"
+                              className="inline-flex items-center gap-1 border border-outline/30 hover:bg-primary/5 text-primary text-[10px] font-bold py-1 px-2 rounded-lg transition-colors outline-none"
                             >
-                              <span className="material-symbols-outlined text-[14px]">visibility</span>
-                              {t('viewCurriculum') || 'View Curriculum'}
+                              {t('viewCurriculum') || 'Curriculum'}
                             </a>
                             <a
                               href={dept.syllabusUrl}
                               target="_blank"
                               rel="noopener noreferrer"
-                              className="inline-flex items-center gap-1.5 border border-outline/30 hover:bg-primary/5 text-primary text-[11px] font-bold py-1.5 px-3 rounded-lg transition-colors outline-none"
+                              className="inline-flex items-center gap-1 border border-outline/30 hover:bg-primary/5 text-primary text-[10px] font-bold py-1 px-2 rounded-lg transition-colors outline-none"
                             >
-                              <span className="material-symbols-outlined text-[14px]">menu_book</span>
-                              {t('viewSyllabus') || 'View Syllabus'}
+                              {t('viewSyllabus') || 'Syllabus'}
                             </a>
                           </div>
                         )}
@@ -185,7 +215,71 @@ const StudyHub = () => {
               </div>
             </div>
           </div>
-          
+
+          {/* Uploaded Learning Materials (From DB) */}
+          <div className="card-premium p-6 flex flex-col justify-between">
+            <div className="space-y-4">
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 rounded-2xl bg-emerald-500/10 text-emerald-600 flex items-center justify-center">
+                  <span className="material-symbols-outlined text-[24px] select-none">cloud_download</span>
+                </div>
+                <div>
+                  <h3 className="text-base font-extrabold text-onSurface">Study Materials & Notes</h3>
+                  <span className="text-[10px] bg-emerald-50 text-emerald-700 font-bold px-2 py-0.5 rounded-full">PostgreSQL Live</span>
+                </div>
+              </div>
+              
+              {/* Dropdown Filters */}
+              <div className="flex gap-2">
+                <select
+                  value={filtDept}
+                  onChange={(e) => setFiltDept(e.target.value)}
+                  className="flex-1 px-2.5 py-1.5 border border-outline/35 rounded-xl text-[11px] bg-surfaceContainerLowest outline-none font-bold text-onSurface"
+                >
+                  <option value="all">All Depts</option>
+                  {deptsList.map(d => (
+                    <option key={d.id} value={d.id}>{d.name}</option>
+                  ))}
+                </select>
+                <select
+                  value={filtSem}
+                  onChange={(e) => setFiltSem(e.target.value)}
+                  className="px-2.5 py-1.5 border border-outline/35 rounded-xl text-[11px] bg-surfaceContainerLowest outline-none font-bold text-onSurface"
+                >
+                  <option value="all">All Sems</option>
+                  {[1,2,3,4,5,6,7,8].map(s => (
+                    <option key={s} value={s}>Sem {s}</option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Scrollable File List */}
+              <div className="space-y-2 max-h-[160px] overflow-y-auto pr-1">
+                {loadingMats ? (
+                  <div className="text-center py-6 text-[11px] text-onSurfaceVariant/60 animate-pulse">Loading study files...</div>
+                ) : materials.length > 0 ? (
+                  materials.map(m => (
+                    <a
+                      key={m.id}
+                      href={m.file_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center justify-between p-2.5 border border-outline/10 hover:border-emerald-500/20 hover:bg-emerald-50/10 rounded-xl transition-all group outline-none"
+                    >
+                      <div className="min-w-0 flex-1 pr-2">
+                        <p className="text-[11px] font-extrabold text-onSurface truncate leading-tight group-hover:text-emerald-600">{m.title}</p>
+                        <p className="text-[9px] text-onSurfaceVariant/80 mt-0.5 font-medium truncate">{m.subject} • {m.document_type.toUpperCase()}</p>
+                      </div>
+                      <span className="material-symbols-outlined text-[16px] text-emerald-600 flex-shrink-0">download</span>
+                    </a>
+                  ))
+                ) : (
+                  <div className="text-center py-6 text-[11px] text-onSurfaceVariant/60 italic">No files found.</div>
+                )}
+              </div>
+            </div>
+          </div>
+
         </div>
       </section>
 
@@ -200,7 +294,7 @@ const StudyHub = () => {
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {/* Campus Wi-Fi */}
-          <div className="bg-surface border border-surfaceVariant/60 rounded-[24px] p-6 shadow-elevation1 hover:shadow-elevation2 hover:border-primary/20 transition-all duration-200">
+          <div className="card-premium p-6">
             <div className="space-y-4">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
@@ -263,7 +357,7 @@ const StudyHub = () => {
           </div>
 
           {/* Sarahome Student Portal */}
-          <div className="bg-surface border border-surfaceVariant/60 rounded-[24px] p-6 shadow-elevation1 hover:shadow-elevation2 hover:border-primary/20 transition-all duration-200 flex flex-col justify-between">
+          <div className="card-premium p-6 flex flex-col justify-between">
             <div className="space-y-4 text-left">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
@@ -330,7 +424,7 @@ const StudyHub = () => {
           </div>
 
           {/* Official Instagram */}
-          <div className="bg-surface border border-surfaceVariant/60 rounded-[24px] p-6 shadow-elevation1 hover:shadow-elevation2 hover:border-primary/20 transition-all duration-200 flex flex-col justify-between">
+          <div className="card-premium p-6 flex flex-col justify-between">
             <div className="space-y-4">
               <div className="flex items-center gap-3">
                 <div className="w-12 h-12 rounded-2xl bg-rose-500/10 text-rose-500 flex items-center justify-center">

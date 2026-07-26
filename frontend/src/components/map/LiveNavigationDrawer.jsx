@@ -2,13 +2,23 @@ import React, { useState, useEffect } from 'react';
 import { CAMPUS_MAP_DATA } from '../../config/mapData';
 import { Navigation, MapPin, Compass, Clock, Footprints, CheckCircle2, AlertCircle, Navigation2, X, StopCircle, PartyPopper } from 'lucide-react';
 
-const ORIGIN_PRESETS = [
-  { id: 'main-gate', name: 'Main Entrance Security Gate', coords: { lat: 10.7542, lng: 78.6516 } },
-  { id: 'boys-hostel', name: 'Boys Hostel Entrance', coords: { lat: 10.7584, lng: 78.6514 } },
-  { id: 'girls-hostel', name: 'Girls Hostel Entrance', coords: { lat: 10.7580, lng: 78.6522 } },
-  { id: 'central-library', name: 'BD Block Library Ground', coords: { lat: 10.7568, lng: 78.6520 } },
-  { id: 'canteen', name: 'Main Canteen & Food Court', coords: { lat: 10.7568, lng: 78.6512 } }
-];
+const getOriginPresets = () => {
+  const mainGate = CAMPUS_MAP_DATA.find(b => b.id === 'main-gate') || { gps: { lat: 10.7543, lng: 78.6528 } };
+  const boysHostel = CAMPUS_MAP_DATA.find(b => b.id === 'boys-hostel') || { gps: { lat: 10.7584, lng: 78.6514 } };
+  const girlsHostel = CAMPUS_MAP_DATA.find(b => b.id === 'girls-hostel') || { gps: { lat: 10.7580, lng: 78.6522 } };
+  const centralLibrary = CAMPUS_MAP_DATA.find(b => b.id === 'bd-block') || { gps: { lat: 10.7576, lng: 78.6516 } };
+  const canteen = CAMPUS_MAP_DATA.find(b => b.id === 'cafeteria') || { gps: { lat: 10.7572, lng: 78.6512 } };
+
+  return [
+    { id: 'main-gate', name: 'Main Entrance Security Gate', coords: { lat: mainGate.gps.lat, lng: mainGate.gps.lng } },
+    { id: 'boys-hostel', name: 'Boys Hostel Entrance', coords: { lat: boysHostel.gps.lat, lng: boysHostel.gps.lng } },
+    { id: 'girls-hostel', name: 'Girls Hostel Entrance', coords: { lat: girlsHostel.gps.lat, lng: girlsHostel.gps.lng } },
+    { id: 'central-library', name: 'BD Block Library Ground', coords: { lat: centralLibrary.gps.lat, lng: centralLibrary.gps.lng } },
+    { id: 'canteen', name: 'Main Canteen & Food Court', coords: { lat: canteen.gps.lat, lng: canteen.gps.lng } }
+  ];
+};
+
+const ORIGIN_PRESETS = getOriginPresets();
 
 const LiveNavigationDrawer = ({ 
   initialDestination, 
@@ -86,7 +96,7 @@ const LiveNavigationDrawer = ({
   // Calculate live walking distance and time continuously
   const calculateNavigationDetails = () => {
     const origGps = (useLiveGps && currentGpsCoords && currentGpsCoords.lat) ? currentGpsCoords : originPreset.coords;
-    const destGps = destinationBuilding.gps || { lat: 10.7565, lng: 78.6525 };
+    const destGps = destinationBuilding.gps || CAMPUS_MAP_DATA[0].gps;
 
     const R = 6371e3;
     const φ1 = origGps.lat * Math.PI/180;

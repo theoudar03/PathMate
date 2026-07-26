@@ -93,6 +93,31 @@ const CampusMap = () => {
   const handleZoomOut = () => setScale(prev => Math.max(prev - 0.2, 0.6));
   const handleReset = () => { setScale(1); setPan({ x: 0, y: 0 }); };
 
+  const handleWheel = (e) => {
+    const zoomFactor = 0.08;
+    setScale(prev => {
+      const nextScale = e.deltaY < 0 ? prev + zoomFactor : prev - zoomFactor;
+      return Math.min(Math.max(nextScale, 0.6), 3.0);
+    });
+  };
+
+  const handleTouchStart = (e) => {
+    if (e.touches.length === 1) {
+      setIsDragging(true);
+      const touch = e.touches[0];
+      setDragStart({ x: touch.clientX - pan.x, y: touch.clientY - pan.y });
+    }
+  };
+
+  const handleTouchMove = (e) => {
+    if (isDragging && e.touches.length === 1) {
+      const touch = e.touches[0];
+      setPan({ x: touch.clientX - dragStart.x, y: touch.clientY - dragStart.y });
+    }
+  };
+
+  const handleTouchEnd = () => setIsDragging(false);
+
   const handleMouseDown = (e) => {
     if (e.button !== 0) return;
     setIsDragging(true);
@@ -143,10 +168,17 @@ const CampusMap = () => {
       setShowNavigationDrawer(true);
       setSelectedBlockId(targetBlock.id);
       
-      setScale(1.2);
+      const targetX = targetBlock.coords.x !== undefined 
+        ? targetBlock.coords.x + (targetBlock.coords.w || 0) / 2 
+        : (targetBlock.coords.cx || 450);
+      const targetY = targetBlock.coords.y !== undefined 
+        ? targetBlock.coords.y + (targetBlock.coords.h || 0) / 2 
+        : (targetBlock.coords.cy || 490);
+
+      setScale(1.4);
       setPan({ 
-        x: 400 - (targetBlock.coords.x || targetBlock.coords.cx || 400), 
-        y: 500 - (targetBlock.coords.y || targetBlock.coords.cy || 500) 
+        x: 450 - targetX * 1.4, 
+        y: 350 - targetY * 1.4 
       });
     } catch (err) {
       console.error(err);
@@ -160,6 +192,19 @@ const CampusMap = () => {
     setSelectedBlockId(block.id);
     setLoading(true);
     setBlockDetails(null);
+
+    const targetX = block.coords.x !== undefined 
+      ? block.coords.x + (block.coords.w || 0) / 2 
+      : (block.coords.cx || 450);
+    const targetY = block.coords.y !== undefined 
+      ? block.coords.y + (block.coords.h || 0) / 2 
+      : (block.coords.cy || 490);
+
+    setScale(1.4);
+    setPan({
+      x: 450 - targetX * 1.4,
+      y: 350 - targetY * 1.4
+    });
 
     fetch(`/api/campus-blocks/${block.svg_id}`, {
       headers: { 'Authorization': token ? `Bearer ${token}` : '' }
@@ -322,6 +367,10 @@ const CampusMap = () => {
                 onMouseMove={handleMouseMove}
                 onMouseUp={handleMouseUpOrLeave}
                 onMouseLeave={handleMouseUpOrLeave}
+                onWheel={handleWheel}
+                onTouchStart={handleTouchStart}
+                onTouchMove={handleTouchMove}
+                onTouchEnd={handleTouchEnd}
               >
                 <div
                   style={{

@@ -2,9 +2,9 @@ import express from 'express';
 import bcrypt from 'bcryptjs';
 import db from '../database/index.js';
 import { GoogleGenerativeAI } from '@google/generative-ai';
-import { generateEmbeddings, mapTextToInterests, rankAndExplainMatches, generateChecklistFromProcess, answerGroundedQuestion, generateDigest, translateText, generateWebsiteSummary, parseNavigationQuery, askGeminiHybrid } from '../services/gemini.js';
+import { generateEmbeddings, mapTextToInterests, rankAndExplainMatches, generateChecklistFromProcess, answerGroundedQuestion, generateDigest, translateText, generateWebsiteSummary, parseNavigationQuery, askGeminiHybrid, detectIntent, askGeminiWithIntent, askGeminiAcademic, askGeminiWithWebsiteContext } from '../services/gemini.js';
 import { fetchWebsiteContent, getRelevantUrl } from '../services/scraper.js';
-import { authenticateToken } from '../middleware/auth.js';
+import { authenticateToken, chatRateLimiter } from '../middleware/auth.js';
 import dns from 'dns';
 
 dns.setDefaultResultOrder('ipv4first');
@@ -76,6 +76,78 @@ const getCachedData = async (key, ttlMinutes, fetchFn) => {
 };
 
 // --- ENDPOINTS ---
+
+/**
+ * 0. GET /api/study/streak
+ * Dynamically computes consecutive day study/task streak using PostgreSQL student_tasks completions
+ */
+router.get('/study/streak', authenticateToken, async (req, res) => {
+  const studentId = req.user?.id || req.user?.userId;
+  if (!studentId) return res.status(401).json({ success: false, error: 'Unauthorized' });
+
+  try {
+    const datesRes = await safeDbCall(
+      async () => {
+        return await db.query(
+          `SELECT DISTINCT completed_at::date AS comp_date 
+           FROM student_tasks 
+           WHERE student_id = $1 AND status = 'completed' AND completed_at IS NOT NULL
+           ORDER BY comp_date DESC`,
+          [studentId]
+        );
+      },
+      async () => {
+        return { rows: [] }; // Mock fallback
+      }
+    );
+
+    const rows = datesRes.rows || [];
+    if (rows.length === 0) {
+      return res.json({ success: true, streak: 0 });
+    }
+
+    let streak = 0;
+    let today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    let expectedDate = today;
+
+    // Check if the most recent completed task is today or yesterday
+    let firstComp = new Date(rows[0].comp_date);
+    firstComp.setHours(0, 0, 0, 0);
+
+    const diffTime = Math.abs(today - firstComp);
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+    if (diffDays > 1) {
+      // Streak broken (last completed task was before yesterday)
+      return res.json({ success: true, streak: 0 });
+    }
+
+    expectedDate = firstComp;
+
+    for (let i = 0; i < rows.length; i++) {
+      const currentDate = new Date(rows[i].comp_date);
+      currentDate.setHours(0, 0, 0, 0);
+
+      const diff = Math.abs(expectedDate - currentDate);
+      const diffD = Math.round(diff / (1000 * 60 * 60 * 24));
+
+      if (diffD === 0) {
+        streak++;
+      } else if (diffD === 1) {
+        streak++;
+        expectedDate = currentDate;
+      } else {
+        break; // Streak broken
+      }
+    }
+
+    return res.json({ success: true, streak });
+  } catch (err) {
+    return res.status(500).json({ success: false, error: err.message });
+  }
+});
 
 /**
  * 1. POST /api/onboarding
@@ -567,21 +639,44 @@ router.get('/timeline/:userId', async (req, res) => {
  * Helper: Local Database Fact Resolver (Priority 1)
  */
 const resolveLocalKnowledge = async (queryText, userId) => {
-  const q = queryText.toLowerCase();
+  const q = queryText.toLowerCase().trim();
   
+  // Step 2 & Step 7: Route query to correct collection before retrieval
+  let collection = 'UNKNOWN';
+  
+  if (q.includes('warden') || q.includes('ragging') || q.includes('harass') || q.includes('safety') || q.includes('emergency') || q.includes('contact') || q.includes('phone') || q.includes('number') || q.includes('medical') || q.includes('first aid')) {
+    collection = 'EMERGENCY_CONTACTS';
+  } else if (q.includes('timetable') || q.includes('period') || q.includes('time table') || q.includes('class schedule')) {
+    collection = 'TIMETABLE';
+  } else if (q.includes('faculty') || q.includes('professor') || q.includes('teacher') || q.includes('hod') || q.includes('head') || q.includes('santhi') || q.includes('mohan') || q.includes('giriraj') || q.includes('ravimaran') || q.includes('principal') || q.includes('email') || q.includes('office') || q.includes('department') || q.includes('dept')) {
+    collection = 'FACULTY';
+  } else if (q.includes('open') || q.includes('reopening') || q.includes('holiday') || q.includes('ia test') || q.includes('exam date') || q.includes('semester start') || q.includes('calendar')) {
+    collection = 'CALENDAR';
+  } else if (q.includes('senior connect') || q.includes('study hub') || q.includes('activity manager') || q.includes('notice board') || q.includes('bus route') || q.includes('navigation') || q.includes('block') || q.match(/\bks\b/) || q.match(/\brv\b/) || q.match(/\bjs\b/) || q.match(/\bbd\b/) || (q.includes('me block') || q.includes('me-block') || q.includes('mechanical block') || q.includes('mech block') || q.includes('me dept') || q.includes('me department'))) {
+    collection = 'PATHMATE_FEATURES';
+  } else if (q.includes('club') || q.includes('event') || q.includes('hackathon') || q.includes('workshop') || q.includes('symphony') || q.includes('coding') || q.includes('robotics')) {
+    collection = 'CLUBS';
+  } else if (q.includes('canteen') || q.includes('menu') || q.includes('food') || q.includes('coffee') || q.includes('price')) {
+    collection = 'CANTEEN';
+  } else if (q.includes('regulation') || q.includes('credit') || q.includes('grade') || q.includes('cgpa') || q.includes('gpa') || q.includes('assessment') || q.includes('attendance requirement') || q.includes('arrear') || q.includes('syllabus') || q.includes('curriculum')) {
+    collection = 'REGULATIONS';
+  } else if (q.includes('committee') || q.includes('council') || q.includes('squad') || q.includes('grievance') || q.includes('ombudsman')) {
+    collection = 'COMMITTEES';
+  }
+
+  console.log(`[Collection Routing] Routing "${queryText}" to database collection: ${collection}`);
+
   return await safeDbCall(
     async () => {
       // 1. TIMETABLE
-      if (q.includes('timetable') || q.includes('python') || q.includes('schedule') || q.includes('class') || q.includes('period') || q.includes('time table')) {
+      if (collection === 'TIMETABLE') {
         const userRes = await db.query('SELECT department_id FROM users WHERE id = $1', [userId]);
         const deptId = userRes.rows[0]?.department_id || 1;
-        
         const timeRes = await db.query(
           `SELECT t.*, f.name as teacher FROM timetable t 
            LEFT JOIN faculty f ON t.faculty_id = f.id
            WHERE t.department_id = $1 ORDER BY t.id`, [deptId]
         );
-        
         if (timeRes.rows.length > 0) {
           const deptNameRes = await db.query('SELECT name FROM departments WHERE id = $1', [deptId]);
           const deptName = deptNameRes.rows[0]?.name || 'CSE';
@@ -589,32 +684,94 @@ const resolveLocalKnowledge = async (queryText, userId) => {
           timeRes.rows.forEach(row => {
             answer += `• **${row.day_of_week}** (${row.start_time.slice(0,5)} - ${row.end_time.slice(0,5)}): **${row.subject}** taught by ${row.teacher || 'Faculty'}\n`;
           });
-          return { resolved: true, answer, sourceTable: 'timetable' };
+          return { resolved: true, answer, confidence: 'HIGH', sourceTable: 'timetable' };
         }
       }
 
-      // 2. FACULTY / HOD
-      if (q.includes('faculty') || q.includes('professor') || q.includes('teacher') || q.includes('hod') || q.includes('head') || q.includes('santhi') || q.includes('mohan') || q.includes('giriraj') || q.includes('ravimaran')) {
-        let rows = [];
-        if (q.includes('hod') || q.includes('head')) {
-          let deptClause = "";
-          if (q.includes('cse')) {
-            deptClause = "AND d.name = 'CSE'";
-          } else if (q.includes('ece')) {
-            deptClause = "AND d.name = 'ECE'";
-          } else if (q.includes('ai&ds') || q.includes('aids')) {
-            deptClause = "AND d.name = 'AI&DS'";
-          } else if (q.includes('it')) {
-            deptClause = "AND d.name = 'IT'";
+      // 1.5 GENERAL COLLEGE OVERVIEW
+      if (q.includes('about saranathan') || q.includes('tell about saranathan') || q.includes('introduce saranathan') || q.includes('what is saranathan')) {
+        const principalRes = await db.query("SELECT name, contact_email FROM faculty WHERE designation ILIKE '%Principal%' LIMIT 1");
+        const principal = principalRes.rows[0];
+        const principalName = principal ? principal.name : 'Dr. D. Valavan';
+        const principalEmail = principal ? principal.contact_email : 'principal@saranathan.ac.in';
+        
+        const answer = `**Saranathan College of Engineering (SCE)**, established in 1998, is a premier self-financing engineering institution located in Panjappur, Trichy. It is affiliated to Anna University, Chennai, and approved by the AICTE, New Delhi. The college is led by Principal **${principalName}** (${principalEmail}) and is highly regarded for academic excellence, state-of-the-art laboratories, and career guidance.`;
+        return { resolved: true, answer, confidence: 'HIGH', sourceTable: 'faculty' };
+      }
+
+      // 2. FACULTY / HOD (Step 14: Search only Faculty Directory. Return only requested person)
+      if (collection === 'FACULTY') {
+        const isDeptOverviewQuery = (q.includes('department') || q.includes('dept') || q.includes('cse') || q.includes('ece') || q.includes('eee') || q.includes('it') || q.includes('csbs') || q.includes('mech') || q.includes('civil') || q.includes('aids') || q.includes('ice')) && (q.includes('about') || q.includes('explain') || q.includes('tell') || q.includes('overview') || q.includes('what is') || q.includes('describe') || q.includes('details of') || q.includes('introduce'));
+        
+        if (isDeptOverviewQuery) {
+          const detectedDepts = [];
+          if (q.includes('cse') || q.includes('computer')) detectedDepts.push('CSE');
+          if (q.includes('ece') || q.includes('electronics')) detectedDepts.push('ECE');
+          if (q.includes('eee') || q.includes('electrical')) detectedDepts.push('EEE');
+          if (q.includes('it') || q.includes('information')) detectedDepts.push('IT');
+          if (q.includes('csbs') || q.includes('business')) detectedDepts.push('CSBS');
+          if (q.includes('ai&ds') || q.includes('aids') || q.includes('data science')) detectedDepts.push('AI&DS');
+          if (q.includes('mech') || q.includes('mechanical')) detectedDepts.push('Mech');
+          if (q.includes('civil')) detectedDepts.push('Civil');
+          if (q.includes('ice') || q.includes('instrumentation')) detectedDepts.push('ICE');
+
+          if (detectedDepts.length > 0) {
+            let answer = "";
+            for (const deptName of detectedDepts) {
+              const deptRes = await db.query('SELECT name, full_name FROM departments WHERE name = $1', [deptName]);
+              const deptInfo = deptRes.rows[0];
+              if (deptInfo) {
+                const hodRes = await db.query(
+                  `SELECT f.name, f.designation, f.contact_email FROM faculty f 
+                   LEFT JOIN departments d ON f.department_id = d.id
+                   WHERE (f.designation ILIKE '%Head%' OR f.designation ILIKE '%HOD%') AND d.name = $1
+                   LIMIT 1`, [deptName]
+                );
+                const hod = hodRes.rows[0];
+                const hodDetail = hod ? ` The Head of Department is **${hod.name}** (${hod.contact_email}).` : '';
+                answer += `• **${deptInfo.full_name || deptInfo.name} (${deptInfo.name})**:${hodDetail}\n`;
+              }
+            }
+            if (answer) {
+              answer = `Here are the details for the requested departments:\n\n${answer}`;
+              return { resolved: true, answer, confidence: 'HIGH', sourceTable: 'faculty' };
+            }
           }
-          
-          const facRes = await db.query(
-            `SELECT f.name, f.designation, f.contact_email, d.name as dept FROM faculty f 
-             LEFT JOIN departments d ON f.department_id = d.id
-             WHERE (f.designation ILIKE '%Head%' OR f.designation ILIKE '%HOD%') ${deptClause}
-             ORDER BY f.id`
-          );
+        }
+
+        let rows = [];
+        if (q.includes('principal')) {
+          const facRes = await db.query("SELECT name, designation, contact_email FROM faculty WHERE designation ILIKE '%Principal%' LIMIT 1");
           rows = facRes.rows;
+        } else if (q.includes('hod') || q.includes('head')) {
+          let deptSearch = "";
+          if (q.includes('cse') || q.includes('computer')) deptSearch = "CSE";
+          else if (q.includes('ece') || q.includes('electronics')) deptSearch = "ECE";
+          else if (q.includes('ai&ds') || q.includes('aids') || q.includes('data science')) deptSearch = "AI&DS";
+          else if (q.includes('csbs') || q.includes('business')) deptSearch = "CSBS";
+          else if (q.includes('it') || q.includes('information')) deptSearch = "IT";
+          else if (q.includes('eee') || q.includes('electrical')) deptSearch = "EEE";
+          else if (q.includes('civil')) deptSearch = "Civil";
+          else if (q.includes('mech') || q.includes('mechanical')) deptSearch = "Mech";
+          else if (q.includes('ice') || q.includes('instrumentation')) deptSearch = "ICE";
+
+          if (deptSearch) {
+            const facRes = await db.query(
+              `SELECT f.name, f.designation, f.contact_email, d.name as dept FROM faculty f 
+               LEFT JOIN departments d ON f.department_id = d.id
+               WHERE (f.designation ILIKE '%Head%' OR f.designation ILIKE '%HOD%') AND d.name = $1
+               ORDER BY f.id`, [deptSearch]
+            );
+            rows = facRes.rows;
+          } else {
+            const facRes = await db.query(
+              `SELECT f.name, f.designation, f.contact_email, d.name as dept FROM faculty f 
+               LEFT JOIN departments d ON f.department_id = d.id
+               WHERE (f.designation ILIKE '%Head%' OR f.designation ILIKE '%HOD%')
+               ORDER BY d.name`
+            );
+            rows = facRes.rows;
+          }
         } else {
           let nameSearch = "";
           if (q.includes('santhi')) nameSearch = "%Santhi%";
@@ -633,52 +790,104 @@ const resolveLocalKnowledge = async (queryText, userId) => {
         }
 
         if (rows.length > 0) {
-          let answer = "Here are the faculty contact details from our records:\n\n";
-          rows.forEach(row => {
-            answer += `• **${row.name}** — ${row.designation} (${row.dept} Department)\n  Email: ${row.contact_email}\n`;
-          });
-          return { resolved: true, answer, sourceTable: 'faculty' };
-        }
-      }
-
-      // 3. CAMPUS BLOCKS / FLOOR DIRECTIONS
-      if (q.includes('block') || q.match(/\bks\b/) || q.match(/\brv\b/) || q.match(/\bjs\b/) || q.match(/\bbd\b/) || q.match(/\bme\b/)) {
-        let blockSearch = "";
-        if (q.match(/\bks\b/)) blockSearch = "ks-block";
-        else if (q.match(/\brv\b/)) blockSearch = "rv-block";
-        else if (q.match(/\bjs\b/)) blockSearch = "js-block";
-        else if (q.match(/\bbd\b/)) blockSearch = "bd-block";
-        else if (q.match(/\bme\b/)) blockSearch = "me-block";
-
-        if (blockSearch) {
-          const blockRes = await db.query('SELECT id, block_name, block_type FROM campus_blocks WHERE svg_id = $1', [blockSearch]);
-          if (blockRes.rows.length > 0) {
-            const block = blockRes.rows[0];
-            const detailsRes = await db.query('SELECT floor_label, detail_text FROM block_floor_details WHERE block_id = $1 ORDER BY id', [block.id]);
-            
-            let answer = `**${block.block_name}** Details:\n`;
-            detailsRes.rows.forEach(floor => {
-              answer += `• **${floor.floor_label}**: ${floor.detail_text}\n`;
+          const isDeptSpecific = q.includes('csbs') || q.includes('cse') || q.includes('ece') || q.includes('aids') || q.includes('it') || q.includes('eee') || q.includes('civil') || q.includes('mech') || q.includes('ice') || q.includes('principal') || rows.length === 1;
+          if (isDeptSpecific) {
+            const row = rows[0];
+            let answer = "";
+            if (row.designation.toLowerCase().includes('head') || row.designation.toLowerCase().includes('hod')) {
+              answer = `The Head of the ${row.dept} Department is **${row.name}**, ${row.designation}. Email: ${row.contact_email}.`;
+            } else {
+              answer = `**${row.name}** is ${row.designation} in ${row.dept} department. Email: ${row.contact_email}.`;
+            }
+            return { resolved: true, answer, confidence: 'HIGH', sourceTable: 'faculty' };
+          } else {
+            let answer = "Here is the list of Department Heads (HODs):\n\n";
+            rows.forEach(row => {
+              answer += `• **${row.dept}**: ${row.name} (${row.contact_email})\n`;
             });
-            return { resolved: true, answer, sourceTable: 'campus_blocks' };
+            return { resolved: true, answer, confidence: 'HIGH', sourceTable: 'faculty' };
           }
         }
       }
 
-      // 4. EMERGENCY CONTACTS
-      if (q.includes('warden') || q.includes('ragging') || q.includes('harass') || q.includes('safety') || q.includes('emergency') || q.includes('contact') || q.includes('phone') || q.includes('number') || q.includes('medical') || q.includes('first aid')) {
+      // 3. CALENDAR (Step 13: Academic Calendar only)
+      if (collection === 'CALENDAR') {
+        let term = '';
+        if (q.includes('open') || q.includes('reopening')) term = '%Reopening%';
+        else if (q.includes('ia') || q.includes('assessment')) term = '%Assessment%';
+        else if (q.includes('model')) term = '%Model%';
+        else if (q.includes('holiday')) term = '%Holiday%';
+        else if (q.includes('exam') || q.includes('theory') || q.includes('practical')) term = '%Exam%';
+
+        if (term) {
+          const calRes = await db.query(
+            'SELECT event_name, description FROM academic_calendar WHERE event_name ILIKE $1 OR description ILIKE $2 LIMIT 1',
+            [term, term]
+          );
+          if (calRes.rows.length > 0) {
+            return { resolved: true, answer: calRes.rows[0].description, confidence: 'HIGH', sourceTable: 'academic_calendar' };
+          }
+        }
+      }
+
+      // 4. PATHMATE_FEATURES (Step 12: PathMate documentation only)
+      if (collection === 'PATHMATE_FEATURES') {
+        // Floor directions / maps
+        if (q.includes('block') || q.match(/\bks\b/) || q.match(/\brv\b/) || q.match(/\bjs\b/) || q.match(/\bbd\b/) || (q.includes('me block') || q.includes('me-block') || q.includes('mechanical block') || q.includes('mech block') || q.includes('me dept') || q.includes('me department'))) {
+          let blockSearch = "";
+          if (q.match(/\bks\b/)) blockSearch = "ks-block";
+          else if (q.match(/\brv\b/)) blockSearch = "rv-block";
+          else if (q.match(/\bjs\b/)) blockSearch = "js-block";
+          else if (q.match(/\bbd\b/)) blockSearch = "bd-block";
+          else if (q.includes('me block') || q.includes('me-block') || q.includes('mechanical block') || q.includes('mech block') || q.includes('me dept') || q.includes('me department')) blockSearch = "me-block";
+
+          if (blockSearch) {
+            const blockRes = await db.query('SELECT id, block_name, block_type FROM campus_blocks WHERE svg_id = $1', [blockSearch]);
+            if (blockRes.rows.length > 0) {
+              const block = blockRes.rows[0];
+              const detailsRes = await db.query('SELECT floor_label, detail_text FROM block_floor_details WHERE block_id = $1 ORDER BY id', [block.id]);
+              
+              let answer = `**${block.block_name}** Details:\n`;
+              detailsRes.rows.forEach(floor => {
+                answer += `• **${floor.floor_label}**: ${floor.detail_text}\n`;
+              });
+              return { resolved: true, answer, confidence: 'HIGH', sourceTable: 'campus_blocks' };
+            }
+          }
+        }
+
+        // Features scope details
+        if (q.includes('senior connect') || q.includes('connect')) {
+          return { resolved: true, answer: "Senior Connect matches freshmen with experienced senior mentors for peer guidance, academic tips, and college orientation answers. You can find them in the Mentors directory.", confidence: 'HIGH', sourceTable: 'pathmate_docs' };
+        }
+        if (q.includes('study hub')) {
+          return { resolved: true, answer: "Study Hub provides study resources, past papers, lecture notes, and subject checklists to help freshmen prepare for examinations.", confidence: 'HIGH', sourceTable: 'pathmate_docs' };
+        }
+        if (q.includes('activity manager')) {
+          return { resolved: true, answer: "Activity Manager is an onboarding feature that helps freshmen track orientation events, departments tours, and administrative tasks step-by-step.", confidence: 'HIGH', sourceTable: 'pathmate_docs' };
+        }
+        if (q.includes('notice board') || q.includes('notice')) {
+          return { resolved: true, answer: "Notice Board displays the latest official circulars, announcements, and notices released by the administration desk.", confidence: 'HIGH', sourceTable: 'pathmate_docs' };
+        }
+        if (q.includes('bus')) {
+          return { resolved: true, answer: "Bus Routes page lists the college bus routes, route numbers, driver details, and stops across Trichy city.", confidence: 'HIGH', sourceTable: 'pathmate_docs' };
+        }
+      }
+
+      // 5. EMERGENCY_CONTACTS
+      if (collection === 'EMERGENCY_CONTACTS') {
         const contactsRes = await db.query('SELECT label, contact_value, notes FROM emergency_contacts');
         if (contactsRes.rows.length > 0) {
           let answer = "Here are the emergency and administrative contacts on campus:\n\n";
           contactsRes.rows.forEach(c => {
             answer += `• **${c.label}**: ${c.contact_value} (${c.notes})\n`;
           });
-          return { resolved: true, answer, sourceTable: 'emergency_contacts' };
+          return { resolved: true, answer, confidence: 'HIGH', sourceTable: 'emergency_contacts' };
         }
       }
 
-      // 5. CLUBS & EVENTS REGISTRATION PROCESS
-      if (q.includes('club') || q.includes('event') || q.includes('hackathon') || q.includes('workshop') || q.includes('symphony') || q.includes('coding') || q.includes('robotics')) {
+      // 6. CLUBS & EVENTS
+      if (collection === 'CLUBS') {
         let matchName = "";
         if (q.includes('coding') || q.includes('hackathon')) matchName = "%Coding%";
         else if (q.includes('robotics') || q.includes('workshop')) matchName = "%Robotics%";
@@ -696,13 +905,24 @@ const resolveLocalKnowledge = async (queryText, userId) => {
             const processText = procRes.rows[0]?.raw_process_text || "Please contact the student affairs dean office to register.";
             
             const answer = `**${club.name}**\nDescription: ${club.description}\n\n**Registration Process:**\n${processText}`;
-            return { resolved: true, answer, sourceTable: 'clubs' };
+            return { resolved: true, answer, confidence: 'HIGH', sourceTable: 'clubs' };
+          }
+        } else if (q.includes('event')) {
+          const eventsRes = await db.query("SELECT name, description, event_date, location_text FROM events WHERE status = 'upcoming' OR status = 'ongoing' ORDER BY event_date ASC");
+          if (eventsRes.rows.length > 0) {
+            let answer = "Here are the upcoming events at Saranathan College:\n\n";
+            eventsRes.rows.forEach(e => {
+              const dateStr = new Date(e.event_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+              const desc = e.description ? ` — ${e.description}` : '';
+              answer += `• **${e.name}**${desc}\n  Date: ${dateStr} | Venue: ${e.location_text || 'Campus'}\n`;
+            });
+            return { resolved: true, answer, confidence: 'HIGH', sourceTable: 'events' };
           }
         }
       }
 
-      // 6. CANTEEN MENU
-      if (q.includes('canteen') || q.includes('menu') || q.includes('food') || q.includes('coffee') || q.includes('tea') || q.includes('price')) {
+      // 7. CANTEEN
+      if (collection === 'CANTEEN') {
         const canteenRes = await db.query('SELECT category, item_name, price FROM canteen_menu ORDER BY category, price');
         if (canteenRes.rows.length > 0) {
           let answer = "Here is the Canteen Menu:\n\n";
@@ -714,12 +934,12 @@ const resolveLocalKnowledge = async (queryText, userId) => {
             }
             answer += `• ${item.item_name} - ₹${item.price}\n`;
           });
-          return { resolved: true, answer, sourceTable: 'canteen_menu' };
+          return { resolved: true, answer, confidence: 'HIGH', sourceTable: 'canteen_menu' };
         }
       }
 
-      // 7. COMMITTEES
-      if (q.includes('committee') || q.includes('council') || q.includes('squad') || q.includes('ragging') || q.includes('grievance') || q.includes('ombudsman')) {
+      // 8. COMMITTEES
+      if (collection === 'COMMITTEES') {
         let matchName = "%";
         if (q.includes('ragging') && q.includes('squad')) matchName = "%Anti-Ragging Squad%";
         else if (q.includes('ragging')) matchName = "%Anti-Ragging Committee%";
@@ -734,31 +954,34 @@ const resolveLocalKnowledge = async (queryText, userId) => {
           membersRes.rows.forEach(m => {
              answer += `• **${m.name}** (${m.position || 'Member'}) - ${m.phone || 'N/A'} | ${m.email || 'N/A'}\n`;
           });
-          return { resolved: true, answer, sourceTable: 'committees' };
+          return { resolved: true, answer, confidence: 'HIGH', sourceTable: 'committees' };
         }
       }
 
-      // 8. SEMANTIC SEARCH OVER DOCUMENTS (UG Regulations, etc.)
-      try {
-        const embedding = await generateEmbeddings(queryText);
-        const embeddingStr = `[${embedding.join(',')}]`;
-        const vectorRes = await db.query(
-          `SELECT chunk_text, 1 - (embedding <=> $1::vector) as similarity 
-           FROM chatbot_chunks 
-           ORDER BY embedding <=> $1::vector 
-           LIMIT 4`, [embeddingStr]
-        );
-        
-        // If similarity > threshold (e.g. 0.5)
-        if (vectorRes.rows.length > 0 && vectorRes.rows[0].similarity > 0.45) {
-          const context = vectorRes.rows.map(r => r.chunk_text).join('\\n\\n---\\n\\n');
-          return { resolved: true, answer: context, sourceTable: 'chatbot_chunks', isContext: true };
+      // 9. REGULATIONS (Step 3 & 8: Search chatbot_chunks ONLY when collection is REGULATIONS)
+      if (collection === 'REGULATIONS') {
+        try {
+          const embedding = await generateEmbeddings(queryText);
+          const embeddingStr = `[${embedding.join(',')}]`;
+          const vectorRes = await db.query(
+            `SELECT chunk_text, 1 - (embedding <=> $1::vector) as similarity 
+             FROM chatbot_chunks 
+             ORDER BY embedding <=> $1::vector 
+             LIMIT 3`, [embeddingStr]
+          );
+          
+          if (vectorRes.rows.length > 0) {
+            const similarity = vectorRes.rows[0].similarity;
+            const confidence = similarity >= 0.50 ? 'HIGH' : (similarity >= 0.40 ? 'MEDIUM' : 'LOW');
+            const context = vectorRes.rows.map(r => r.chunk_text).join('\n\n');
+            return { resolved: true, answer: context, confidence, sourceTable: 'chatbot_chunks', isContext: true };
+          }
+        } catch (e) {
+          console.error("Vector search failed:", e.message);
         }
-      } catch (e) {
-        console.error("Vector search failed:", e.message);
       }
 
-      return { resolved: false };
+      return { resolved: false, confidence: 'LOW' };
     },
     async () => {
       // Mock Store Fallback
@@ -771,7 +994,7 @@ const resolveLocalKnowledge = async (queryText, userId) => {
           const teacher = MOCK_STORE.faculty.find(f => f.id === row.faculty_id)?.name || 'Faculty';
           answer += `• **${row.day_of_week}** (${row.start_time.slice(0,5)} - ${row.end_time.slice(0,5)}): **${row.subject}** taught by ${teacher}\n`;
         });
-        return { resolved: true, answer, sourceTable: 'timetable' };
+        return { resolved: true, answer, confidence: 'HIGH', sourceTable: 'timetable' };
       }
 
       if (q.includes('faculty') || q.includes('professor') || q.includes('teacher') || q.includes('hod') || q.includes('head') || q.includes('santhi') || q.includes('mohan') || q.includes('giriraj')) {
@@ -786,7 +1009,7 @@ const resolveLocalKnowledge = async (queryText, userId) => {
             const dept = MOCK_STORE.departments.find(d => d.id === row.department_id)?.name || 'ECE';
             answer += `• **${row.name}** — ${row.designation} (${dept} Department)\n  Email: ${row.contact_email}\n`;
           });
-          return { resolved: true, answer, sourceTable: 'faculty' };
+          return { resolved: true, answer, confidence: 'HIGH', sourceTable: 'faculty' };
         }
       }
 
@@ -807,7 +1030,7 @@ const resolveLocalKnowledge = async (queryText, userId) => {
             details.forEach(floor => {
               answer += `• **${floor.floor_label}**: ${floor.detail_text}\n`;
             });
-            return { resolved: true, answer, sourceTable: 'campus_blocks' };
+            return { resolved: true, answer, confidence: 'HIGH', sourceTable: 'campus_blocks' };
           }
         }
       }
@@ -817,7 +1040,7 @@ const resolveLocalKnowledge = async (queryText, userId) => {
         MOCK_STORE.emergencyContacts.forEach(c => {
           answer += `• **${c.label}**: ${c.contact_value} (${c.notes})\n`;
         });
-        return { resolved: true, answer, sourceTable: 'emergency_contacts' };
+        return { resolved: true, answer, confidence: 'HIGH', sourceTable: 'emergency_contacts' };
       }
 
       if (q.includes('club') || q.includes('event') || q.includes('hackathon') || q.includes('workshop') || q.includes('symphony') || q.includes('coding') || q.includes('robotics')) {
@@ -827,11 +1050,11 @@ const resolveLocalKnowledge = async (queryText, userId) => {
         if (club) {
           const proc = MOCK_STORE.registrationProcess.find(p => p.club_or_event_type === 'club' && p.club_or_event_id === club.id);
           const answer = `**${club.name}**\nDescription: ${club.description}\n\n**Registration Process:**\n${proc?.raw_process_text || 'Collect form from office.'}`;
-          return { resolved: true, answer, sourceTable: 'clubs' };
+          return { resolved: true, answer, confidence: 'HIGH', sourceTable: 'clubs' };
         }
       }
 
-      return { resolved: false };
+      return { resolved: false, confidence: 'LOW' };
     }
   );
 };
@@ -962,21 +1185,238 @@ const fetchWebSearchContext = async (query) => {
   }
 };
 
-router.post('/chat', async (req, res) => {
+// --- Production AI Architecture Redesign Helpers ---
+
+// Local conversational responses (Category A)
+const generateLocalConversationalReply = (query) => {
+  const q = query.toLowerCase().trim();
+
+  const greetingReplies = [
+    "Hey! 👋 Great to see you. How can I help you with your studies or campus questions today?",
+    "Hello! Hope you are having a wonderful day. What academic or campus topic can we look into today?",
+    "Hi there! 😊 I'm ready to assist you. What's on your mind today?",
+    "Hey! Nice to connect. Feel free to ask about your subjects, hostel details, or departments."
+  ];
+
+  const thanksReplies = [
+    "You're very welcome! I'm glad I could help. Let me know if you need anything else.",
+    "Happy to help! 😊 Good luck with your studies. Ask anytime!",
+    "Anytime! Don't hesitate to reach out if you have more questions."
+  ];
+
+  const byeReplies = [
+    "Goodbye! 👋 Take care, and return whenever you need academic or college guidance.",
+    "Bye! Have a great day ahead and happy learning! 📚",
+    "See you later! Take care and keep studying hard!"
+  ];
+
+  const casualReplies = [
+    "I'm doing great, thank you for asking! 😊 Ready to help with any academic queries.",
+    "Everything is running smoothly! Just here and ready to guide you through your college journey.",
+    "I'm doing well! Hope you're enjoying your campus life today."
+  ];
+
+  const getRandom = (arr) => arr[Math.floor(Math.random() * arr.length)];
+
+  if (q.includes('thank') || q.includes('thanks')) {
+    return getRandom(thanksReplies);
+  }
+  if (q.includes('bye') || q.includes('see you') || q.includes('goodbye')) {
+    return getRandom(byeReplies);
+  }
+  if (q.includes('how are you') || q.includes('what are you doing') || q.includes('what\'s up') || q.includes('whats up') || q.includes('nice to meet you')) {
+    return getRandom(casualReplies);
+  }
+  return getRandom(greetingReplies);
+};
+
+// Predefined PathMate knowledge (Category B)
+const generateLocalPathMateReply = (query) => {
+  const q = query.toLowerCase();
+  
+  if (q.includes('navigate') || q.includes('navigation') || q.includes('map')) {
+    return "You can use the **Campus Map** tab to view block directions. Simply search for a block (like RV Block or JS Block) or ask me, and I'll explain what floors and departments are situated there.";
+  }
+  
+  return "PathMate is your intelligent Academic & Campus Assistant for Saranathan College of Engineering. I can help you with campus navigation, checking department timetables, finding HOD contacts, accessing academic regulations, and answering your subject questions. I keep responses fast and focused!";
+};
+
+// Local query classifier (zero latency, zero API cost)
+const classifyQueryLocal = (queryText) => {
+  const q = queryText.toLowerCase().trim();
+  
+  // STRICT RULE: If the query mentions Saranathan, SCE, or the Principal, it is always a College/University query (Category C)
+  if (q.includes('saranathan') || q.includes('sce') || q.includes('panjappur') || q.includes('valavan')) {
+    return 'C';
+  }
+
+  // CATEGORY A: Normal Conversation
+  const catARegex = /^(hi|hello|hey|heyy|heyyy|hyy|hlo|hy|yo|good\s+morning|good\s+evening|good\s+night|greetings|welcome|thanks|thank\s+you|thankyou|bye|goodbye|see\s+you|take\s+care|how\s+are\s+you|what\s+is\s+up|what's\s+up|whats\s+up|sup|yo|what\s+are\s+you\s+doing|nice\s+to\s+meet\s+you|awesome|good\s+job|great|nice|perfect|cool|ok|okay)\b/i;
+  if (catARegex.test(q)) {
+    return 'A';
+  }
+
+  // CATEGORY B: PathMate Questions
+  const catBKeywords = [
+    'what is pathmate', 'who is pathmate', 'what can you do', 'how does pathmate work', 
+    'features of pathmate', 'what are your features', 'how to use pathmate', 'how do i navigate'
+  ];
+  if (catBKeywords.some(kw => q.includes(kw))) {
+    return 'B';
+  }
+
+  // CATEGORY E: Outside Academic Scope (Decline list)
+  const catEKeywords = [
+    'politics', 'movie', 'movies', 'celebrity', 'gossip', 'sports', 'cricket', 'football', 
+    'stock', 'market', 'bitcoin', 'crypto', 'religion', 'dating', 'dating advice', 'girlfriend', 
+    'boyfriend', 'love', 'recipe', 'recipes', 'travel', 'holiday', 'shopping', 'deal', 
+    'entertainment', 'news', 'weather', 'joke', 'jokes', 'song', 'music', 'game', 'gaming'
+  ];
+  if (catEKeywords.some(kw => q.includes(kw))) {
+    return 'E';
+  }
+
+  // CATEGORY C: College Questions
+  const catCKeywords = [
+    'admission', 'department', 'faculty', 'fees', 'timetable', 'class', 'period', 'schedule', 
+    'club', 'event', 'navigation', 'campus', 'bus', 'hostel', 'library', 'lab', 'placement', 
+    'regulation', 'study hub', 'canteen', 'food court', 'office', 'policy', 'calendar', 'exam', 
+    'marks', 'santhi', 'valavan', 'saranathan', 'sce', 'scholarship', 'syllabus', 'curriculum', 
+    'hall', 'auditorium', 'block', 'ece', 'cse', 'eee', 'aids', 'aiml', 'csbs', 'mech', 'civil', 
+    'stationery', 'generator', 'toilet', 'warden', 'hod', 'principal', 'attendance', 'semester', 
+    'cgpa', 'gpa', 'anna university', 'regulation 2021'
+  ];
+  if (catCKeywords.some(kw => q.includes(kw))) {
+    return 'C';
+  }
+
+  // CATEGORY D: Academic Questions
+  const catDKeywords = [
+    'programming', 'coding', 'python', 'java', 'c++', 'javascript', 'vlsi', 'digital logic', 
+    'machine learning', 'physics', 'chemistry', 'math', 'mathematics', 'electronics', 'antennas', 
+    'wave propagation', 'flip-flop', 'semiconductor', 'data structures', 'operating system', 'network', 
+    'control system', 'algorithm', 'interview prep', 'resume', 'career guidance', "ohm's law", 
+    'binary search', 'compiler', 'database', 'sql', 'data science', 'deep learning', 'science', 
+    'engineering', 'lecture', 'concept', 'explain', 'how to solve', 'tutorial', 'ai', 'artificial intelligence'
+  ];
+  if (catDKeywords.some(kw => q.includes(kw))) {
+    return 'D';
+  }
+
+  if (/^(what is|how to|explain|difference between|why does|how does|what are|define)\b/i.test(q)) {
+    return 'D';
+  }
+
+  // Safe academic & general college fallback is always Category D (Gemini)
+  return 'D';
+};
+
+// Database Academic Cache Helpers
+const MEMORY_ACADEMIC_CACHE = new Map();
+
+const ensureAcademicCacheTable = async () => {
+  await safeDbCall(
+    async () => {
+      await db.query(`
+        CREATE TABLE IF NOT EXISTS academic_cache (
+          id SERIAL PRIMARY KEY,
+          query_text TEXT UNIQUE,
+          answer_text TEXT,
+          embedding vector(768),
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+      `);
+    },
+    async () => {}
+  );
+};
+
+const getCachedAcademicResponse = async (queryText) => {
+  const cleaned = queryText.trim().toLowerCase();
+  
+  if (MEMORY_ACADEMIC_CACHE.has(cleaned)) {
+    return MEMORY_ACADEMIC_CACHE.get(cleaned);
+  }
+
+  return await safeDbCall(
+    async () => {
+      const res = await db.query(
+        'SELECT answer_text FROM academic_cache WHERE TRIM(LOWER(query_text)) = TRIM(LOWER($1)) LIMIT 1',
+        [queryText]
+      );
+      if (res.rows.length > 0) {
+        MEMORY_ACADEMIC_CACHE.set(cleaned, res.rows[0].answer_text);
+        return res.rows[0].answer_text;
+      }
+      return null;
+    },
+    async () => {
+      return null;
+    }
+  );
+};
+
+const getSemanticCachedResponse = async (queryText) => {
+  return await safeDbCall(
+    async () => {
+      const embedding = await generateEmbeddings(queryText);
+      const embeddingStr = `[${embedding.join(',')}]`;
+      const res = await db.query(
+        `SELECT answer_text, 1 - (embedding <=> $1::vector) as similarity 
+         FROM academic_cache 
+         ORDER BY embedding <=> $1::vector 
+         LIMIT 1`, [embeddingStr]
+      );
+      if (res.rows.length > 0 && res.rows[0].similarity > 0.85) {
+        return res.rows[0].answer_text;
+      }
+      return null;
+    },
+    async () => {
+      return null;
+    }
+  );
+};
+
+const saveAcademicResponseToCache = async (queryText, answerText) => {
+  const cleaned = queryText.trim().toLowerCase();
+  MEMORY_ACADEMIC_CACHE.set(cleaned, answerText);
+
+  await safeDbCall(
+    async () => {
+      const embedding = await generateEmbeddings(queryText);
+      const embeddingStr = `[${embedding.join(',')}]`;
+      await db.query(
+        'INSERT INTO academic_cache (query_text, answer_text, embedding) VALUES ($1, $2, $3::vector) ON CONFLICT (query_text) DO NOTHING',
+        [queryText, answerText, embeddingStr]
+      );
+    },
+    async () => {}
+  );
+};
+
+router.post('/chat', chatRateLimiter, async (req, res) => {
   const { userId, query: userQuery, language = 'en', history = [] } = req.body;
 
+  // Input validation
+  if (!userQuery || typeof userQuery !== 'string' || userQuery.trim().length < 1) {
+    return res.status(400).json({ error: 'Query is required.' });
+  }
+  if (userQuery.trim().length > 2000) {
+    return res.status(400).json({ error: 'Query is too long. Please keep it under 2000 characters.' });
+  }
+
   try {
-    // === DECISION FLOW: GREETING, DATABASE PRIORITY, GEMINI HYBRID ===
     const cleanQuery = userQuery.toLowerCase().trim();
-    
-    // 1. Warm Greeting Check
-    const isGreeting = /^(hi|hello|hey|greetings|good morning|good evening|good afternoon|how are you|who are you|what is pathmate|what are you|namaste|vanakkam)\b/i.test(cleanQuery);
     
     let answerText = "";
     let finalSource = null;
     let dbSourceTable = null;
 
-    // Priority 0: Exact or near-exact match in the faqs table (case-insensitive)
+    // Verify cache table structure exists on startup
+    ensureAcademicCacheTable();
+
+    // Priority 0: Exact or near-exact match in the approved FAQs table
     const faqMatch = await safeDbCall(
       async () => {
         const res = await db.query(
@@ -992,63 +1432,183 @@ router.post('/chat', async (req, res) => {
 
     if (faqMatch) {
       answerText = faqMatch.answer;
-      finalSource = "PathMate FAQ Database";
+      finalSource = "Official College Database";
       dbSourceTable = "faqs";
-    } else if (isGreeting) {
-      answerText = "Hello! 👋 I'm PathMate, your AI campus companion for Saranathan College of Engineering. I can help you with college information, navigation, academics, clubs, events, and even answer general questions. How can I help you today?";
     } else {
-      // Determine if query is college-specific (word-boundary matching to avoid false positives)
-      const collegeKeywords = [
-        'admission', 'department', 'faculty', 'fees', 'timetable', 'class', 'period', 'schedule', 
-        'club', 'event', 'navigation', 'campus', 'bus', 'hostel', 'library', 'lab', 'placement', 
-        'regulation', 'study hub', 'canteen', 'food court', 'office', 'policy', 'calendar', 'exam', 
-        'marks', 'santhi', 'valavan', 'saranathan', 'sce', 'scholarship', 'roommate', 'senior', 'syllabus', 
-        'curriculum', 'hall', 'auditorium', 'block', 'ece', 'cse', 'eee', 'aids', 'aiml', 'csbs', 
-        'mech', 'civil', 'stationery', 'generator', 'toilet', 'warden', 'hod', 'principal',
-        'attendance', 'semester', 'cgpa', 'gpa', 'anna university', 'regulation 2021'
-      ];
-      const isCollegeRelated = collegeKeywords.some(keyword => {
-        const regex = new RegExp(`\\b${keyword.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i');
-        return regex.test(cleanQuery);
-      });
+      // Priority 0.5: Check admin-resolved unknown questions (questions previously flagged but now answered by admin)
+      const resolvedMatch = await safeDbCall(
+        async () => {
+          const res = await db.query(
+            `SELECT COALESCE(resolved_answer, answer) AS best_answer 
+             FROM unknown_questions 
+             WHERE status IN ('answered', 'resolved') 
+             AND (resolved_answer IS NOT NULL OR answer IS NOT NULL)
+             AND TRIM(LOWER(question)) = TRIM(LOWER($1)) 
+             LIMIT 1`,
+            [userQuery]
+          );
+          return res.rows[0];
+        },
+        async () => null
+      );
 
-      if (isCollegeRelated) {
-        // Priority 1: Search the Internal Knowledge Database
-        const localResult = await resolveLocalKnowledge(userQuery, userId);
-        let localGrounded = false;
+      if (resolvedMatch?.best_answer) {
+        answerText = resolvedMatch.best_answer;
+        finalSource = "Official College Database";
+        dbSourceTable = "unknown_questions";
+      } else {
+      // Step 1: Category Classification (Zero Latency / Local Filters)
+      const category = classifyQueryLocal(userQuery);
+      console.log(`[Production Router] Query "${userQuery}" classified as Category ${category}`);
+
+      if (category === 'A') {
+        // CATEGORY A: Normal Conversation (Greetings, Chit-chat)
+        answerText = generateLocalConversationalReply(cleanQuery);
+        finalSource = null; // Greetings don't need a source label
+      } 
+      else if (category === 'B') {
+        // CATEGORY B: PathMate questions
+        answerText = generateLocalPathMateReply(cleanQuery);
+        finalSource = "Official College Database";
+      } 
+      else if (category === 'C') {
+        // CATEGORY C: College & University Questions (Priority 1: DB -> Priority 2: Scraper -> Fallback: Polite Decline)
+        const isAnnaUnivQuery = cleanQuery.includes('anna university') || cleanQuery.includes('annauniv') || cleanQuery.includes('regulation') || cleanQuery.includes('credit') || cleanQuery.includes('curriculum') || cleanQuery.includes('syllabus') || cleanQuery.includes('pattern') || cleanQuery.includes('arrear') || cleanQuery.includes('cgpa') || cleanQuery.includes('gpa');
         
-        if (localResult.resolved) {
+        const localResult = await resolveLocalKnowledge(userQuery, userId);
+        let dbResolved = localResult.resolved && localResult.confidence === 'HIGH';
+        
+        if (dbResolved) {
           if (localResult.isContext) {
-             const fallbackRes = await answerGroundedQuestion(userQuery, localResult.answer, history);
-             answerText = fallbackRes.answer;
-             localGrounded = !!fallbackRes.isGrounded;
-             dbSourceTable = fallbackRes.sourceTable || 'chatbot_chunks';
-             finalSource = localGrounded ? "PathMate Database (Regulations/Docs)" : null;
+            // Regulations / Anna Univ semantic chunks search
+            const groundedRes = await answerGroundedQuestion(userQuery, localResult.answer, history);
+            if (groundedRes.isGrounded) {
+              answerText = groundedRes.answer;
+              dbSourceTable = groundedRes.sourceTable || 'chatbot_chunks';
+              finalSource = isAnnaUnivQuery ? "Official Anna University Information" : "Official College Database";
+            } else {
+              dbResolved = false; // Weak grounding, fallback to website scraper
+            }
           } else {
-             answerText = localResult.answer;
-             localGrounded = true;
-             dbSourceTable = localResult.sourceTable;
-             finalSource = "PathMate Database";
+            // Direct database facts (HOD, calendars)
+            answerText = localResult.answer;
+            dbSourceTable = localResult.sourceTable;
+            finalSource = isAnnaUnivQuery ? "Official Anna University Information" : "Official College Database";
           }
         }
-        
-        // If not resolved locally OR if resolved context failed to locate grounded data
-        if (!localResult.resolved || (localResult.isContext && !localGrounded)) {
-          // Priority 2: Use Google Gemini API with real-time web search context
-          const searchContext = await fetchWebSearchContext(userQuery);
-          const geminiRes = await askGeminiHybrid(userQuery, history, true, searchContext);
-          answerText = geminiRes.answer;
-          finalSource = null;
-          
-          // Append warning note for general knowledge college questions
-          answerText += `\n\n⚠️ This answer is based on general knowledge and may not reflect the latest official college information.`;
+
+        if (!dbResolved) {
+          if (isAnnaUnivQuery) {
+            // For Anna University regulations, if DB check misses, we must politely decline rather than guess
+            answerText = "I'm sorry, I couldn't verify the latest official Anna University information regarding regulations or credits. Please reference your syllabus or consult the official Anna University portal.";
+            finalSource = "Official Anna University Information";
+          } else {
+            // Priority 2: Official Saranathan Website Scraper
+            const isGeneralLifeQuery = cleanQuery.includes('life') || cleanQuery.includes('experience') || cleanQuery.includes('tips') || cleanQuery.includes('advice') || cleanQuery.includes('how is it') || cleanQuery.includes('how to survive') || cleanQuery.includes('how to prepare');
+            
+            const isDeptOverviewQuery = (cleanQuery.includes('department') || cleanQuery.includes('dept') || cleanQuery.includes('cse') || cleanQuery.includes('ece') || cleanQuery.includes('eee') || cleanQuery.includes('it') || cleanQuery.includes('csbs') || cleanQuery.includes('mech') || cleanQuery.includes('civil') || cleanQuery.includes('aids')) && (cleanQuery.includes('about') || cleanQuery.includes('explain') || cleanQuery.includes('tell') || cleanQuery.includes('overview') || cleanQuery.includes('what is') || cleanQuery.includes('describe') || cleanQuery.includes('details of') || cleanQuery.includes('introduce'));
+            
+            const isCollegeOverviewQuery = (cleanQuery.includes('saranathan') || cleanQuery.includes('sce') || cleanQuery.includes('college')) && (cleanQuery.includes('about') || cleanQuery.includes('tell') || cleanQuery.includes('introduce') || cleanQuery.includes('what is') || cleanQuery.includes('explain') || cleanQuery.includes('describe') || cleanQuery.includes('overview'));
+
+            const isAllowedGeminiFallback = isGeneralLifeQuery || isDeptOverviewQuery || isCollegeOverviewQuery;
+            
+            console.log("[Website Scraper Fallback] Database miss on college query. Crawling official website...");
+            try {
+              const websiteUrl = getRelevantUrl(userQuery);
+              const pageContent = await fetchWebsiteContent(websiteUrl);
+              const websiteRes = await askGeminiWithWebsiteContext(userQuery, pageContent, history.slice(-8));
+              
+              if (websiteRes.answer && !websiteRes.answer.includes("I couldn't verify the latest official information")) {
+                answerText = websiteRes.answer;
+                finalSource = "Official Saranathan Website";
+                dbSourceTable = "website_scraped";
+              } else {
+                if (isAllowedGeminiFallback) {
+                  console.log("[College Fallback] Query is a general overview or experience. Invoking Gemini...");
+                  try {
+                    const optimizedHistory = history.slice(-8);
+                    const geminiRes = await askGeminiAcademic(userQuery, optimizedHistory);
+                    answerText = geminiRes.answer;
+                    finalSource = "AI-generated Educational Response";
+                  } catch (geminiErr) {
+                    console.error("Gemini fallback failed:", geminiErr.message);
+                    answerText = "I'm sorry, I'm temporarily unable to reach the AI assistant services. Please try again in a few moments, or check with the campus administrative office for urgent inquiries.";
+                    finalSource = null;
+                  }
+                } else {
+                  // If website context is missing the answer, politely decline to guess
+                  answerText = "I'm sorry, I couldn't verify the latest official information about that in the college database or website. Please consult the administrative office or check your student handbook.";
+                  finalSource = "Official Saranathan Website";
+                }
+              }
+            } catch (err) {
+              console.error("Website scraper fallback failed:", err.message);
+              if (isAllowedGeminiFallback) {
+                try {
+                  const optimizedHistory = history.slice(-8);
+                  const geminiRes = await askGeminiAcademic(userQuery, optimizedHistory);
+                  answerText = geminiRes.answer;
+                  finalSource = "AI-generated Educational Response";
+                } catch (geminiErr) {
+                  console.error("Gemini fallback failed:", geminiErr.message);
+                  answerText = "I'm sorry, I'm temporarily unable to reach the AI assistant services. Please try again in a few moments, or check with the campus administrative office for urgent inquiries.";
+                  finalSource = null;
+                }
+              } else {
+                answerText = "I'm sorry, I'm temporarily unable to reach the AI assistant services. Please try again in a few moments, or check with the campus administrative office for urgent inquiries.";
+                finalSource = "Official Saranathan Website";
+              }
+            }
+          }
         }
-      } else {
-        // General query: Answer directly using Gemini API with real-time web search context
-        const searchContext = await fetchWebSearchContext(userQuery);
-        const geminiRes = await askGeminiHybrid(userQuery, history, false, searchContext);
-        answerText = geminiRes.answer;
+      } 
+      else if (category === 'D') {
+        // CATEGORY D: Academic Questions (Three-stage pipeline)
+        
+        // Stage 1: Check Exact Cache Match
+        let cachedAnswer = await getCachedAcademicResponse(userQuery);
+        if (cachedAnswer) {
+          console.log("[Cache Hit] Exact query match found in academic cache.");
+          answerText = cachedAnswer;
+          finalSource = "AI-generated Educational Response";
+        } else {
+          // Stage 2: Check Semantic Cache Match using Embeddings
+          cachedAnswer = await getSemanticCachedResponse(userQuery);
+          if (cachedAnswer) {
+            console.log("[Cache Hit] Semantically equivalent query match found in academic cache.");
+            answerText = cachedAnswer;
+            finalSource = "AI-generated Educational Response";
+          } else {
+            // Stage 3: Call Gemini API (Only for uncached academic queries)
+            try {
+              const optimizedHistory = history.slice(-8);
+              const geminiRes = await askGeminiAcademic(userQuery, optimizedHistory);
+              answerText = geminiRes.answer;
+              finalSource = "AI-generated Educational Response";
+
+              // Save to cache (non-blocking)
+              saveAcademicResponseToCache(userQuery, answerText).catch(err => {
+                console.warn("Failed to cache response:", err.message);
+              });
+            } catch (err) {
+              console.error("Gemini API academic call failed:", err.message);
+              answerText = "I'm sorry, I'm temporarily unable to reach the AI assistant services. Please try again in a few moments, or check with the campus administrative office for urgent inquiries.";
+              finalSource = null;
+            }
+          }
+        }
+      } 
+      else if (category === 'E') {
+        // CATEGORY E: Outside Scope (Decline politely, No Gemini)
+        answerText = "I'm designed to assist with academics, Saranathan College information, and PathMate-related queries. For non-academic topics, I recommend using a general AI assistant. If you have any academic or campus-related questions, I'll be happy to help.";
+        finalSource = null;
       }
+      } // end resolvedMatch else
+    } // end faqMatch else
+
+    // Clean formatting and replace literal raw \n strings with real newlines
+    if (answerText) {
+      answerText = answerText.replace(/\\n/g, '\n');
     }
 
     // Translate answer if language is Tamil or Hindi
@@ -1094,6 +1654,108 @@ router.post('/chat', async (req, res) => {
   } catch (error) {
     console.error("Chat route error:", error);
     res.status(500).json({ error: error.message });
+  }
+});
+
+/**
+ * POST /api/chat/report
+ * Reports a question that the AI couldn't answer locally to the Admin review desk.
+ */
+router.post('/chat/report', async (req, res) => {
+  const { question, userId } = req.body;
+  try {
+    await safeDbCall(
+      async () => {
+        await db.query(
+          'INSERT INTO unknown_questions (question, user_id, status) VALUES ($1, $2, $3) ON CONFLICT DO NOTHING',
+          [question, userId || null, 'pending']
+        );
+      },
+      async () => {
+        MOCK_STORE.unknownQuestions = MOCK_STORE.unknownQuestions || [];
+        const exists = MOCK_STORE.unknownQuestions.some(q => q.question === question);
+        if (!exists) {
+          MOCK_STORE.unknownQuestions.push({
+            id: MOCK_STORE.unknownQuestions.length + 1,
+            question,
+            user_id: userId || null,
+            status: 'pending',
+            created_at: new Date().toISOString()
+          });
+        }
+      }
+    );
+    res.json({ success: true, message: 'Question reported successfully.' });
+  } catch (err) {
+    console.error("Report question failed:", err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+/**
+ * POST /api/chat/report-answer
+ * Reports an incorrect AI answer to the Admin review desk with feedback details.
+ */
+router.post('/chat/report-answer', async (req, res) => {
+  const { question, aiAnswer, reportedReason, studentComments, source, severity, conversationId, userId } = req.body;
+  
+  try {
+    // Resolve user details if user exists
+    let userName = 'Anonymous Student';
+    let userDept = 'N/A';
+    
+    if (userId) {
+      const userRes = await safeDbCall(
+        async () => {
+          return await db.query('SELECT u.full_name, d.name as dept FROM users u LEFT JOIN departments d ON u.department_id = d.id WHERE u.id = $1', [userId]);
+        },
+        async () => {
+          const user = MOCK_STORE.users.find(u => u.id === userId);
+          if (user) {
+            const dept = MOCK_STORE.departments.find(d => d.id === user.department_id);
+            return { rows: [{ full_name: user.full_name, dept: dept ? dept.name : 'N/A' }] };
+          }
+          return { rows: [] };
+        }
+      );
+      if (userRes.rows.length > 0) {
+        userName = userRes.rows[0].full_name;
+        userDept = userRes.rows[0].dept;
+      }
+    }
+
+    await safeDbCall(
+      async () => {
+        await db.query(
+          `INSERT INTO ai_reports (question, ai_answer, reported_reason, student_comments, conversation_id, source, user_id, user_name, user_department, severity, resolution_status)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, 'pending')`,
+          [question, aiAnswer, reportedReason, studentComments, conversationId || null, source || 'Gemini', userId || null, userName, userDept, severity || 'Medium']
+        );
+      },
+      async () => {
+        MOCK_STORE.aiReports = MOCK_STORE.aiReports || [];
+        MOCK_STORE.aiReports.push({
+          id: MOCK_STORE.aiReports.length + 1,
+          question,
+          ai_answer: aiAnswer,
+          reported_reason: reportedReason,
+          student_comments: studentComments,
+          timestamp: new Date().toISOString(),
+          conversation_id: conversationId || null,
+          source: source || 'Gemini',
+          user_id: userId || null,
+          user_name: userName,
+          user_department: userDept,
+          severity: severity || 'Medium',
+          resolution_status: 'pending'
+        });
+      }
+    );
+
+    res.json({ success: true, message: 'Factual error reported successfully to AI review desk.' });
+  } catch (err) {
+    console.error("Failed to insert AI report:", err.message);
+    res.status(500).json({ error: err.message });
   }
 });
 
@@ -1159,12 +1821,13 @@ router.get('/roommate/matches/:userId', async (req, res) => {
   try {
     const result = await safeDbCall(
       async () => {
-        const userRes = await db.query('SELECT hostel_block FROM users WHERE id = $1', [userId]);
+        const userRes = await db.query('SELECT hostel_block, gender FROM users WHERE id = $1', [userId]);
         const userBlock = userRes.rows[0]?.hostel_block;
+        const userGender = userRes.rows[0]?.gender || 'Male';
 
         if (!userBlock) return []; // Day Scholar has no matches
 
-        // Find matching opt-in roommate candidates in same block
+        // Find matching opt-in roommate candidates in same block and same gender, sorted alphabetically
         const candidatesRes = await db.query(
           `SELECT u.id, u.name, d.name as branch, u.stay_type, u.hostel_block,
            array_to_string(array_agg(DISTINCT i.label), ', ') as interests
@@ -1173,9 +1836,10 @@ router.get('/roommate/matches/:userId', async (req, res) => {
            LEFT JOIN departments d ON u.department_id = d.id
            LEFT JOIN user_interests ui ON u.id = ui.user_id
            LEFT JOIN interests i ON ui.interest_id = i.id
-           WHERE ro.is_visible = true AND u.hostel_block = $1 AND u.id != $2
-           GROUP BY u.id, u.name, d.name, u.stay_type, u.hostel_block`,
-          [userBlock, userId]
+           WHERE ro.is_visible = true AND u.hostel_block = $1 AND u.id != $2 AND u.gender = $3
+           GROUP BY u.id, u.name, d.name, u.stay_type, u.hostel_block
+           ORDER BY u.name ASC`,
+          [userBlock, userId, userGender]
         );
 
         const candidates = candidatesRes.rows;
@@ -1211,7 +1875,7 @@ router.get('/roommate/matches/:userId', async (req, res) => {
             id: cand.id,
             name: cand.name,
             branch: cand.branch || 'Engineering',
-            origin: 'Trichy Region', // mock origin since not explicitly stored in standard schema
+            origin: 'Trichy Region',
             sleepHabits: 'Balanced Schedule',
             interests: cand.interests ? cand.interests.split(', ') : [],
             hostelBlock: cand.hostel_block,
@@ -1232,8 +1896,9 @@ router.get('/roommate/matches/:userId', async (req, res) => {
           .filter(id => MOCK_STORE.roommateOptIn[id] === true)
           .map(Number);
 
+        const userGender = user.gender || 'Male';
         const candidates = MOCK_STORE.users.filter(
-          u => optInIds.includes(u.id) && u.id !== userId && u.hostel_block === user.hostel_block
+          u => optInIds.includes(u.id) && u.id !== userId && u.hostel_block === user.hostel_block && u.gender === userGender
         );
 
         return candidates.map(cand => {
@@ -1257,7 +1922,7 @@ router.get('/roommate/matches/:userId', async (req, res) => {
             requestId: req ? req.id : null,
             contactEmail: req && req.status === 'accepted' ? `student.${cand.id}@saranathan.ac.in` : '[LOCKED]'
           };
-        });
+        }).sort((a, b) => a.name.localeCompare(b.name));
       }
     );
 
@@ -1501,7 +2166,7 @@ router.get('/faculty/:departmentId', async (req, res) => {
       async () => {
         return getCachedData(cacheKey, 15, async () => {
           const r = await db.query(
-            `SELECT f.id, f.name, f.designation, f.contact_email, d.name as department_name, f.photo_url, f.qualification
+            `SELECT f.id, f.name, f.designation, f.contact_email, d.name as department_name, f.photo_url, f.qualification, f.cabin, f.hod_status, f.principal_status, f.office_hours
              FROM faculty f
              JOIN departments d ON f.department_id = d.id
              WHERE f.department_id = $1
@@ -1700,7 +2365,7 @@ router.get('/roommates', async (req, res) => {
       paramIdx++;
     }
 
-    sql += ` ORDER BY id DESC`;
+    sql += ` ORDER BY name ASC`;
     const result = await db.query(sql, params);
     res.json(result.rows);
   } catch (error) {
@@ -1852,7 +2517,7 @@ router.get('/seniors', async (req, res) => {
       idx++;
     }
 
-    sql += ` ORDER BY s.id DESC`;
+    sql += ` ORDER BY s.name ASC`;
     const result = await db.query(sql, params);
     res.json(result.rows);
   } catch (error) {
@@ -2125,6 +2790,80 @@ router.get('/bus-routes/archive', async (req, res) => {
   } catch (error) {
     console.error("GET /api/bus-routes/archive error:", error.message);
     res.status(500).json({ error: error.message });
+  }
+});
+
+// ── STUDENT READ-ONLY CONTROL CENTER ENDPOINTS ──
+router.get('/study-materials', async (req, res) => {
+  try {
+    const { departmentId, semester } = req.query;
+    let queryStr = 'SELECT s.*, d.name as department_name FROM study_materials s LEFT JOIN departments d ON s.department_id = d.id WHERE 1=1';
+    const params = [];
+    let idx = 1;
+    if (departmentId && departmentId !== 'all') {
+      queryStr += ` AND s.department_id = $${idx}`;
+      params.push(departmentId);
+      idx++;
+    }
+    if (semester && semester !== 'all') {
+      queryStr += ` AND s.semester = $${idx}`;
+      params.push(semester);
+      idx++;
+    }
+    queryStr += ' ORDER BY s.semester ASC, s.title ASC';
+    const result = await db.query(queryStr, params);
+    res.json(result.rows);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.get('/placements', async (req, res) => {
+  try {
+    const result = await db.query('SELECT * FROM placements WHERE is_active = true ORDER BY drive_date ASC');
+    res.json(result.rows);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.get('/academic-calendar', async (req, res) => {
+  try {
+    const result = await db.query('SELECT * FROM academic_calendar ORDER BY start_date ASC');
+    res.json(result.rows);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.get('/hostel-info', async (req, res) => {
+  try {
+    const result = await db.query('SELECT * FROM hostel_info ORDER BY info_type ASC, id DESC');
+    res.json(result.rows);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.get('/anna-university', async (req, res) => {
+  try {
+    const result = await db.query('SELECT * FROM anna_university_rules ORDER BY regulation_year DESC');
+    res.json(result.rows);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.get('/settings', async (req, res) => {
+  try {
+    const result = await db.query('SELECT * FROM system_settings');
+    const settings = {};
+    result.rows.forEach(row => {
+      settings[row.key] = row.value;
+    });
+    res.json(settings);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
 });
 

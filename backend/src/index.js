@@ -7,6 +7,8 @@ import apiRouter from './routes/api.js';
 import authRouter from './routes/auth.js';
 import adminRouter from './routes/admin.js';
 import tasksRouter from './routes/tasks.js';
+import userDbStateRouter from './routes/userDbState.js';
+import reviewsRouter from './routes/reviews.js';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -68,6 +70,8 @@ try {
 app.use('/auth', authRouter);
 app.use('/api/admin', adminRouter);
 app.use('/api/tasks', tasksRouter);
+app.use('/api/state', userDbStateRouter);
+app.use('/api/reviews', reviewsRouter);
 app.use('/api', apiRouter);
 
 // Global Error Handler
@@ -93,7 +97,14 @@ const runMigrationsSafely = async () => {
       '19_bus_routes.sql',
       '20_add_gender_column.sql',
       '21_add_travel_mode.sql',
-      '22_custom_stats.sql'
+      '22_custom_stats.sql',
+      '23_faq_timestamps.sql',
+      '24_suggested_faqs.sql',
+      '25_academic_calendar_seed.sql',
+      '26_ai_reports.sql',
+      '27_campus_management_upgrades.sql',
+      '28_production_ready_upgrades.sql',
+      '29_reviews_system.sql'
     ];
 
     for (const file of migrationFiles) {

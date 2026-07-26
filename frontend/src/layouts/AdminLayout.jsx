@@ -1,13 +1,30 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Outlet, NavLink, useNavigate, useLocation } from 'react-router-dom';
-import { LayoutDashboard, Users, BookOpen, Calendar, Settings, LogOut, Menu, X, Bell, Search, Layers, Home, Bus } from 'lucide-react';
+import { LayoutDashboard, Users, BookOpen, Calendar, Settings, LogOut, Menu, X, Bell, Search, Layers, Home, Bus, ShieldAlert, Building, MapPin, ShieldCheck, Briefcase, Brain, RefreshCw, FolderOpen, UserCheck, MessageSquare } from 'lucide-react';
 
 const AdminLayout = () => {
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  // Default: open on desktop (md+), closed on mobile
+  const [sidebarOpen, setSidebarOpen] = useState(() => window.innerWidth >= 768);
   const [showNotifications, setShowNotifications] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
   const user = JSON.parse(localStorage.getItem('pm_admin_user') || '{}');
+
+  const [notifications, setNotifications] = useState([
+    { id: 1, title: 'AI Assistant Model Updated', desc: 'System automatically switched to gemini-2.5-flash.', time: 'Just now', read: false },
+    { id: 2, title: 'New Student Registration', desc: '12 new students enrolled in CSE.', time: '2 hours ago', read: false },
+    { id: 3, title: 'Document Re-indexed', desc: 'UG Regulations 2024 has finished processing.', time: 'Yesterday', read: false }
+  ]);
+
+  const hasUnread = notifications.some(n => !n.read);
+
+  const markAllRead = () => {
+    setNotifications(prev => prev.map(n => ({ ...n, read: true })));
+  };
+
+  const toggleRead = (id) => {
+    setNotifications(prev => prev.map(n => n.id === id ? { ...n, read: !n.read } : n));
+  };
 
   const handleLogout = () => {
     localStorage.removeItem('pm_admin_token');
@@ -15,22 +32,47 @@ const AdminLayout = () => {
     navigate('/admin/login');
   };
 
+  // Auto-close sidebar on mobile when route changes
+  useEffect(() => {
+    if (window.innerWidth < 768) {
+      setSidebarOpen(false);
+    }
+  }, [location.pathname]);
+
   const navItems = [
     { name: 'Dashboard', path: '/admin/dashboard', icon: LayoutDashboard },
     { name: 'Students', path: '/admin/students', icon: Users },
-    { name: 'AI Knowledge', path: '/admin/knowledge', icon: BookOpen },
+    { name: 'Student Reviews', path: '/admin/reviews', icon: MessageSquare },
+    { name: 'Faculty', path: '/admin/faculty', icon: Users },
+    { name: 'Departments', path: '/admin/departments', icon: Building },
     { name: 'Notice Board', path: '/admin/notices', icon: Layers },
-    { name: 'Bus Routes', path: '/admin/bus-routes', icon: Bus },
     { name: 'Events & Clubs', path: '/admin/events', icon: Calendar },
-    { name: 'Committees', path: '/admin/committees', icon: Users },
-    { name: 'Roommates', path: '/admin/roommates', icon: Home },
-    { name: 'Seniors', path: '/admin/seniors', icon: Users },
-    { name: 'Settings', path: '/admin/settings', icon: Settings },
+    { name: 'Study Hub', path: '/admin/study-hub', icon: BookOpen },
+    { name: 'Hostel', path: '/admin/hostel', icon: Home },
+    { name: 'Bus Routes', path: '/admin/bus-routes', icon: Bus },
+    { name: 'Campus Maps', path: '/admin/navigation', icon: MapPin },
+    { name: 'Anna University', path: '/admin/anna-university', icon: ShieldCheck },
+    { name: 'Placements', path: '/admin/placements', icon: Briefcase },
+    { name: 'Academic Calendar', path: '/admin/calendar', icon: Calendar },
+    { name: 'AI Knowledge', path: '/admin/knowledge', icon: Brain },
+    { name: 'AI Reports', path: '/admin/ai-reports', icon: ShieldAlert },
+    { name: 'Website Sync', path: '/admin/web-sync', icon: RefreshCw },
+    { name: 'Media Library', path: '/admin/media', icon: FolderOpen },
+    { name: 'Admin Roles', path: '/admin/roles', icon: UserCheck },
+    { name: 'System Settings', path: '/admin/settings', icon: Settings }
   ];
 
   return (
     <div className="flex h-screen bg-surface overflow-hidden font-sans">
       
+      {/* Mobile Sidebar Backdrop Overlay */}
+      {sidebarOpen && (
+        <div 
+          className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs z-10 md:hidden transition-opacity duration-300"
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
+
       {/* Sidebar */}
       <aside className={`
         ${sidebarOpen ? 'w-64 translate-x-0' : 'w-20 -translate-x-full md:translate-x-0'}
@@ -127,7 +169,9 @@ const AdminLayout = () => {
               className="relative p-2 text-onSurfaceVariant hover:bg-surfaceVariant rounded-xl transition-colors"
             >
               <Bell size={20} />
-              <span className="absolute top-1.5 right-1.5 w-2.5 h-2.5 bg-error rounded-full border-2 border-surface"></span>
+              {hasUnread && (
+                <span className="absolute top-1.5 right-1.5 w-2.5 h-2.5 bg-error rounded-full border-2 border-surface"></span>
+              )}
             </button>
             
             {/* Notifications Dropdown */}
@@ -135,24 +179,30 @@ const AdminLayout = () => {
               <div className="absolute top-full mt-2 right-0 w-80 bg-surfaceVariant/90 backdrop-blur-xl border border-surfaceVariant/50 rounded-2xl shadow-elevation3 overflow-hidden z-50">
                 <div className="p-4 border-b border-surfaceVariant/50 flex justify-between items-center bg-surface">
                   <h3 className="font-bold text-onSurface">Notifications</h3>
-                  <button className="text-primary text-xs font-semibold hover:underline">Mark all read</button>
+                  {hasUnread && (
+                    <button 
+                      onClick={markAllRead} 
+                      className="text-primary text-xs font-semibold hover:underline cursor-pointer"
+                    >
+                      Mark all read
+                    </button>
+                  )}
                 </div>
                 <div className="max-h-80 overflow-y-auto">
-                  <div className="p-4 border-b border-surfaceVariant/50 hover:bg-surfaceVariant/50 transition-colors cursor-pointer">
-                    <p className="text-sm font-semibold text-onSurface">AI Assistant Model Updated</p>
-                    <p className="text-xs text-onSurfaceVariant mt-1">System automatically switched to gemini-2.5-flash.</p>
-                    <p className="text-[10px] text-onSurfaceVariant mt-2">Just now</p>
-                  </div>
-                  <div className="p-4 border-b border-surfaceVariant/50 hover:bg-surfaceVariant/50 transition-colors cursor-pointer">
-                    <p className="text-sm font-semibold text-onSurface">New Student Registration</p>
-                    <p className="text-xs text-onSurfaceVariant mt-1">12 new students enrolled in CSE.</p>
-                    <p className="text-[10px] text-onSurfaceVariant mt-2">2 hours ago</p>
-                  </div>
-                  <div className="p-4 hover:bg-surfaceVariant/50 transition-colors cursor-pointer">
-                    <p className="text-sm font-semibold text-onSurface">Document Re-indexed</p>
-                    <p className="text-xs text-onSurfaceVariant mt-1">UG Regulations 2024 has finished processing.</p>
-                    <p className="text-[10px] text-onSurfaceVariant mt-2">Yesterday</p>
-                  </div>
+                  {notifications.map(n => (
+                    <div 
+                      key={n.id}
+                      onClick={() => toggleRead(n.id)}
+                      className={`p-4 border-b last:border-0 border-surfaceVariant/50 hover:bg-surfaceVariant/50 transition-colors cursor-pointer flex flex-col gap-0.5 ${n.read ? 'opacity-65' : 'bg-primary/5'}`}
+                    >
+                      <div className="flex items-center justify-between gap-2">
+                        <p className={`text-sm text-onSurface ${n.read ? 'font-medium' : 'font-extrabold'}`}>{n.title}</p>
+                        {!n.read && <div className="w-1.5 h-1.5 rounded-full bg-primary flex-shrink-0" />}
+                      </div>
+                      <p className="text-xs text-onSurfaceVariant">{n.desc}</p>
+                      <p className="text-[10px] text-onSurfaceVariant mt-1">{n.time}</p>
+                    </div>
+                  ))}
                 </div>
               </div>
             )}

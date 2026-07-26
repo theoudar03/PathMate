@@ -6,7 +6,7 @@ export const CAMPUS_MAP_DATA = [
     category: "Academic",
     shape: "rect",
     coords: { x: 500, y: 535, w: 150, h: 70 },
-    gps: { lat: 10.7558, lng: 78.6512 },
+    gps: { lat: 10.7564, lng: 78.6512 },
     departments: ["ECE", "EEE", "ICE", "Communication Lab"],
     labs: ["Communication Systems Lab", "VLSI Lab"],
     faculty: ["Dr. M. Santhi (HOD ECE)"],
@@ -18,12 +18,12 @@ export const CAMPUS_MAP_DATA = [
   },
   {
     id: "rv-block",
-    svg_id: "rv-block",
+    svg_id: "rv-block", 
     name: "RV Block",
     category: "Academic",
     shape: "rect",
     coords: { x: 675, y: 475, w: 185, h: 55 },
-    gps: { lat: 10.7560, lng: 78.6516 },
+    gps: { lat: 10.7564, lng: 78.6516 },
     departments: ["CSE", "IT", "Mathematics", "Principal Office", "COE"],
     labs: ["Main Computing Center"],
     faculty: ["Dr. D. Valavan (Principal)"],
@@ -40,7 +40,7 @@ export const CAMPUS_MAP_DATA = [
     category: "Academic",
     shape: "rect",
     coords: { x: 675, y: 355, w: 185, h: 50 },
-    gps: { lat: 10.7568, lng: 78.6516 },
+    gps: { lat: 10.7576, lng: 78.6516 },
     departments: ["AI&DS", "AI&ML", "CSBS", "Main Library"],
     labs: ["AI Deep Learning Lab", "Central Digital Library"],
     faculty: ["Dr. R. Sumathi (HOD AI&DS)"],
@@ -57,7 +57,7 @@ export const CAMPUS_MAP_DATA = [
     category: "Academic",
     shape: "rect",
     coords: { x: 675, y: 415, w: 185, h: 50 },
-    gps: { lat: 10.7564, lng: 78.6516 },
+    gps: { lat: 10.7572, lng: 78.6516 },
     departments: ["Civil Engineering", "Santhanam Auditorium"],
     labs: ["Structural Testing Lab"],
     faculty: ["Dr. G. Vimalan (HOD Civil)"],
@@ -74,7 +74,7 @@ export const CAMPUS_MAP_DATA = [
     category: "Religious",
     shape: "rect",
     coords: { x: 675, y: 540, w: 40, h: 60 },
-    gps: { lat: 10.7556, lng: 78.6516 },
+    gps: { lat: 10.7560, lng: 78.6516 },
     departments: ["Shrine"],
     labs: ["Temple Courtyard"],
     faculty: ["Campus Priest"],
@@ -91,7 +91,7 @@ export const CAMPUS_MAP_DATA = [
     category: "Services",
     shape: "rect",
     coords: { x: 595, y: 615, w: 55, h: 30 },
-    gps: { lat: 10.7556, lng: 78.6514 },
+    gps: { lat: 10.7558, lng: 78.6513 },
     departments: ["Banking"],
     labs: ["ATM Kiosk"],
     faculty: ["CUB Branch Manager"],
@@ -108,7 +108,7 @@ export const CAMPUS_MAP_DATA = [
     category: "Academic",
     shape: "rect",
     coords: { x: 500, y: 275, w: 150, h: 45 },
-    gps: { lat: 10.7572, lng: 78.6512 },
+    gps: { lat: 10.7576, lng: 78.6512 },
     departments: ["Mechanical Engineering"],
     labs: ["CAD/CAM Lab", "Thermal Lab"],
     faculty: ["HOD Mechanical"],
@@ -125,7 +125,7 @@ export const CAMPUS_MAP_DATA = [
     category: "Academic",
     shape: "rect",
     coords: { x: 500, y: 225, w: 150, h: 40 },
-    gps: { lat: 10.7576, lng: 78.6512 },
+    gps: { lat: 10.7580, lng: 78.6512 },
     departments: ["Mechanical Practice"],
     labs: ["Machine Shop", "Fitting Shop", "Welding Shop"],
     faculty: ["Workshop Superintendent"],
@@ -142,7 +142,7 @@ export const CAMPUS_MAP_DATA = [
     category: "Utilities",
     shape: "rect",
     coords: { x: 500, y: 432, w: 150, h: 38 },
-    gps: { lat: 10.7564, lng: 78.6512 },
+    gps: { lat: 10.7568, lng: 78.6512 },
     departments: ["Power Grid"],
     labs: ["Transformer Station"],
     faculty: ["Campus Engineer"],
@@ -159,7 +159,7 @@ export const CAMPUS_MAP_DATA = [
     category: "Academic",
     shape: "rect",
     coords: { x: 500, y: 480, w: 150, h: 40 },
-    gps: { lat: 10.7560, lng: 78.6512 },
+    gps: { lat: 10.7566, lng: 78.6512 },
     departments: ["Thermal / Fluid dynamics"],
     labs: ["Lathe Machining Lab"],
     faculty: ["Lab Superintendent"],
@@ -176,7 +176,7 @@ export const CAMPUS_MAP_DATA = [
     category: "Services",
     shape: "rect",
     coords: { x: 500, y: 330, w: 150, h: 50 },
-    gps: { lat: 10.7568, lng: 78.6512 },
+    gps: { lat: 10.7572, lng: 78.6512 },
     departments: ["Dining & Refreshments"],
     labs: ["Food Court"],
     faculty: ["Canteen Manager"],
@@ -193,7 +193,7 @@ export const CAMPUS_MAP_DATA = [
     category: "Services",
     shape: "rect",
     coords: { x: 575, y: 390, w: 75, h: 25 },
-    gps: { lat: 10.7566, lng: 78.6514 },
+    gps: { lat: 10.7570, lng: 78.6513 },
     departments: ["Academic Supplies"],
     labs: ["Xerox & Plotter Station"],
     faculty: ["Store Keeper"],
@@ -278,7 +278,7 @@ export const CAMPUS_MAP_DATA = [
     category: "Transport",
     shape: "rect",
     coords: { x: 675, y: 280, w: 185, h: 45 },
-    gps: { lat: 10.7573, lng: 78.6516 },
+    gps: { lat: 10.7580, lng: 78.6516 },
     departments: ["Staff Parking Bay"],
     labs: ["4-Wheeler Parking"],
     faculty: ["Transport Supervisor"],
@@ -295,7 +295,7 @@ export const CAMPUS_MAP_DATA = [
     category: "Transport",
     shape: "rect",
     coords: { x: 675, y: 205, w: 185, h: 50 },
-    gps: { lat: 10.7576, lng: 78.6516 },
+    gps: { lat: 10.7584, lng: 78.6516 },
     departments: ["Transport Bay"],
     labs: ["Depot Bay"],
     faculty: ["Transport Officer"],
@@ -309,6 +309,7 @@ export const CAMPUS_MAP_DATA = [
     id: "security-room",
     svg_id: "security-room",
     name: "Security Room",
+    hideMarker: true,
     category: "Services",
     shape: "rect",
     coords: { x: 500, y: 885, w: 95, h: 35 },
@@ -462,3 +463,69 @@ export const isValidGps = (gps) => {
   const maxLng = 78.6580;
   return (gps.lat >= minLat && gps.lat <= maxLat && gps.lng >= minLng && gps.lng <= maxLng);
 };
+
+// Automatic Coordinates Audit and Validation for Future Development Safety
+export const runCampusCoordinatesAudit = () => {
+  console.log("=== PATHMATE COORDINATES AUDIT START ===");
+  const coordinatesSeen = new Map(); // lat_lng -> [buildingIds]
+  let hasWarnings = false;
+
+  CAMPUS_MAP_DATA.forEach(building => {
+    if (building.hideMarker) return;
+    const { gps, id, name } = building;
+
+    if (!gps) {
+      console.warn(`[GPS Audit] Warning: "${name}" (${id}) has no GPS coordinate defined.`);
+      hasWarnings = true;
+      return;
+    }
+
+    // 1. Check valid lat/lng format
+    if (typeof gps.lat !== 'number' || typeof gps.lng !== 'number' || isNaN(gps.lat) || isNaN(gps.lng)) {
+      console.error(`[GPS Audit] ERROR: "${name}" (${id}) has invalid latitude/longitude data types:`, gps);
+      hasWarnings = true;
+      return;
+    }
+
+    // 2. Check campus boundary
+    if (!isValidGps(gps)) {
+      console.error(`[GPS Audit] ERROR: "${name}" (${id}) coordinate is outside the campus boundaries:`, gps);
+      hasWarnings = true;
+    }
+
+    // 3. Check exact duplicates
+    const coordKey = `${gps.lat.toFixed(6)}_${gps.lng.toFixed(6)}`;
+    if (coordinatesSeen.has(coordKey)) {
+      const matchIds = coordinatesSeen.get(coordKey);
+      console.error(`[GPS Audit] ERROR: Duplicate coordinates detected! "${name}" (${id}) shares coordinates with: ${matchIds.join(', ')} (${gps.lat}, ${gps.lng})`);
+      matchIds.push(id);
+      hasWarnings = true;
+    } else {
+      coordinatesSeen.set(coordKey, [id]);
+    }
+
+    // 4. Check proximity overlaps (within ~2 meters / 0.00002 degrees threshold)
+    CAMPUS_MAP_DATA.forEach(other => {
+      if (other.id === id || other.hideMarker || !other.gps) return;
+      const latDiff = Math.abs(gps.lat - other.gps.lat);
+      const lngDiff = Math.abs(gps.lng - other.gps.lng);
+      if (latDiff < 0.00002 && lngDiff < 0.00002) {
+        console.warn(`[GPS Audit] Warning: High proximity overlap! "${name}" (${id}) is within 2 meters of "${other.name}" (${other.id})`);
+        hasWarnings = true;
+      }
+    });
+  });
+
+  if (!hasWarnings) {
+    console.log("=== PATHMATE COORDINATES AUDIT SUCCESS: All GPS markers are valid, distinct, and within campus boundaries. ===");
+  } else {
+    console.warn("=== PATHMATE COORDINATES AUDIT COMPLETED WITH WARNINGS/ERRORS ===");
+  }
+};
+
+// Execute audit instantly during development on import
+try {
+  runCampusCoordinatesAudit();
+} catch (e) {
+  console.error("Failed to run coordinates audit:", e);
+}

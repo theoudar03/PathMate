@@ -136,86 +136,141 @@ const AdminVolunteers = () => {
         </button>
       </div>
 
-      {/* Roster Table */}
-      <div className="bg-surface border border-surfaceVariant/60 rounded-3xl overflow-hidden shadow-sm">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs">
-            <thead className="bg-surfaceContainerHigh text-onSurfaceVariant font-extrabold uppercase tracking-wider border-b border-outline/20">
-              <tr>
-                <th className="px-5 py-3.5">Volunteer Student</th>
-                <th className="px-5 py-3.5">Assigned Event</th>
-                <th className="px-5 py-3.5">Assigned Role</th>
-                <th className="px-5 py-3.5">Status</th>
-                <th className="px-5 py-3.5 text-right">Approval Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-outline/15 font-medium">
-              {loading ? (
-                <tr>
-                  <td colSpan="5" className="px-6 py-12 text-center text-onSurfaceVariant font-semibold">Loading Volunteers from PostgreSQL...</td>
-                </tr>
-              ) : volunteers.length === 0 ? (
-                <tr>
-                  <td colSpan="5" className="px-6 py-12 text-center text-onSurfaceVariant italic">No volunteer assignments recorded yet.</td>
-                </tr>
-              ) : (
-                volunteers.map((v) => {
-                  let statusBadge = "bg-amber-100 text-amber-800 border-amber-300";
-                  if (v.status === 'approved') statusBadge = "bg-emerald-100 text-emerald-800 border-emerald-300";
-                  else if (v.status === 'rejected') statusBadge = "bg-rose-100 text-rose-800 border-rose-300";
-
-                  return (
-                    <tr key={v.id} className="hover:bg-surfaceContainerLow/60 transition-colors">
-                      <td className="px-5 py-3.5 font-bold text-onSurface">
-                        {v.volunteer_name || v.student_full_name || `Student ID ${v.user_id}`}
-                      </td>
-                      <td className="px-5 py-3.5 font-semibold text-primary">
-                        {v.event_name || `Event ID ${v.event_id || 'General'}`}
-                      </td>
-                      <td className="px-5 py-3.5 font-bold text-onSurfaceVariant">
-                        {v.role}
-                      </td>
-                      <td className="px-5 py-3.5">
-                        <span className={`px-2.5 py-1 rounded-full text-[10px] font-black uppercase border tracking-wider ${statusBadge}`}>
-                          {v.status || 'pending'}
-                        </span>
-                      </td>
-                      <td className="px-5 py-3.5 text-right">
-                        <div className="flex items-center justify-end gap-1.5">
-                          {v.status !== 'approved' && (
-                            <button
-                              onClick={() => handleStatusUpdate(v, 'approved')}
-                              className="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-bold text-[10px] flex items-center gap-1 shadow-2xs"
-                              title="Approve Volunteer"
-                            >
-                              <CheckCircle size={12} /> Approve
-                            </button>
-                          )}
-                          {v.status !== 'rejected' && (
-                            <button
-                              onClick={() => handleStatusUpdate(v, 'rejected')}
-                              className="px-2.5 py-1 bg-rose-600 hover:bg-rose-700 text-white rounded-lg font-bold text-[10px] flex items-center gap-1 shadow-2xs"
-                              title="Reject Volunteer"
-                            >
-                              <XCircle size={12} /> Reject
-                            </button>
-                          )}
-                          <button
-                            onClick={() => { setSelectedItem(v); setShowDeleteModal(true); }}
-                            className="p-1 text-onSurfaceVariant hover:text-rose-600 rounded-lg hover:bg-rose-50"
-                          >
-                            <Trash2 size={16} />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })
-              )}
-            </tbody>
-          </table>
+      {/* Roster Container */}
+      {loading ? (
+        <div className="bg-surface border border-surfaceVariant/60 rounded-3xl p-12 text-center text-xs text-onSurfaceVariant font-semibold shadow-sm">
+          Loading Volunteers from PostgreSQL...
         </div>
-      </div>
+      ) : volunteers.length === 0 ? (
+        <div className="bg-surface border border-surfaceVariant/60 rounded-3xl p-12 text-center text-xs text-onSurfaceVariant italic shadow-sm">
+          No volunteer assignments recorded yet.
+        </div>
+      ) : (
+        <>
+          {/* Mobile Card Grid (< 640px) */}
+          <div className="grid grid-cols-1 gap-4 sm:hidden">
+            {volunteers.map((v) => {
+              let statusBadge = "bg-amber-100 text-amber-800 border-amber-300";
+              if (v.status === 'approved') statusBadge = "bg-emerald-100 text-emerald-800 border-emerald-300";
+              else if (v.status === 'rejected') statusBadge = "bg-rose-100 text-rose-800 border-rose-300";
+              return (
+                <div key={v.id} className="bg-surface border border-surfaceVariant/60 rounded-2xl p-4 space-y-3 shadow-sm text-left">
+                  <div className="flex items-start justify-between gap-2">
+                    <div>
+                      <p className="text-sm font-bold text-onSurface leading-snug">
+                        {v.volunteer_name || v.student_full_name || `Student ID ${v.user_id}`}
+                      </p>
+                      <p className="text-[11px] text-primary font-semibold mt-0.5">
+                        {v.event_name || `Event ID ${v.event_id || 'General'}`}
+                      </p>
+                    </div>
+                    <span className={`px-2.5 py-1 rounded-full text-[9px] font-black uppercase border tracking-wider flex-shrink-0 ${statusBadge}`}>
+                      {v.status || 'pending'}
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-onSurfaceVariant bg-surfaceContainerLow/50 px-3 py-1.5 rounded-lg border border-outline/10 font-semibold">
+                    Role: {v.role}
+                  </p>
+                  <div className="pt-2 border-t border-outline/10 flex items-center justify-end gap-1.5">
+                    {v.status !== 'approved' && (
+                      <button
+                        onClick={() => handleStatusUpdate(v, 'approved')}
+                        className="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-bold text-[10px] flex items-center gap-1"
+                      >
+                        <CheckCircle size={12} /> Approve
+                      </button>
+                    )}
+                    {v.status !== 'rejected' && (
+                      <button
+                        onClick={() => handleStatusUpdate(v, 'rejected')}
+                        className="px-2.5 py-1 bg-rose-600 hover:bg-rose-700 text-white rounded-lg font-bold text-[10px] flex items-center gap-1"
+                      >
+                        <XCircle size={12} /> Reject
+                      </button>
+                    )}
+                    <button
+                      onClick={() => { setSelectedItem(v); setShowDeleteModal(true); }}
+                      className="p-1 text-onSurfaceVariant hover:text-rose-600 rounded-lg hover:bg-rose-50"
+                    >
+                      <Trash2 size={15} />
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Desktop Table View (>= 640px) */}
+          <div className="hidden sm:block bg-surface border border-surfaceVariant/60 rounded-3xl overflow-hidden shadow-sm">
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs">
+                <thead className="bg-surfaceContainerHigh text-onSurfaceVariant font-extrabold uppercase tracking-wider border-b border-outline/20">
+                  <tr>
+                    <th className="px-5 py-3.5">Volunteer Student</th>
+                    <th className="px-5 py-3.5">Assigned Event</th>
+                    <th className="px-5 py-3.5">Assigned Role</th>
+                    <th className="px-5 py-3.5">Status</th>
+                    <th className="px-5 py-3.5 text-right">Approval Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-outline/15 font-medium">
+                  {volunteers.map((v) => {
+                    let statusBadge = "bg-amber-100 text-amber-800 border-amber-300";
+                    if (v.status === 'approved') statusBadge = "bg-emerald-100 text-emerald-800 border-emerald-300";
+                    else if (v.status === 'rejected') statusBadge = "bg-rose-100 text-rose-800 border-rose-300";
+                    return (
+                      <tr key={v.id} className="hover:bg-surfaceContainerLow/60 transition-colors">
+                        <td className="px-5 py-3.5 font-bold text-onSurface">
+                          {v.volunteer_name || v.student_full_name || `Student ID ${v.user_id}`}
+                        </td>
+                        <td className="px-5 py-3.5 font-semibold text-primary">
+                          {v.event_name || `Event ID ${v.event_id || 'General'}`}
+                        </td>
+                        <td className="px-5 py-3.5 font-bold text-onSurfaceVariant">
+                          {v.role}
+                        </td>
+                        <td className="px-5 py-3.5">
+                          <span className={`px-2.5 py-1 rounded-full text-[10px] font-black uppercase border tracking-wider ${statusBadge}`}>
+                            {v.status || 'pending'}
+                          </span>
+                        </td>
+                        <td className="px-5 py-3.5 text-right">
+                          <div className="flex items-center justify-end gap-1.5">
+                            {v.status !== 'approved' && (
+                              <button
+                                onClick={() => handleStatusUpdate(v, 'approved')}
+                                className="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-bold text-[10px] flex items-center gap-1 shadow-2xs"
+                                title="Approve Volunteer"
+                              >
+                                <CheckCircle size={12} /> Approve
+                              </button>
+                            )}
+                            {v.status !== 'rejected' && (
+                              <button
+                                onClick={() => handleStatusUpdate(v, 'rejected')}
+                                className="px-2.5 py-1 bg-rose-600 hover:bg-rose-700 text-white rounded-lg font-bold text-[10px] flex items-center gap-1 shadow-2xs"
+                                title="Reject Volunteer"
+                              >
+                                <XCircle size={12} /> Reject
+                              </button>
+                            )}
+                            <button
+                              onClick={() => { setSelectedItem(v); setShowDeleteModal(true); }}
+                              className="p-1 text-onSurfaceVariant hover:text-rose-600 rounded-lg hover:bg-rose-50"
+                            >
+                              <Trash2 size={16} />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </>
+      )}
 
       {/* CREATE / EDIT MODAL */}
       {showModal && (

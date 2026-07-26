@@ -178,86 +178,150 @@ const AdminRoommates = () => {
         </button>
       </div>
 
-      {/* Roommates Table */}
-      <div className="bg-white border border-surfaceVariant rounded-2xl overflow-hidden shadow-xs">
-        {loading ? (
-          <div className="p-12 text-center text-xs text-onSurfaceVariant font-semibold">Loading roommate profiles from PostgreSQL...</div>
-        ) : roommates.length > 0 ? (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse text-xs">
-              <thead>
-                <tr className="bg-surfaceContainerLow border-b border-surfaceVariant text-onSurfaceVariant font-bold uppercase tracking-wider">
-                  <th className="p-4">Student</th>
-                  <th className="p-4">Department & Year</th>
-                  <th className="p-4">Hostel Block</th>
-                  <th className="p-4">Habits & Food</th>
-                  <th className="p-4">Contact</th>
-                  <th className="p-4 text-right">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-surfaceVariant/60">
-                {roommates.map((rm) => (
-                  <tr key={rm.id} className="hover:bg-surfaceContainer/40 transition-colors">
-                    <td className="p-4 font-bold text-onSurface">
-                      <div className="flex items-center gap-2">
-                        <div className="w-8 h-8 rounded-full bg-primary/10 text-primary font-bold flex items-center justify-center text-xs flex-shrink-0">
-                          {rm.name ? rm.name.charAt(0) : 'R'}
-                        </div>
-                        <div>
-                          <p className="text-sm font-bold text-onSurface">{rm.name}</p>
-                          <span className="text-[10px] text-onSurfaceVariant font-mono">{rm.student_id || 'SCE-RMM'}</span>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="p-4">
-                      <p className="font-semibold text-onSurface">{rm.department}</p>
-                      <p className="text-[10px] text-onSurfaceVariant">{rm.year || '1st Year'}</p>
-                    </td>
-                    <td className="p-4">
-                      <span className="bg-purple-50 text-purple-700 font-bold px-2.5 py-1 rounded-full text-[10px] inline-block">
-                        {rm.hostel_block}
-                      </span>
-                    </td>
-                    <td className="p-4 space-y-0.5">
-                      <p className="text-onSurface font-medium">💤 {rm.sleep_schedule || '10 PM - 6 AM'}</p>
-                      <p className="text-onSurfaceVariant">🥗 {rm.food_preference || 'Vegetarian'}</p>
-                    </td>
-                    <td className="p-4 text-onSurfaceVariant">
-                      {rm.contact_email ? (
-                        <span className="flex items-center gap-1"><Mail size={12} /> {rm.contact_email}</span>
-                      ) : (
-                        <span className="italic text-[10px]">No email</span>
-                      )}
-                    </td>
-                    <td className="p-4 text-right">
-                      <div className="flex items-center justify-end gap-2">
-                        <button
-                          onClick={() => openEditModal(rm)}
-                          className="p-1.5 rounded-lg text-primary hover:bg-primaryContainer/50 transition-colors cursor-pointer"
-                          title="Edit Profile"
-                        >
-                          <Edit size={16} />
-                        </button>
-                        <button
-                          onClick={() => { setSelectedItem(rm); setShowDeleteModal(true); }}
-                          className="p-1.5 rounded-lg text-error hover:bg-errorContainer/50 transition-colors cursor-pointer"
-                          title="Delete Profile"
-                        >
-                          <Trash2 size={16} />
-                        </button>
-                      </div>
-                    </td>
+      {/* Roommates Container */}
+      {loading ? (
+        <div className="bg-white border border-surfaceVariant rounded-2xl p-12 text-center text-xs text-onSurfaceVariant font-semibold">
+          Loading roommate profiles from PostgreSQL...
+        </div>
+      ) : roommates.length > 0 ? (
+        <>
+          {/* Mobile Card Grid (< 640px) */}
+          <div className="grid grid-cols-1 gap-4 sm:hidden">
+            {roommates.map((rm) => (
+              <div key={rm.id} className="bg-white border border-surfaceVariant rounded-2xl p-4 space-y-3 shadow-sm text-left">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full bg-primary/10 text-primary font-bold flex items-center justify-center text-sm flex-shrink-0">
+                    {rm.name ? rm.name.charAt(0) : 'R'}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-bold text-onSurface truncate">{rm.name}</p>
+                    <span className="text-[10px] text-onSurfaceVariant font-mono">{rm.student_id || 'SCE-RMM'}</span>
+                  </div>
+                  <span className="bg-purple-50 text-purple-700 font-bold px-2.5 py-1 rounded-full text-[10px] flex-shrink-0">
+                    {rm.hostel_block}
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2 text-[11px] bg-slate-50 p-2.5 rounded-xl border border-outline/5">
+                  <div>
+                    <span className="block text-[9px] uppercase font-bold text-onSurfaceVariant/60">Department</span>
+                    <span className="font-semibold text-onSurface">{rm.department}</span>
+                    <span className="block text-onSurfaceVariant">{rm.year || '1st Year'}</span>
+                  </div>
+                  <div>
+                    <span className="block text-[9px] uppercase font-bold text-onSurfaceVariant/60">Habits</span>
+                    <span className="block text-onSurface font-medium">💤 {rm.sleep_schedule || '10 PM - 6 AM'}</span>
+                    <span className="block text-onSurfaceVariant">🥗 {rm.food_preference || 'Vegetarian'}</span>
+                  </div>
+                </div>
+
+                <div className="pt-2 border-t border-outline/5 flex items-center justify-between">
+                  <span className="text-[11px] text-onSurfaceVariant flex items-center gap-1 truncate">
+                    {rm.contact_email ? (
+                      <><Mail size={12} className="flex-shrink-0" /> <span className="truncate">{rm.contact_email}</span></>
+                    ) : (
+                      <span className="italic">No email</span>
+                    )}
+                  </span>
+                  <div className="flex items-center gap-1 flex-shrink-0">
+                    <button
+                      onClick={() => openEditModal(rm)}
+                      className="p-1.5 rounded-lg text-primary hover:bg-slate-100 transition-colors"
+                      title="Edit Profile"
+                    >
+                      <Edit size={15} />
+                    </button>
+                    <button
+                      onClick={() => { setSelectedItem(rm); setShowDeleteModal(true); }}
+                      className="p-1.5 rounded-lg text-error hover:bg-rose-50 transition-colors"
+                      title="Delete Profile"
+                    >
+                      <Trash2 size={15} />
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Desktop Table View (>= 640px) */}
+          <div className="hidden sm:block bg-white border border-surfaceVariant rounded-2xl overflow-hidden shadow-xs">
+            <div className="overflow-x-auto">
+              <table className="w-full text-left border-collapse text-xs">
+                <thead>
+                  <tr className="bg-surfaceContainerLow border-b border-surfaceVariant text-onSurfaceVariant font-bold uppercase tracking-wider">
+                    <th className="p-4">Student</th>
+                    <th className="p-4">Department & Year</th>
+                    <th className="p-4">Hostel Block</th>
+                    <th className="p-4">Habits & Food</th>
+                    <th className="p-4">Contact</th>
+                    <th className="p-4 text-right">Actions</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody className="divide-y divide-surfaceVariant/60">
+                  {roommates.map((rm) => (
+                    <tr key={rm.id} className="hover:bg-surfaceContainer/40 transition-colors">
+                      <td className="p-4 font-bold text-onSurface">
+                        <div className="flex items-center gap-2">
+                          <div className="w-8 h-8 rounded-full bg-primary/10 text-primary font-bold flex items-center justify-center text-xs flex-shrink-0">
+                            {rm.name ? rm.name.charAt(0) : 'R'}
+                          </div>
+                          <div>
+                            <p className="text-sm font-bold text-onSurface">{rm.name}</p>
+                            <span className="text-[10px] text-onSurfaceVariant font-mono">{rm.student_id || 'SCE-RMM'}</span>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="p-4">
+                        <p className="font-semibold text-onSurface">{rm.department}</p>
+                        <p className="text-[10px] text-onSurfaceVariant">{rm.year || '1st Year'}</p>
+                      </td>
+                      <td className="p-4">
+                        <span className="bg-purple-50 text-purple-700 font-bold px-2.5 py-1 rounded-full text-[10px] inline-block">
+                          {rm.hostel_block}
+                        </span>
+                      </td>
+                      <td className="p-4 space-y-0.5">
+                        <p className="text-onSurface font-medium">💤 {rm.sleep_schedule || '10 PM - 6 AM'}</p>
+                        <p className="text-onSurfaceVariant">🥗 {rm.food_preference || 'Vegetarian'}</p>
+                      </td>
+                      <td className="p-4 text-onSurfaceVariant">
+                        {rm.contact_email ? (
+                          <span className="flex items-center gap-1"><Mail size={12} /> {rm.contact_email}</span>
+                        ) : (
+                          <span className="italic text-[10px]">No email</span>
+                        )}
+                      </td>
+                      <td className="p-4 text-right">
+                        <div className="flex items-center justify-end gap-2">
+                          <button
+                            onClick={() => openEditModal(rm)}
+                            className="p-1.5 rounded-lg text-primary hover:bg-primaryContainer/50 transition-colors cursor-pointer"
+                            title="Edit Profile"
+                          >
+                            <Edit size={16} />
+                          </button>
+                          <button
+                            onClick={() => { setSelectedItem(rm); setShowDeleteModal(true); }}
+                            className="p-1.5 rounded-lg text-error hover:bg-errorContainer/50 transition-colors cursor-pointer"
+                            title="Delete Profile"
+                          >
+                            <Trash2 size={16} />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
-        ) : (
-          <div className="p-12 text-center text-xs text-onSurfaceVariant">
-            No roommate profiles found in database. Click "Add Roommate Profile" to register students.
-          </div>
-        )}
-      </div>
+        </>
+      ) : (
+        <div className="bg-white border border-surfaceVariant rounded-2xl p-12 text-center text-xs text-onSurfaceVariant">
+          No roommate profiles found in database. Click "Add Roommate Profile" to register students.
+        </div>
+      )}
 
       {/* Add / Edit Modal */}
       {showModal && (

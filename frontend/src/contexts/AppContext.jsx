@@ -59,6 +59,24 @@ export const AppProvider = ({ children }) => {
     return data ? JSON.parse(data) : [];
   });
 
+  // ── DB-backed state: notice reads, bookmarks, fresher checklist ────────────
+  const [dbReadNotices, setDbReadNotices] = useState(() => {
+    const data = localStorage.getItem('pm_read_notices');
+    return data ? JSON.parse(data) : [];
+  });
+
+  const [dbBookmarkedNotices, setDbBookmarkedNotices] = useState(() => {
+    const data = localStorage.getItem('pm_bookmarked_notices');
+    return data ? JSON.parse(data) : [];
+  });
+
+  const [dbFresherChecklist, setDbFresherChecklist] = useState(() => {
+    const data = localStorage.getItem('pm_fresher_checklist');
+    return data ? JSON.parse(data) : {};
+  });
+
+  const [notifications, setNotifications] = useState([]);
+
   const [initializing, setInitializing] = useState(true);
   const [showSplash, setShowSplash] = useState(false);
   const [fetchedClubsEvents, setFetchedClubsEvents] = useState([]);
@@ -132,6 +150,36 @@ export const AppProvider = ({ children }) => {
             setLanguage(data.user.preferred_language);
             localStorage.setItem('pm_lang', data.user.preferred_language);
           }
+          // Fetch DB-backed user state (reads, bookmarks, checklist)
+          fetch('/api/state/user-state', {
+            headers: { 'Authorization': `Bearer ${token}` }
+          })
+          .then(r => r.ok ? r.json() : null)
+          .then(stateData => {
+            if (stateData && stateData.success) {
+              setDbReadNotices(stateData.readNotices || []);
+              localStorage.setItem('pm_read_notices', JSON.stringify(stateData.readNotices || []));
+              setDbBookmarkedNotices(stateData.bookmarkedNotices || []);
+              localStorage.setItem('pm_bookmarked_notices', JSON.stringify(stateData.bookmarkedNotices || []));
+              if (stateData.fresherChecklist) {
+                setDbFresherChecklist(stateData.fresherChecklist);
+                localStorage.setItem('pm_fresher_checklist', JSON.stringify(stateData.fresherChecklist));
+              }
+            }
+          })
+          .catch(err => console.warn('Failed to load DB user state:', err.message));
+
+          // Fetch user notifications
+          fetch('/api/state/notifications', {
+            headers: { 'Authorization': `Bearer ${token}` }
+          })
+          .then(r => r.ok ? r.json() : null)
+          .then(notifData => {
+            if (notifData && notifData.success) {
+              setNotifications(notifData.notifications || []);
+            }
+          })
+          .catch(err => console.warn('Failed to fetch notifications:', err.message));
         } else {
           throw new Error('Invalid user payload');
         }
@@ -269,6 +317,10 @@ export const AppProvider = ({ children }) => {
     setConnectedRoommates([]);
     setRoommateRequests([]);
     setOptedInClubs([]);
+    setDbReadNotices([]);
+    setDbBookmarkedNotices([]);
+    setDbFresherChecklist({});
+    setNotifications([]);
     
     localStorage.removeItem('pm_auth_token');
     localStorage.removeItem('pm_user');
@@ -281,6 +333,9 @@ export const AppProvider = ({ children }) => {
     localStorage.removeItem('pm_opted_in_clubs');
     localStorage.removeItem('pm_lang');
     localStorage.removeItem('pm_chat_history');
+    localStorage.removeItem('pm_read_notices');
+    localStorage.removeItem('pm_bookmarked_notices');
+    localStorage.removeItem('pm_fresher_checklist');
     
     // Clean all user-specific chat history items in localStorage
     Object.keys(localStorage).forEach(key => {
@@ -363,6 +418,110 @@ export const AppProvider = ({ children }) => {
     return fetchedClubsEvents;
   };
 
+  const updateProfile = async (profileData) => {
+    if (!token) return;
+    try {
+      const res = await fetch('/auth/profile', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(profileData)
+      });
+      if (!res.ok) {
+        const errData = await res.json();
+        throw new Error(errData.error || 'Failed to update profile');
+      }
+      const data = await res.json();
+      if (data.success && data.user) {
+        setUser(data.user);
+        localStorage.setItem('pm_user', JSON.stringify(data.user));
+        return data.user;
+      }
+    } catch (err) {
+      console.error('updateProfile error:', err.message);
+      throw err;
+    }
+  };
+
+  // ── DB-backed notice read/bookmark helpers ────────────────────────────────
+  const markNoticeReadDb = async (noticeId) => {
+    if (!noticeId) return;
+    const idNum = Number(noticeId);
+    if (dbReadNotices.includes(idNum)) return;
+    const updated = [...dbReadNotices, idNum];
+    setDbReadNotices(updated);
+    localStorage.setItem('pm_read_notices', JSON.stringify(updated));
+    if (token) {
+      try {
+        await fetch('/api/state/user-state/read-notice', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+          body: JSON.stringify({ noticeId: idNum })
+        });
+      } catch (e) {
+        console.warn('Failed to sync notice read to DB:', e.message);
+      }
+    }
+  };
+
+  const toggleNoticeBookmarkDb = async (noticeId) => {
+    if (!noticeId) return;
+    const idNum = Number(noticeId);
+    const isBookmarked = dbBookmarkedNotices.includes(idNum);
+    const updated = isBookmarked
+      ? dbBookmarkedNotices.filter(id => id !== idNum)
+      : [...dbBookmarkedNotices, idNum];
+    setDbBookmarkedNotices(updated);
+    localStorage.setItem('pm_bookmarked_notices', JSON.stringify(updated));
+    if (token) {
+      try {
+        await fetch('/api/state/user-state/bookmark-notice', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+          body: JSON.stringify({ noticeId: idNum, action: isBookmarked ? 'unbookmark' : 'bookmark' })
+        });
+      } catch (e) {
+        console.warn('Failed to sync bookmark to DB:', e.message);
+      }
+    }
+  };
+
+  const toggleFresherChecklistDb = async (taskId, isDone) => {
+    const updated = { ...dbFresherChecklist, [taskId]: isDone };
+    setDbFresherChecklist(updated);
+    localStorage.setItem('pm_fresher_checklist', JSON.stringify(updated));
+    if (token) {
+      try {
+        await fetch('/api/state/user-state/checklist', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+          body: JSON.stringify({ taskId, isDone })
+        });
+      } catch (e) {
+        console.warn('Failed to sync checklist to DB:', e.message);
+      }
+    }
+  };
+
+  const markNotificationRead = async (notificationId) => {
+    if (!token) return;
+    try {
+      const res = await fetch(`/api/state/notifications/${notificationId}/read`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (res.ok) {
+        setNotifications(prev => 
+          prev.map(n => n.id === parseInt(notificationId) ? { ...n, is_read: true } : n)
+        );
+      }
+    } catch (err) {
+      console.warn('Failed to mark notification as read:', err.message);
+    }
+  };
+
   return (
     <AppContext.Provider value={{
       token,
@@ -387,7 +546,18 @@ export const AppProvider = ({ children }) => {
       getCombinedChecklist,
       getMatchedClubs,
       optedInClubs,
-      toggleOptInClub
+      toggleOptInClub,
+      updateProfile,
+      // DB-backed state
+      dbReadNotices,
+      dbBookmarkedNotices,
+      dbFresherChecklist,
+      markNoticeReadDb,
+      toggleNoticeBookmarkDb,
+      toggleFresherChecklistDb,
+      notifications,
+      setNotifications,
+      markNotificationRead
     }}>
       {children}
     </AppContext.Provider>

@@ -22,13 +22,23 @@ import {
   Minus 
 } from 'lucide-react';
 
-const ORIGIN_PRESETS_MAP = {
-  'main-gate': { name: 'Main Entrance Gate', lat: 10.7520, lng: 78.6541 },
-  'boys-hostel': { name: 'Boys Hostel', lat: 10.7584, lng: 78.6514 },
-  'girls-hostel': { name: 'Girls Hostel', lat: 10.7580, lng: 78.6522 },
-  'central-library': { name: 'Central Library', lat: 10.7568, lng: 78.6520 },
-  'canteen': { name: 'Main Canteen', lat: 10.7568, lng: 78.6512 }
+const getOriginPresetsMap = () => {
+  const mainGate = CAMPUS_MAP_DATA.find(b => b.id === 'main-gate') || { gps: { lat: 10.7543, lng: 78.6528 } };
+  const boysHostel = CAMPUS_MAP_DATA.find(b => b.id === 'boys-hostel') || { gps: { lat: 10.7584, lng: 78.6514 } };
+  const girlsHostel = CAMPUS_MAP_DATA.find(b => b.id === 'girls-hostel') || { gps: { lat: 10.7580, lng: 78.6522 } };
+  const centralLibrary = CAMPUS_MAP_DATA.find(b => b.id === 'bd-block') || { gps: { lat: 10.7576, lng: 78.6516 } };
+  const canteen = CAMPUS_MAP_DATA.find(b => b.id === 'cafeteria') || { gps: { lat: 10.7572, lng: 78.6512 } };
+
+  return {
+    'main-gate': { name: 'Main Entrance Gate', lat: mainGate.gps.lat, lng: mainGate.gps.lng },
+    'boys-hostel': { name: 'Boys Hostel', lat: boysHostel.gps.lat, lng: boysHostel.gps.lng },
+    'girls-hostel': { name: 'Girls Hostel', lat: girlsHostel.gps.lat, lng: girlsHostel.gps.lng },
+    'central-library': { name: 'Central Library', lat: centralLibrary.gps.lat, lng: centralLibrary.gps.lng },
+    'canteen': { name: 'Main Canteen', lat: canteen.gps.lat, lng: canteen.gps.lng }
+  };
 };
+
+const ORIGIN_PRESETS_MAP = getOriginPresetsMap();
 
 // Topological Road Waypoints for clear, obstacle-free paths
 const WAYPOINTS = {
@@ -36,19 +46,19 @@ const WAYPOINTS = {
   'parking_junction': [78.6514, 10.7548],
   'sports_junction': [78.6504, 10.7548],
   'volleyball_junction': [78.6512, 10.7552],
-  'ks_block_junction': [78.6510, 10.7558],
-  'academic_cross_1': [78.6513, 10.7558],
-  'eastern_road_1': [78.6516, 10.7558],
-  'generator_junction': [78.6510, 10.7564],
-  'academic_cross_2': [78.6513, 10.7564],
-  'eastern_road_2': [78.6516, 10.7564],
-  'cafeteria_junction': [78.6510, 10.7568],
-  'academic_cross_3': [78.6513, 10.7568],
-  'eastern_road_3': [78.6516, 10.7568],
-  'me_block_junction': [78.6510, 10.7572],
-  'eastern_road_4': [78.6516, 10.7572],
-  'workshop_junction': [78.6510, 10.7576],
-  'eastern_road_5': [78.6516, 10.7576],
+  'ks_block_junction': [78.6510, 10.7560],
+  'academic_cross_1': [78.6513, 10.7560],
+  'eastern_road_1': [78.6516, 10.7566],
+  'generator_junction': [78.6510, 10.7568],
+  'academic_cross_2': [78.6513, 10.7568],
+  'eastern_road_2': [78.6516, 10.7572],
+  'cafeteria_junction': [78.6510, 10.7572],
+  'academic_cross_3': [78.6513, 10.7572],
+  'eastern_road_3': [78.6516, 10.7576],
+  'me_block_junction': [78.6510, 10.7576],
+  'eastern_road_4': [78.6516, 10.7580],
+  'workshop_junction': [78.6510, 10.7580],
+  'eastern_road_5': [78.6516, 10.7584],
   'hostel_junction': [78.6512, 10.7584],
   'cricket_main_junction': [78.6504, 10.7582],
   'cricket_2_junction': [78.6504, 10.7566],
@@ -341,6 +351,20 @@ const SatelliteMapView = ({
     markersRef.current.forEach(m => m.remove());
     markersRef.current = [];
 
+    // Helper for category badge text, badge color, and pin color matching mockup
+    const getCategoryBadgeStyles = (cat) => {
+      const c = cat.toLowerCase();
+      if (c.includes('academic')) return { text: 'ACADEMIC', color: '#60A5FA', pinColor: '#1B4DA6' };
+      if (c.includes('hostel')) return { text: 'HOSTEL', color: '#A78BFA', pinColor: '#3F51B5' };
+      if (c.includes('sports')) return { text: 'SPORTS', color: '#4ADE80', pinColor: '#2E7D32' };
+      if (c.includes('transport')) return { text: 'TRANSPORT', color: '#94A3B8', pinColor: '#607D8B' };
+      if (c.includes('utilit')) return { text: 'UTILITY', color: '#F87171', pinColor: '#757575' };
+      if (c.includes('service')) return { text: 'SERVICES', color: '#FDBA74', pinColor: '#E65100' };
+      if (c.includes('religi')) return { text: 'RELIGIOUS', color: '#FBBF24', pinColor: '#FFA000' };
+      if (c.includes('entrance')) return { text: 'ENTRANCE', color: '#FDBA74', pinColor: '#E65100' };
+      return { text: cat.toUpperCase(), color: '#FFFFFF', pinColor: '#2563EB' };
+    };
+
     CAMPUS_MAP_DATA.forEach(building => {
       if (building.hideMarker) return;
       if (!building.gps) return;
@@ -350,14 +374,26 @@ const SatelliteMapView = ({
       }
 
       const el = document.createElement('div');
-      el.className = 'cursor-pointer group relative';
-      el.style.width = '26px';
-      el.style.height = '26px';
+      el.className = 'cursor-pointer select-none';
+      el.style.width = '140px';
 
-      // SVG dynamic marker structure (Material Design 3 style)
+      const badgeStyles = getCategoryBadgeStyles(building.category);
+
+      // SVG marker structure with dark semi-transparent capsule and colored category badge matching mockup
       el.innerHTML = `
-        <div class="w-6 h-6 rounded-full bg-primary hover:bg-primaryHover text-white flex items-center justify-center border-2 border-white shadow-elevation2 transition-all transform hover:scale-115 active:scale-95 duration-150">
-          <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-map-pin"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>
+        <div class="flex flex-col items-center justify-center">
+          <!-- Circular MapPin Icon -->
+          <div class="w-6 h-6 rounded-full flex items-center justify-center border border-white shadow-md transition-all duration-150 transform hover:scale-115 active:scale-95" style="background-color: ${badgeStyles.pinColor};">
+            <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/>
+              <circle cx="12" cy="10" r="3"/>
+            </svg>
+          </div>
+          <!-- Label Capsule Card -->
+          <div class="mt-0.5 bg-[#0F172A]/90 text-white px-2 py-0.5 rounded-md border border-slate-700/60 shadow-lg text-[9px] font-bold text-center whitespace-nowrap pointer-events-none flex flex-col items-center leading-normal">
+            <span class="text-white">${building.name}</span>
+            <span class="text-[7px] font-black uppercase tracking-wider" style="color: ${badgeStyles.color};">${badgeStyles.text}</span>
+          </div>
         </div>
       `;
 
@@ -373,7 +409,7 @@ const SatelliteMapView = ({
         });
       });
 
-      const marker = new maplibregl.Marker({ element: el })
+      const marker = new maplibregl.Marker({ element: el, anchor: 'top' })
         .setLngLat([building.gps.lng, building.gps.lat])
         .addTo(map);
 

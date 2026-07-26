@@ -87,3 +87,33 @@ export const loginRateLimiter = rateLimit({
     error: 'Too many login attempts from this IP. Please try again after 15 minutes.'
   }
 });
+
+/**
+ * Rate limiter middleware for registration endpoints to prevent spam account creation.
+ * Limits to 5 attempts per 1 hour per IP.
+ */
+export const registerRateLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000, // 1 hour
+  max: 5,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    success: false,
+    error: 'Too many registration attempts. Please try again after 1 hour.'
+  }
+});
+
+/**
+ * Rate limiter middleware for AI chat query endpoint to prevent quota starvation.
+ * Limits to 30 queries per 1 minute.
+ */
+export const chatRateLimiter = rateLimit({
+  windowMs: 60 * 1000, // 1 minute
+  max: 30,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    success: false,
+    error: 'Too many queries. Please wait a moment before sending more messages.'
+  }
+});

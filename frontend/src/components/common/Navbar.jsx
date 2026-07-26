@@ -130,8 +130,7 @@ const Navbar = () => {
 
   return (
     <nav
-      className="bg-white text-onSurface sticky top-0 z-40 font-sans"
-      style={{ boxShadow: '0 1px 0 #E2E8F0, 0 2px 8px rgba(15,23,42,0.05)' }}
+      className="bg-white/80 backdrop-blur-md text-onSurface sticky top-0 z-40 font-sans border-b border-outline/10 transition-premium"
     >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-[72px]">

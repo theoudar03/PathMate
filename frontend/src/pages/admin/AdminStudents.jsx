@@ -256,107 +256,173 @@ const AdminStudents = () => {
         </div>
       </div>
 
-      {/* Roster Table */}
-      <div className="bg-surface border border-surfaceVariant/60 rounded-3xl overflow-hidden shadow-sm">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs">
-            <thead className="bg-surfaceContainerHigh text-onSurfaceVariant font-extrabold uppercase tracking-wider border-b border-outline/20">
-              <tr>
-                <th className="px-5 py-3.5">Student Details</th>
-                <th className="px-5 py-3.5">Register #</th>
-                <th className="px-5 py-3.5">Department</th>
-                <th className="px-5 py-3.5">Status</th>
-                <th className="px-5 py-3.5">Role</th>
-                <th className="px-5 py-3.5 text-right">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-outline/15 font-medium">
-              {loading ? (
-                <tr>
-                  <td colSpan="6" className="px-6 py-12 text-center text-onSurfaceVariant font-semibold">
-                    <div className="flex justify-center items-center gap-2">
-                      <span className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin"></span>
-                      <span>Querying PostgreSQL Users Table...</span>
-                    </div>
-                  </td>
-                </tr>
-              ) : students.length === 0 ? (
-                <tr>
-                  <td colSpan="6" className="px-6 py-12 text-center text-onSurfaceVariant italic">
-                    No student records found in PostgreSQL matching criteria.
-                  </td>
-                </tr>
-              ) : (
-                students.map((student) => {
-                  let statusBadge = "bg-emerald-100 text-emerald-800 border-emerald-300";
-                  if (student.status === 'blocked') statusBadge = "bg-rose-100 text-rose-800 border-rose-300";
-                  else if (student.status === 'inactive') statusBadge = "bg-amber-100 text-amber-800 border-amber-300";
-
-                  return (
-                    <tr key={student.id} className="hover:bg-surfaceContainerLow/60 transition-colors">
-                      <td className="px-5 py-3.5">
-                        <div className="flex items-center gap-3">
-                          <div className="w-9 h-9 rounded-2xl bg-primaryContainer text-onPrimaryContainer font-black flex items-center justify-center text-sm shadow-2xs">
-                            {student.full_name ? student.full_name.charAt(0) : 'S'}
-                          </div>
-                          <div>
-                            <p className="font-bold text-onSurface text-sm">{student.full_name || student.name}</p>
-                            <p className="text-[11px] text-onSurfaceVariant font-mono">{student.email || `${student.username}@saranathan.ac.in`}</p>
-                          </div>
-                        </div>
-                      </td>
-
-                      <td className="px-5 py-3.5 font-mono font-bold text-onSurface">
-                        {student.register_number || student.roll_number || 'N/A'}
-                      </td>
-
-                      <td className="px-5 py-3.5 text-onSurface font-semibold">
-                        {student.department_name || 'General Engineering'}
-                      </td>
-
-                      <td className="px-5 py-3.5">
-                        <span className={`px-2.5 py-1 rounded-full text-[10px] font-black uppercase border tracking-wider ${statusBadge}`}>
-                          {student.status || 'active'}
-                        </span>
-                      </td>
-
-                      <td className="px-5 py-3.5 font-bold text-onSurfaceVariant capitalize">
-                        {student.role || 'student'}
-                      </td>
-
-                      <td className="px-5 py-3.5 text-right">
-                        <div className="flex items-center justify-end gap-1.5">
-                          <button
-                            onClick={() => openEditModal(student)}
-                            className="p-1.5 rounded-lg hover:bg-surfaceVariant text-onSurfaceVariant hover:text-primary transition-colors"
-                            title="Edit Student"
-                          >
-                            <Edit size={16} />
-                          </button>
-                          <button
-                            onClick={() => { setSelectedStudent(student); setNewPassword(''); setErrorMsg(''); setShowResetModal(true); }}
-                            className="p-1.5 rounded-lg hover:bg-amber-100 text-onSurfaceVariant hover:text-amber-700 transition-colors"
-                            title="Reset Password"
-                          >
-                            <Key size={16} />
-                          </button>
-                          <button
-                            onClick={() => { setSelectedStudent(student); setShowDeleteModal(true); }}
-                            className="p-1.5 rounded-lg hover:bg-rose-100 text-onSurfaceVariant hover:text-rose-700 transition-colors"
-                            title="Delete Student"
-                          >
-                            <Trash2 size={16} />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })
-              )}
-            </tbody>
-          </table>
+      {/* Roster Container */}
+      {loading ? (
+        <div className="bg-surface border border-surfaceVariant/60 rounded-3xl p-12 text-center text-onSurfaceVariant font-semibold">
+          <div className="flex justify-center items-center gap-2">
+            <span className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin"></span>
+            <span>Querying PostgreSQL Users Table...</span>
+          </div>
         </div>
-      </div>
+      ) : students.length === 0 ? (
+        <div className="bg-surface border border-surfaceVariant/60 rounded-3xl p-12 text-center text-onSurfaceVariant italic">
+          No student records found in PostgreSQL matching criteria.
+        </div>
+      ) : (
+        <>
+          {/* Mobile Stacked Card List (< 640px) */}
+          <div className="grid grid-cols-1 gap-4 sm:hidden">
+            {students.map((student) => {
+              let statusBadge = "bg-emerald-100 text-emerald-800 border-emerald-300";
+              if (student.status === 'blocked') statusBadge = "bg-rose-100 text-rose-800 border-rose-300";
+              else if (student.status === 'inactive') statusBadge = "bg-amber-100 text-amber-800 border-amber-300";
+
+              return (
+                <div key={student.id} className="bg-white border border-surfaceVariant/60 rounded-2xl p-4 space-y-3.5 shadow-sm text-left">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-primaryContainer text-onPrimaryContainer font-black flex items-center justify-center text-sm shrink-0">
+                      {student.full_name ? student.full_name.charAt(0) : 'S'}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="font-bold text-onSurface text-sm truncate">{student.full_name || student.name}</p>
+                      <p className="text-[11px] text-onSurfaceVariant font-mono truncate">{student.email || `${student.username}@saranathan.ac.in`}</p>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2 text-[11px] bg-slate-50 p-2.5 rounded-xl border border-outline/5">
+                    <div>
+                      <span className="block text-[9px] uppercase font-bold text-onSurfaceVariant/60">Register #</span>
+                      <span className="font-mono font-bold text-onSurface">{student.register_number || student.roll_number || 'N/A'}</span>
+                    </div>
+                    <div>
+                      <span className="block text-[9px] uppercase font-bold text-onSurfaceVariant/60">Role</span>
+                      <span className="font-bold text-onSurface capitalize">{student.role || 'student'}</span>
+                    </div>
+                    <div className="col-span-2 mt-1">
+                      <span className="block text-[9px] uppercase font-bold text-onSurfaceVariant/60">Department</span>
+                      <span className="font-semibold text-onSurface">{student.department_name || 'General Engineering'}</span>
+                    </div>
+                  </div>
+
+                  <div className="pt-2 border-t border-outline/5 flex items-center justify-between">
+                    <span className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase border tracking-wider ${statusBadge}`}>
+                      {student.status || 'active'}
+                    </span>
+                    <div className="flex items-center gap-1">
+                      <button
+                        onClick={() => openEditModal(student)}
+                        className="p-1.5 rounded-lg hover:bg-slate-100 text-onSurfaceVariant hover:text-primary transition-colors"
+                        title="Edit Student"
+                      >
+                        <Edit size={14} />
+                      </button>
+                      <button
+                        onClick={() => { setSelectedStudent(student); setNewPassword(''); setErrorMsg(''); setShowResetModal(true); }}
+                        className="p-1.5 rounded-lg hover:bg-amber-50 text-onSurfaceVariant hover:text-amber-700 transition-colors"
+                        title="Reset Password"
+                      >
+                        <Key size={14} />
+                      </button>
+                      <button
+                        onClick={() => { setSelectedStudent(student); setShowDeleteModal(true); }}
+                        className="p-1.5 rounded-lg hover:bg-rose-50 text-onSurfaceVariant hover:text-rose-700 transition-colors"
+                        title="Delete Student"
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Desktop Table View (>= 640px) */}
+          <div className="hidden sm:block bg-surface border border-surfaceVariant/60 rounded-3xl overflow-hidden shadow-sm">
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs">
+                <thead className="bg-surfaceContainerHigh text-onSurfaceVariant font-extrabold uppercase tracking-wider border-b border-outline/20">
+                  <tr>
+                    <th className="px-5 py-3.5">Student Details</th>
+                    <th className="px-5 py-3.5">Register #</th>
+                    <th className="px-5 py-3.5">Department</th>
+                    <th className="px-5 py-3.5">Status</th>
+                    <th className="px-5 py-3.5">Role</th>
+                    <th className="px-5 py-3.5 text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-outline/15 font-medium">
+                  {students.map((student) => {
+                    let statusBadge = "bg-emerald-100 text-emerald-800 border-emerald-300";
+                    if (student.status === 'blocked') statusBadge = "bg-rose-100 text-rose-800 border-rose-300";
+                    else if (student.status === 'inactive') statusBadge = "bg-amber-100 text-amber-800 border-amber-300";
+
+                    return (
+                      <tr key={student.id} className="hover:bg-surfaceContainerLow/60 transition-colors">
+                        <td className="px-5 py-3.5">
+                          <div className="flex items-center gap-3">
+                            <div className="w-9 h-9 rounded-2xl bg-primaryContainer text-onPrimaryContainer font-black flex items-center justify-center text-sm shadow-2xs">
+                              {student.full_name ? student.full_name.charAt(0) : 'S'}
+                            </div>
+                            <div>
+                              <p className="font-bold text-onSurface text-sm">{student.full_name || student.name}</p>
+                              <p className="text-[11px] text-onSurfaceVariant font-mono">{student.email || `${student.username}@saranathan.ac.in`}</p>
+                            </div>
+                          </div>
+                        </td>
+
+                        <td className="px-5 py-3.5 font-mono font-bold text-onSurface">
+                          {student.register_number || student.roll_number || 'N/A'}
+                        </td>
+
+                        <td className="px-5 py-3.5 text-onSurface font-semibold">
+                          {student.department_name || 'General Engineering'}
+                        </td>
+
+                        <td className="px-5 py-3.5">
+                          <span className={`px-2.5 py-1 rounded-full text-[10px] font-black uppercase border tracking-wider ${statusBadge}`}>
+                            {student.status || 'active'}
+                          </span>
+                        </td>
+
+                        <td className="px-5 py-3.5 font-bold text-onSurfaceVariant capitalize">
+                          {student.role || 'student'}
+                        </td>
+
+                        <td className="px-5 py-3.5 text-right">
+                          <div className="flex items-center justify-end gap-1.5">
+                            <button
+                              onClick={() => openEditModal(student)}
+                              className="p-1.5 rounded-lg hover:bg-surfaceVariant text-onSurfaceVariant hover:text-primary transition-colors"
+                              title="Edit Student"
+                            >
+                              <Edit size={16} />
+                            </button>
+                            <button
+                              onClick={() => { setSelectedStudent(student); setNewPassword(''); setErrorMsg(''); setShowResetModal(true); }}
+                              className="p-1.5 rounded-lg hover:bg-amber-100 text-onSurfaceVariant hover:text-amber-700 transition-colors"
+                              title="Reset Password"
+                            >
+                              <Key size={16} />
+                            </button>
+                            <button
+                              onClick={() => { setSelectedStudent(student); setShowDeleteModal(true); }}
+                              className="p-1.5 rounded-lg hover:bg-rose-100 text-onSurfaceVariant hover:text-rose-700 transition-colors"
+                              title="Delete Student"
+                            >
+                              <Trash2 size={16} />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </>
+      )}
 
       {/* ADD STUDENT MODAL */}
       {showAddModal && (

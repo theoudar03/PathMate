@@ -7,6 +7,7 @@ const VoiceInputButton = ({
   onFinalTranscript, 
   onTranscript,
   onError, 
+  onRecordingStateChange,
   disabled = false 
 }) => {
   const { language } = useApp();
@@ -21,13 +22,15 @@ const VoiceInputButton = ({
   const onFinalRef = useRef(onFinalTranscript || onTranscript);
   const onErrorRef = useRef(onError);
   const languageRef = useRef(language);
+  const stateChangeRef = useRef(onRecordingStateChange);
 
   useEffect(() => {
     onInterimRef.current = onInterimTranscript;
     onFinalRef.current = onFinalTranscript || onTranscript;
     onErrorRef.current = onError;
     languageRef.current = language;
-  }, [onInterimTranscript, onFinalTranscript, onTranscript, onError, language]);
+    stateChangeRef.current = onRecordingStateChange;
+  }, [onInterimTranscript, onFinalTranscript, onTranscript, onError, language, onRecordingStateChange]);
 
   useEffect(() => {
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -50,6 +53,9 @@ const VoiceInputButton = ({
       recognitionRef.current = null;
     }
     setIsRecording(false);
+    if (stateChangeRef.current) {
+      stateChangeRef.current(false);
+    }
     if (silenceTimerRef.current) {
       clearTimeout(silenceTimerRef.current);
       silenceTimerRef.current = null;
@@ -82,6 +88,9 @@ const VoiceInputButton = ({
     rec.onstart = () => {
       console.log(`SpeechRecognition: started (continuous=${!isRetry})`);
       setIsRecording(true);
+      if (stateChangeRef.current) {
+        stateChangeRef.current(true);
+      }
       if (onErrorRef.current) onErrorRef.current('');
     };
 

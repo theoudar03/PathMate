@@ -15,17 +15,31 @@ const FacultyDirectory = React.lazy(() => import('./pages/FacultyDirectory'));
 const CampusMap = React.lazy(() => import('./pages/CampusMap'));
 const StudyHub = React.lazy(() => import('./pages/StudyHub'));
 const AdminKnowledge = React.lazy(() => import('./pages/AdminKnowledge'));
+const AdminAIReports = React.lazy(() => import('./pages/admin/AdminAIReports'));
+const AdminReviews = React.lazy(() => import('./pages/admin/AdminReviews'));
 import BrandedSplashLoader from './components/common/BrandedSplashLoader';
 import AdminLogin from './pages/admin/AdminLogin';
 import AdminLayout from './layouts/AdminLayout';
 import AdminDashboard from './pages/admin/AdminDashboard';
 import AdminStudents from './pages/admin/AdminStudents';
+import AdminFaculty from './pages/admin/AdminFaculty';
+import AdminDepartments from './pages/admin/AdminDepartments';
 import AdminEvents from './pages/admin/AdminEvents';
 import AdminNotices from './pages/admin/AdminNotices';
+import AdminStudyHub from './pages/admin/AdminStudyHub';
+import AdminHostel from './pages/admin/AdminHostel';
 import AdminBusRoutes from './pages/admin/AdminBusRoutes';
 import AdminCommittees from './pages/admin/AdminCommittees';
 import AdminRoommates from './pages/admin/AdminRoommates';
+import AdminCalendar from './pages/admin/AdminCalendar';
 import AdminSeniors from './pages/admin/AdminSeniors';
+import AdminNavigation from './pages/admin/AdminNavigation';
+import AdminAnnaUniversity from './pages/admin/AdminAnnaUniversity';
+import AdminPlacements from './pages/admin/AdminPlacements';
+import AdminWebSync from './pages/admin/AdminWebSync';
+import AdminMedia from './pages/admin/AdminMedia';
+import AdminRoles from './pages/admin/AdminRoles';
+import AdminSettings from './pages/admin/AdminSettings';
 
 // Route Guard: redirect unauthenticated users strictly to Welcome Page
 const ProtectedRoute = ({ children }) => {
@@ -90,15 +104,28 @@ function AppContent() {
             <Route index element={<Navigate to="dashboard" replace />} />
             <Route path="dashboard" element={<AdminDashboard />} />
             <Route path="students" element={<AdminStudents />} />
+            <Route path="reviews" element={<AdminReviews />} />
+            <Route path="faculty" element={<AdminFaculty />} />
+            <Route path="departments" element={<AdminDepartments />} />
             <Route path="knowledge" element={<AdminKnowledge />} />
+            <Route path="ai-reports" element={<AdminAIReports />} />
             <Route path="events" element={<AdminEvents />} />
             <Route path="notices" element={<AdminNotices />} />
+            <Route path="study-hub" element={<AdminStudyHub />} />
+            <Route path="hostel" element={<AdminHostel />} />
             <Route path="bus-routes" element={<AdminBusRoutes />} />
             <Route path="committees" element={<AdminCommittees />} />
             <Route path="roommates" element={<AdminRoommates />} />
             <Route path="volunteers" element={<Navigate to="../roommates" replace />} />
             <Route path="seniors" element={<AdminSeniors />} />
-            <Route path="settings" element={<div className="p-4"><h1 className="text-xl font-bold">Settings Module</h1></div>} />
+            <Route path="navigation" element={<AdminNavigation />} />
+            <Route path="anna-university" element={<AdminAnnaUniversity />} />
+            <Route path="placements" element={<AdminPlacements />} />
+            <Route path="calendar" element={<AdminCalendar />} />
+            <Route path="web-sync" element={<AdminWebSync />} />
+            <Route path="media" element={<AdminMedia />} />
+            <Route path="roles" element={<AdminRoles />} />
+            <Route path="settings" element={<AdminSettings />} />
           </Route>
 
           {/* Protected Student Portal Shell (with Navbar) */}

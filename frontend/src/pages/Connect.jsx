@@ -32,7 +32,8 @@ const Connect = () => {
   const fetchRoommates = async () => {
     setLoadingRoommates(true);
     try {
-      const res = await safeFetchJson('/api/roommates');
+      const userGender = studentData?.gender || 'Male';
+      const res = await safeFetchJson(`/api/roommates?gender=${userGender}`);
       const list = Array.isArray(res?.data) ? res.data : (Array.isArray(res) ? res : []);
       setRoommates(list);
     } catch (e) {

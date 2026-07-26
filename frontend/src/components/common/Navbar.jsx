@@ -57,7 +57,7 @@ const Navbar = () => {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  const isConstrained = windowWidth < 1100 || language !== 'en';
+  const isConstrained = windowWidth < 1100;
 
   const visibleLinks = isConstrained
     ? MAIN_NAV_LINKS.slice(0, 2) // Home, Dashboard

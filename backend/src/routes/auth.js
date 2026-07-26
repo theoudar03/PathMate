@@ -428,7 +428,7 @@ router.post('/register', registerRateLimiter, async (req, res) => {
       role: 'student',
       status: 'active'
     };
-    const token = jwt.sign(tokenPayload, JWT_SECRET, { expiresIn: '2h' });
+    const token = jwt.sign(tokenPayload, JWT_SECRET, { expiresIn: '7d' });
 
     res.status(201).json({
       success: true,
@@ -537,7 +537,7 @@ router.post('/login', loginRateLimiter, async (req, res) => {
       role: user.role || 'student',
       status: accountStatus
     };
-    const token = jwt.sign(tokenPayload, JWT_SECRET, { expiresIn: '2h' });
+    const token = jwt.sign(tokenPayload, JWT_SECRET, { expiresIn: '7d' });
 
     res.json({
       success: true,
@@ -647,7 +647,7 @@ router.post('/change-password', async (req, res) => {
 
     const userInterests = await getUserInterests(user.id);
     const tokenPayload = { userId: user.id, username: user.username, role: user.role || 'student', status: user.status || 'active' };
-    const token = jwt.sign(tokenPayload, JWT_SECRET, { expiresIn: '2h' });
+    const token = jwt.sign(tokenPayload, JWT_SECRET, { expiresIn: '7d' });
 
     res.json({
       success: true,

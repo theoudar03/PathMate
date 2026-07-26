@@ -138,7 +138,11 @@ export const AppProvider = ({ children }) => {
         }
       })
       .then(res => {
-        if (!res.ok) throw new Error('Token validation failed');
+        // Only treat 401/403 as actual auth failures — not network errors
+        if (res.status === 401 || res.status === 403) {
+          throw Object.assign(new Error('Token validation failed'), { isAuthError: true });
+        }
+        if (!res.ok) throw new Error(`Server error: ${res.status}`);
         return res.json();
       })
       .then(data => {
@@ -185,8 +189,21 @@ export const AppProvider = ({ children }) => {
         }
       })
       .catch(err => {
-        console.warn("Session expired or invalid token. Clearing session:", err.message);
-        resetAllData();
+        if (err.isAuthError) {
+          // Only clear session on genuine 401/403 (expired or revoked token)
+          console.warn("Session expired or invalid token. Clearing session:", err.message);
+          resetAllData();
+        } else {
+          // Network error / server down — keep the cached session alive
+          console.warn("Auth check failed (network/server issue). Keeping existing session:", err.message);
+          const cachedUser = localStorage.getItem('pm_user');
+          if (cachedUser) {
+            try {
+              setUser(JSON.parse(cachedUser));
+              setOnboarded(true);
+            } catch (_) {}
+          }
+        }
       })
       .finally(() => {
         setInitializing(false);

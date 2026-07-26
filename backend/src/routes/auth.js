@@ -266,22 +266,52 @@ router.post('/register', registerRateLimiter, async (req, res) => {
       });
     } else {
       isRegistered = officialStudent.is_registered;
+
+      // Consistency repair: if official_students says registered but no user actually exists, auto-reset
+      // This handles ghost registrations where a previous attempt failed mid-way
+      if (isRegistered) {
+        const userExistsCheck = await safeDbCall(async () => {
+          const r = await db.query('SELECT id FROM users WHERE LOWER(register_number) = LOWER($1)', [regNumber]);
+          return r.rows.length > 0;
+        }, async () => true);
+
+        if (!userExistsCheck) {
+          // No user record found — reset the flag so registration can proceed
+          await safeDbCall(async () => {
+            await db.query('UPDATE official_students SET is_registered = false WHERE LOWER(register_number) = LOWER($1)', [regNumber]);
+          }, async () => {});
+          isRegistered = false;
+          console.log(`[Register] Auto-reset is_registered for ${regNumber} — ghost record detected`);
+        }
+      }
     }
 
     if (isRegistered) {
       return res.status(400).json({
-        error: `An account for Register Number '${regNumber}' has already been registered. Please log in.`
+        error: `An account for Register Number '${regNumber}' has already been registered. Please log in instead.`
       });
     }
 
     // 2. Check uniqueness of username, email, register number in users table
+    // Build a targeted query to avoid false positives from empty email matches
     const uniquenessCheck = await safeDbCall(
       async () => {
-        const checkRes = await db.query(
-          `SELECT username, email, register_number FROM users 
-           WHERE LOWER(username) = LOWER($1) OR (email IS NOT NULL AND LOWER(email) = LOWER($2)) OR LOWER(register_number) = LOWER($3)`,
-          [username, email || '', regNumber]
-        );
+        let query, params;
+        if (email) {
+          // Check all three fields when email is provided
+          query = `SELECT username, email, register_number FROM users 
+                   WHERE LOWER(username) = LOWER($1) 
+                      OR (email IS NOT NULL AND email <> '' AND LOWER(email) = LOWER($2)) 
+                      OR LOWER(register_number) = LOWER($3)`;
+          params = [username, email, regNumber];
+        } else {
+          // Only check username and register_number when no email provided
+          query = `SELECT username, email, register_number FROM users 
+                   WHERE LOWER(username) = LOWER($1) 
+                      OR LOWER(register_number) = LOWER($2)`;
+          params = [username, regNumber];
+        }
+        const checkRes = await db.query(query, params);
         return checkRes.rows;
       },
       async () => {
@@ -294,14 +324,18 @@ router.post('/register', registerRateLimiter, async (req, res) => {
     );
 
     if (uniquenessCheck.length > 0) {
-      const match = uniquenessCheck[0];
-      if (match.username?.toLowerCase() === username.toLowerCase()) {
-        return res.status(400).json({ error: 'Username is already taken' });
+      for (const match of uniquenessCheck) {
+        if (match.username?.toLowerCase() === username.toLowerCase()) {
+          return res.status(400).json({ error: 'Username is already taken. Please choose a different username.' });
+        }
+        if (email && match.email?.toLowerCase() === email.toLowerCase()) {
+          return res.status(400).json({ error: 'An account with this email address already exists. Try logging in.' });
+        }
+        if (match.register_number?.toLowerCase() === regNumber.toLowerCase()) {
+          return res.status(400).json({ error: 'An account with this Register Number already exists. Please log in or contact admin if you believe this is an error.' });
+        }
       }
-      if (email && match.email?.toLowerCase() === email.toLowerCase()) {
-        return res.status(400).json({ error: 'An account with this email address already exists' });
-      }
-      return res.status(400).json({ error: 'An account with this Register Number already exists' });
+      return res.status(400).json({ error: 'An account with these details already exists. Please log in.' });
     }
 
     // Hash password using bcrypt with 12 salt rounds

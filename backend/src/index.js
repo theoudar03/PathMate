@@ -104,7 +104,8 @@ const runMigrationsSafely = async () => {
       '26_ai_reports.sql',
       '27_campus_management_upgrades.sql',
       '28_production_ready_upgrades.sql',
-      '29_reviews_system.sql'
+      '29_reviews_system.sql',
+      '30_update_emergency_contacts.sql'
     ];
 
     for (const file of migrationFiles) {

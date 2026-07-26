@@ -6,27 +6,37 @@ const EmergencyButton = () => {
 
   const contacts = [
     {
-      role: 'Chief Hostel Warden (Boys)',
-      name: 'Prof. Hostel Welfare Warden',
-      number: '+91-9876543210',
+      role: 'Boys Hostel Contacts',
+      people: [
+        { name: 'Mr. Senthil Balaji', number: '97866 02444' },
+        { name: 'Mr. Ganapathy', number: '80563 78804' }
+      ],
       icon: <span className="material-symbols-outlined text-error text-[24px] flex-shrink-0 select-none">person_check</span>
     },
     {
-      role: 'Chief Hostel Warden (Girls)',
-      name: 'Dr. Hostel Welfare Warden',
-      number: '+91-9876543211',
+      role: 'Girls Hostel Contacts',
+      people: [
+        { name: 'Dr. M.Santhi', number: '9443247249' },
+        { name: 'Ms.Kalpana', number: '8667861938' },
+        { name: 'Ms. Sarojini', number: '7708032282' }
+      ],
       icon: <span className="material-symbols-outlined text-error text-[24px] flex-shrink-0 select-none">person_check</span>
     },
     {
       role: 'SCE Campus Medical Room',
-      name: 'Resident Medical Officer / Ambulance',
-      number: '+91-8765432109',
+      people: [
+        { name: 'Resident Medical Officer / Ambulance', number: '+91-8765432109' }
+      ],
       icon: <span className="material-symbols-outlined text-error text-[24px] flex-shrink-0 select-none">medical_services</span>
     },
     {
-      role: 'SCE Anti-Ragging Committee',
-      name: 'Nodal Officer & Incident Desk',
-      number: '+91-9988776655',
+      role: 'Anti-Ragging Committee',
+      people: [
+        { name: 'Dr.D.Valavan', number: '8489915201' },
+        { name: 'Dr.L.Muruganandam', number: '9486606545' },
+        { name: 'Dr.M.Padmaa', number: '9894055910' },
+        { name: 'Mr.P.Nixon (Inspector of Police)', number: '9498164033' }
+      ],
       icon: <span className="material-symbols-outlined text-error text-[24px] flex-shrink-0 select-none">gpp_maybe</span>
     }
   ];
@@ -88,29 +98,33 @@ const EmergencyButton = () => {
             </p>
 
             {/* Contacts Roster */}
-            <div className="space-y-3 font-sans">
+            <div className="space-y-3 font-sans max-h-[50vh] overflow-y-auto pr-1">
               {contacts.map((contact, idx) => (
                 <div 
                   key={idx}
                   className="flex items-start gap-3.5 bg-surfaceVariant/40 p-3.5 rounded-xl border border-outline/15"
                 >
                   {contact.icon}
-                  <div className="flex-1 text-left">
-                    <span className="block text-xs font-bold text-onSurface leading-none">
+                  <div className="flex-1 text-left space-y-2">
+                    <span className="block text-xs font-black text-onSurface leading-none uppercase tracking-wider">
                       {contact.role}
                     </span>
-                    <span className="block text-[11px] text-onSurfaceVariant mt-1 leading-none">
-                      {contact.name}
-                    </span>
-                    
-                    {/* Dial button */}
-                    <a
-                      href={`tel:${contact.number}`}
-                      className="inline-flex items-center gap-1.5 text-xs text-error hover:text-[#991515] font-semibold mt-2.5 transition-all hover:underline"
-                    >
-                      <span className="material-symbols-outlined text-[14px] align-middle select-none">phone</span>
-                      <span>{contact.number}</span>
-                    </a>
+                    <div className="space-y-2 pt-1">
+                      {contact.people.map((person, pIdx) => (
+                        <div key={pIdx} className="flex justify-between items-center gap-2 border-t border-outline/5 pt-1.5 first:border-0 first:pt-0">
+                          <span className="block text-[11px] font-bold text-onSurfaceVariant leading-none">
+                            {person.name}
+                          </span>
+                          <a
+                            href={`tel:${person.number.replace(/\s+/g, '')}`}
+                            className="inline-flex items-center gap-1 text-[10.5px] text-error hover:text-[#991515] font-black transition-all hover:underline"
+                          >
+                            <span className="material-symbols-outlined text-[12px] align-middle select-none">phone</span>
+                            <span>{person.number}</span>
+                          </a>
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 </div>
               ))}

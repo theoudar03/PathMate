@@ -22,6 +22,19 @@ const INTERESTS = [
   'Sports & Athletics', 'Volunteering', 'Tamil Culture', 'Other'
 ];
 
+const APPROVED_CATEGORIES = [
+  'Overall Experience',
+  'AI Assistant',
+  'Campus Navigation',
+  'Study Hub',
+  'Student Dashboard',
+  'Events',
+  'Clubs',
+  'Senior Connect',
+  'Bus Routes',
+  'General Feedback'
+];
+
 const getDeptTheme = (deptName) => {
   const d = (deptName || '').toLowerCase();
   if (d.includes('computer') || d.includes('cse') || d.includes('it') || d.includes('information')) {

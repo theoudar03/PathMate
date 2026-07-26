@@ -294,7 +294,7 @@ Format your response as a JSON object matching the requested schema.`;
     
     if (lowerQuery.includes('hostel') || lowerQuery.includes('warden')) {
       return {
-        answer: "Hostel Wardens list: Chief Warden for Boys Hostel is Prof. Hostel Welfare Warden (Block B). Chief Warden for Girls is Dr. Hostel Welfare Warden (Block A).",
+        answer: "Hostel Warden contacts: For Boys Hostel: Mr. Senthil Balaji (97866 02444) and Mr. Ganapathy (80563 78804). For Girls Hostel: Dr. M.Santhi (9443247249), Ms.Kalpana (8667861938), and Ms. Sarojini (7708032282).",
         isGrounded: true,
         sourceTable: "emergency_contacts"
       };
@@ -302,7 +302,7 @@ Format your response as a JSON object matching the requested schema.`;
 
     if (lowerQuery.includes('ragging') || lowerQuery.includes('safety') || lowerQuery.includes('emergency')) {
       return {
-        answer: "SCE maintains a zero-tolerance policy. You can contact the SCE Anti-Ragging Committee at the emergency cell hotline: [ADD REAL ANTI-RAGGING HOTLINE].",
+        answer: "SCE maintains a zero-tolerance anti-ragging policy. Contact the Anti-Ragging Committee: Dr.D.Valavan (8489915201), Dr.L.Muruganandam (9486606545), Dr.M.Padmaa (9894055910), or Mr.P.Nixon (Inspector of Police) at 9498164033.",
         isGrounded: true,
         sourceTable: "emergency_contacts"
       };

@@ -341,11 +341,35 @@ router.put('/students/:id', async (req, res) => {
     const userBeforeRes = await db.query('SELECT register_number, username FROM users WHERE id = $1', [id]);
     if (userBeforeRes.rows.length === 0) return res.status(404).json({ error: 'Student not found' });
     const oldRegNumber = userBeforeRes.rows[0].register_number;
+    const oldUsername = userBeforeRes.rows[0].username;
 
     let deptId = null;
     if (department) {
       const deptRes = await db.query('SELECT id FROM departments WHERE name ILIKE $1 OR full_name ILIKE $1', [`%${department}%`]);
       deptId = deptRes.rows[0]?.id;
+    }
+
+    // Check for unique constraint conflicts BEFORE attempting the update
+    if (username && username !== oldUsername) {
+      const usernameConflict = await db.query('SELECT id FROM users WHERE username = $1 AND id != $2', [username, id]);
+      if (usernameConflict.rows.length > 0) {
+        return res.status(409).json({ error: `Username "${username}" is already taken by another student.` });
+      }
+    }
+
+    const newRegNumber = (register_number || '').trim() || oldRegNumber;
+    if (newRegNumber && newRegNumber !== oldRegNumber) {
+      const regConflict = await db.query('SELECT id FROM users WHERE register_number = $1 AND id != $2', [newRegNumber, id]);
+      if (regConflict.rows.length > 0) {
+        return res.status(409).json({ error: `Register number "${newRegNumber}" is already assigned to another student.` });
+      }
+    }
+
+    if (email) {
+      const emailConflict = await db.query('SELECT id FROM users WHERE LOWER(email) = LOWER($1) AND id != $2', [email, id]);
+      if (emailConflict.rows.length > 0) {
+        return res.status(409).json({ error: `Email "${email}" is already registered by another student.` });
+      }
     }
 
     const updateRes = await db.query(
@@ -376,7 +400,7 @@ router.put('/students/:id', async (req, res) => {
         stay_type === 'hostel' ? hostel_block : null,
         stay_type === 'hostel',
         deptId, 
-        (register_number || '').trim() || oldRegNumber, 
+        newRegNumber, 
         username, 
         gender, 
         travel_mode,
@@ -386,40 +410,56 @@ router.put('/students/:id', async (req, res) => {
 
     if (updateRes.rows.length === 0) return res.status(404).json({ error: 'Student not found' });
 
-    const finalRegNum = (register_number || '').trim() || oldRegNumber;
+    const finalRegNum = newRegNumber;
 
-    // Update official_students registry in sync
-    if (oldRegNumber) {
-      await db.query(
-        `UPDATE official_students SET 
-          register_number = $1, 
-          full_name = $2, 
-          email = $3, 
-          department = $4,
-          gender = $5,
-          travel_mode = $6
-         WHERE LOWER(register_number) = LOWER($7)`,
-        [finalRegNum, full_name, email || `${username || finalRegNum}@saranathan.ac.in`, department, gender, travel_mode, oldRegNumber]
-      );
+    // Update official_students registry in sync (silently — don't block update if registry sync fails)
+    try {
+      if (oldRegNumber) {
+        await db.query(
+          `UPDATE official_students SET 
+            register_number = $1, 
+            full_name = $2, 
+            email = $3, 
+            department = $4,
+            gender = $5,
+            travel_mode = $6
+           WHERE LOWER(register_number) = LOWER($7)`,
+          [finalRegNum, full_name, email || `${username || finalRegNum}@saranathan.ac.in`, department, gender, travel_mode, oldRegNumber]
+        );
+      }
+    } catch (syncErr) {
+      console.warn('official_students sync skipped:', syncErr.message);
     }
 
-    // Update roommate profile in sync
-    await db.query(
-      `UPDATE roommates SET 
-        name = $1,
-        gender = $2,
-        department = $3,
-        hostel_block = $4,
-        contact_email = $5,
-        student_id = $6,
-        is_visible = $7
-       WHERE user_id = $8`,
-      [full_name, gender, department, stay_type === 'hostel' ? hostel_block : null, email, finalRegNum, stay_type === 'hostel', id]
-    );
+    // Update roommate profile in sync (silently)
+    try {
+      await db.query(
+        `UPDATE roommates SET 
+          name = $1,
+          gender = $2,
+          department = $3,
+          hostel_block = $4,
+          contact_email = $5,
+          student_id = $6,
+          is_visible = $7
+         WHERE user_id = $8`,
+        [full_name, gender, department, stay_type === 'hostel' ? hostel_block : null, email, finalRegNum, stay_type === 'hostel', id]
+      );
+    } catch (roommateErr) {
+      console.warn('roommates sync skipped:', roommateErr.message);
+    }
 
     await logActivity(req.admin?.id, 'student_updated', `Updated student ID ${id}: status=${status || 'unchanged'}`);
     res.json(updateRes.rows[0]);
   } catch (error) {
+    // Catch any remaining unique constraint violations and return a user-friendly message
+    if (error.code === '23505') {
+      const detail = error.detail || '';
+      if (detail.includes('username')) return res.status(409).json({ error: 'Username is already taken by another student.' });
+      if (detail.includes('email')) return res.status(409).json({ error: 'Email is already registered by another student.' });
+      if (detail.includes('register_number')) return res.status(409).json({ error: 'Register number is already assigned to another student.' });
+      return res.status(409).json({ error: `Duplicate value conflict: ${detail}` });
+    }
     res.status(500).json({ error: error.message });
   }
 });

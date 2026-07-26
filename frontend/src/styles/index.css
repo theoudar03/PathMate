@@ -1,3 +1,5 @@
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+Tamil:wght@400;600;700;900&family=Noto+Sans+Devanagari:wght@400;600;700;900&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -552,5 +554,244 @@
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.4);
 }
 
+/* ─────────────────────────────────────────────────
+   MULTILINGUAL RESPONSIVE SYSTEM
+   Ensures layouts stay intact when switching between
+   English, Tamil (தமிழ்) and Hindi (हिन्दी)
+───────────────────────────────────────────────── */
 
+/* Load Tamil + Devanagari (Hindi) fonts — already imported at top */
 
+/* Global word-break — prevents any text from overflowing containers */
+* {
+  word-break: break-word;
+  overflow-wrap: anywhere;
+  min-width: 0;
+}
+
+/* Headings should break gracefully too */
+h1, h2, h3, h4, h5, h6 {
+  word-break: break-word;
+  overflow-wrap: anywhere;
+  hyphens: auto;
+}
+
+/* Tamil & Hindi characters — use appropriate fonts */
+:lang(ta),
+[lang="ta"],
+.lang-ta {
+  font-family: 'Noto Sans Tamil', 'Latha', sans-serif !important;
+  line-height: 1.8 !important;  /* Tamil glyphs are taller */
+  letter-spacing: 0.02em;
+}
+
+:lang(hi),
+[lang="hi"],
+.lang-hi {
+  font-family: 'Noto Sans Devanagari', 'Mangal', sans-serif !important;
+  line-height: 1.7 !important;
+  letter-spacing: 0.01em;
+}
+
+/* ── Fluid Typography System ──────────────────────────
+   Responsive font sizes that scale gracefully on all
+   screen sizes, especially when text is longer in Tamil
+─────────────────────────────────────────────────── */
+
+/* Hero headings */
+.text-hero {
+  font-size: clamp(1.5rem, 4vw + 0.5rem, 2.8rem);
+  line-height: 1.15;
+}
+
+/* Section headings */
+.text-section {
+  font-size: clamp(1.1rem, 2.5vw + 0.3rem, 1.6rem);
+  line-height: 1.25;
+}
+
+/* Body text */
+.text-body-fluid {
+  font-size: clamp(0.875rem, 1.5vw + 0.2rem, 1rem);
+  line-height: 1.65;
+}
+
+/* ── Safe Layout Utilities ────────────────────────────
+   Use these on flex/grid containers to prevent overflow
+   when translated text is longer than English
+─────────────────────────────────────────────────── */
+
+/* Wrap flex children when text doesn't fit */
+.flex-wrap-safe {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  min-width: 0;
+}
+
+/* Make text containers shrink safely */
+.text-safe {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.text-safe-wrap {
+  min-width: 0;
+  word-break: break-word;
+  overflow-wrap: anywhere;
+}
+
+/* ── Mobile Responsive Patches ───────────────────────
+   Extra rules for small screens with translated text
+─────────────────────────────────────────────────── */
+
+/* Buttons — always wrap text, never clip */
+button, .btn-primary, .btn-secondary, .btn-premium-primary, .btn-premium-secondary {
+  white-space: normal;
+  word-break: break-word;
+  text-align: center;
+  height: auto;
+  min-height: 2.25rem;
+}
+
+/* Nav links — prevent text overflow in constrained spaces */
+nav a, nav button {
+  flex-shrink: 1;
+  min-width: 0;
+}
+
+@media (max-width: 768px) {
+  /* Relax nav link clipping on mobile since it stacks vertically */
+  nav a, nav button {
+    max-width: none;
+    white-space: normal;
+  }
+
+  /* Hero section: always stack on mobile regardless of language */
+  .hero-flex {
+    flex-direction: column !important;
+    align-items: flex-start !important;
+  }
+
+  /* Stat cards: 2-column max on mobile */
+  .stats-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+
+  /* Quick action cards: 2-column on small screens */
+  .actions-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+}
+
+@media (max-width: 480px) {
+  /* Tighten headings on very small screens */
+  h1 { font-size: clamp(1.3rem, 6vw, 1.8rem) !important; }
+  h2 { font-size: clamp(1.1rem, 4vw, 1.4rem) !important; }
+  h3 { font-size: clamp(0.9rem, 3.5vw, 1.1rem) !important; }
+
+  /* Stat cards: stack to 1 column on tiny screens */
+  .stats-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+
+  /* Full-width buttons on tiny screens */
+  .btn-full-mobile {
+    width: 100% !important;
+    justify-content: center !important;
+  }
+}
+
+/* Safe area insets for notched phones (iPhone) */
+@supports (padding: max(0px)) {
+  .safe-bottom {
+    padding-bottom: max(1rem, env(safe-area-inset-bottom));
+  }
+  .safe-top {
+    padding-top: max(1rem, env(safe-area-inset-top));
+  }
+}
+
+/* ── Card & Grid Responsive Patches ──────────────────
+   Prevent cards from collapsing with longer translations
+─────────────────────────────────────────────────── */
+
+/* Ensure cards always have a sensible minimum width */
+.card, .card-accent, .card-premium {
+  min-width: 0;
+  overflow: hidden;
+}
+
+/* Grid items always shrink properly */
+[class*="grid-cols"] > * {
+  min-width: 0;
+  overflow: hidden;
+}
+
+/* Flex children that contain text */
+[class*="flex"] > * {
+  min-width: 0;
+}
+
+/* ── Slide Down animation (for dropdowns / drawers) ── */
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-slide-down {
+  animation: slideDown 180ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+/* ── Fade In ── */
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+.animate-fade-in {
+  animation: fadeIn 300ms ease-out both;
+}
+
+/* ── Tamil / Hindi button text — allow wrapping ── */
+button span,
+a span {
+  word-break: break-word;
+  overflow-wrap: anywhere;
+  hyphens: auto;
+}
+
+/* ── Navbar language-aware adjustments ────────────────
+   Prevent the navbar from overflowing on any language
+─────────────────────────────────────────────────── */
+nav .flex-1 {
+  min-width: 0;
+  overflow: hidden;
+}
+
+nav .flex-1 > * {
+  flex-shrink: 1;
+  min-width: 0;
+}
+
+/* Tablet-specific: compress nav items at 769–1100px */
+@media (min-width: 769px) and (max-width: 1100px) {
+  nav > div > div > div.flex-1 {
+    gap: 0.125rem;
+  }
+
+  nav > div > div > div.flex-1 > a,
+  nav > div > div > div.flex-1 > button {
+    font-size: 11px;
+    padding-left: 0.5rem;
+    padding-right: 0.5rem;
+  }
+}

@@ -125,6 +125,7 @@ const Dashboard = () => {
   // Study Streak Modal States
   const [isStreakModalOpen, setIsStreakModalOpen] = useState(false);
   const [pendingTasks, setPendingTasks] = useState([]);
+  const [studyStreak, setStudyStreak] = useState(1);
 
   // Student reviews states
   const [myReview, setMyReview] = useState(null);

@@ -115,7 +115,7 @@ const FresherChecklist = () => {
         {CHECKLIST.map(item => {
           const isDone = !!checked[item.id];
           return (
-            <button
+            <div
               key={item.id}
               onClick={() => setActive(item)}
               className="text-left rounded-2xl border p-3 transition-all duration-150 relative overflow-hidden cursor-pointer"
@@ -147,7 +147,7 @@ const FresherChecklist = () => {
                 {item.title}
               </p>
               <p className="text-[10px] text-onSurfaceVariant mt-0.5">{item.subtitle}</p>
-            </button>
+            </div>
           );
         })}
       </div>

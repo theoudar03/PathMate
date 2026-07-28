@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { CAMPUS_MAP_DATA } from '../../config/mapData';
 import { Navigation, MapPin, Compass, Clock, Footprints, CheckCircle2, AlertCircle, Navigation2, X, StopCircle, PartyPopper } from 'lucide-react';
+import { useApp } from '../../contexts/AppContext';
 
 const getOriginPresets = () => {
   const mainGate = CAMPUS_MAP_DATA.find(b => b.id === 'main-gate') || { gps: { lat: 10.7543, lng: 78.6528 } };
@@ -29,6 +30,7 @@ const LiveNavigationDrawer = ({
   onOriginChange,
   onDestinationChange
 }) => {
+  const { t } = useApp();
   const [originId, setOriginId] = useState('main-gate');
   const [destinationId, setDestinationId] = useState(initialDestination?.id || 'ks-block');
   const [useLiveGps, setUseLiveGps] = useState(false);
@@ -36,6 +38,26 @@ const LiveNavigationDrawer = ({
   const [gpsError, setGpsError] = useState(null);
   const [currentGpsCoords, setCurrentGpsCoords] = useState(null);
   const [hasArrived, setHasArrived] = useState(false);
+
+  // Translate Origin Presets Dynamically
+  const getLocalizedPresets = () => {
+    const rawPresets = getOriginPresets();
+    return rawPresets.map(preset => {
+      let key = '';
+      if (preset.id === 'main-gate') key = 'presetMainGate';
+      else if (preset.id === 'boys-hostel') key = 'presetBoysHostel';
+      else if (preset.id === 'girls-hostel') key = 'presetGirlsHostel';
+      else if (preset.id === 'central-library') key = 'presetLibrary';
+      else if (preset.id === 'canteen') key = 'presetCanteen';
+      
+      return {
+        ...preset,
+        name: t(key) || preset.name
+      };
+    });
+  };
+
+  const originPresets = getLocalizedPresets();
 
   // Sync initial destination from parent props when selected
   useEffect(() => {
@@ -75,7 +97,11 @@ const LiveNavigationDrawer = ({
           if (onUserLocationUpdate) onUserLocationUpdate(coords);
         },
         (err) => {
-          setGpsError('Unable to detect current location. Using campus origin presets.');
+          if (err.code === 1) {
+            setGpsError(t('gpsErrorBlocked') || 'Geolocation permission blocked. Reset it via the site settings icon in your URL bar.');
+          } else {
+            setGpsError(t('gpsErrorFailed') || 'Unable to detect current location. Using campus origin presets.');
+          }
           setGpsLoading(false);
           setUseLiveGps(false);
           handleOriginSelect('main-gate');
@@ -85,13 +111,13 @@ const LiveNavigationDrawer = ({
 
       return () => navigator.geolocation.clearWatch(watchId);
     } else {
-      setGpsError('Geolocation is not supported by your browser.');
+      setGpsError(t('gpsUnsupported') || 'Geolocation is not supported by your browser.');
       handleOriginSelect('main-gate');
     }
   }, [onUserLocationUpdate]);
 
   const destinationBuilding = CAMPUS_MAP_DATA.find(b => b.id === destinationId) || CAMPUS_MAP_DATA[0];
-  const originPreset = ORIGIN_PRESETS.find(o => o.id === originId) || ORIGIN_PRESETS[0];
+  const originPreset = originPresets.find(o => o.id === originId) || originPresets[0];
 
   // Calculate live walking distance and time continuously
   const calculateNavigationDetails = () => {
@@ -112,30 +138,40 @@ const LiveNavigationDrawer = ({
 
     const formattedDistance = distanceMeters >= 1000
       ? `${(distanceMeters / 1000).toFixed(1)} km`
-      : `${distanceMeters} Meters`;
+      : `${distanceMeters} ${t('meters') || 'Meters'}`;
 
     const timeMinutes = Math.max(1, Math.round(distanceMeters / 70));
 
+    // Translation helper inside calculateNavigationDetails
+    const translateStep = (key, fallback, replacements = {}) => {
+      let trText = t(key);
+      if (!trText || trText === key) trText = fallback;
+      Object.entries(replacements).forEach(([k, v]) => {
+        trText = trText.replace(`{${k}}`, v);
+      });
+      return trText;
+    };
+
     // Dynamic Step-by-Step Directions Generator based on Spatial Regions
     const steps = [];
-    const originName = useLiveGps ? 'Your Live GPS Location' : originPreset.name;
-    const destName = destinationBuilding.name;
+    const originName = useLiveGps ? (t('gpsActiveOption') || 'Current Location (GPS Active)') : originPreset.name;
+    const destName = t('mapBlock_' + destinationBuilding.id) || destinationBuilding.name;
     const destDept = destinationBuilding.departments?.[0] || '';
     const nearby = destinationBuilding.nearby_facilities?.[0] || '';
 
-    steps.push({ text: `Start walking from ${originName}.`, icon: 'my_location' });
+    steps.push({ text: translateStep('navStepStartWalking', `Start walking from ${originName}.`, { name: originName }), icon: 'my_location' });
 
     if (originId === 'main-gate') {
-      steps.push({ text: 'Pass through the main security gate, keeping the Security Room on your left.', icon: 'straight' });
-      steps.push({ text: 'Head north along the main central avenue past the student parking lot.', icon: 'straight' });
+      steps.push({ text: translateStep('navStepPassGate', 'Pass through the main security gate, keeping the Security Room on your left.'), icon: 'straight' });
+      steps.push({ text: translateStep('navStepHeadNorth', 'Head north along the main central avenue past the student parking lot.'), icon: 'straight' });
     } else if (originId === 'boys-hostel') {
-      steps.push({ text: 'Depart from the Boys Hostel entrance toward the staff parking lot.', icon: 'south' });
+      steps.push({ text: translateStep('navStepDepartBoysHostel', 'Depart from the Boys Hostel entrance toward the staff parking lot.'), icon: 'south' });
     } else if (originId === 'girls-hostel') {
-      steps.push({ text: 'Head west from the Girls Hostel gate toward the main central avenue.', icon: 'west' });
+      steps.push({ text: translateStep('navStepHeadWestGirls', 'Head west from the Girls Hostel gate toward the main central avenue.'), icon: 'west' });
     } else if (originId === 'canteen') {
-      steps.push({ text: 'Exit the Food Court and turn onto the pathway past the ECE block.', icon: 'turn_right' });
+      steps.push({ text: translateStep('navStepExitFoodCourt', 'Exit the Food Court and turn onto the pathway past the ECE block.'), icon: 'turn_right' });
     } else {
-      steps.push({ text: 'Head onto the nearest paved path toward the central corridor.', icon: 'compass_calibration' });
+      steps.push({ text: translateStep('navStepHeadNearestPath', 'Head onto the nearest paved path toward the central corridor.'), icon: 'compass_calibration' });
     }
 
     const isSportsField = destinationBuilding.category === 'Sports' || ['toilet', 'tnsca-office'].includes(destinationBuilding.id);
@@ -144,36 +180,36 @@ const LiveNavigationDrawer = ({
 
     if (isSportsField) {
       if (originId === 'main-gate') {
-        steps.push({ text: 'Turn left onto the unpaved sports path before Ganesha Temple.', icon: 'turn_left' });
+        steps.push({ text: translateStep('navStepTurnLeftTemple', 'Turn left onto the unpaved sports path before Ganesha Temple.'), icon: 'turn_left' });
       } else {
-        steps.push({ text: 'Walk south-west toward the practice grounds on the west side.', icon: 'south_west' });
+        steps.push({ text: translateStep('navStepWalkSouthWest', 'Walk south-west toward the practice grounds on the west side.'), icon: 'south_west' });
       }
-      steps.push({ text: 'Follow the dirt path past the practice nets, keeping Cricket Ground 1 on your right.', icon: 'straight' });
+      steps.push({ text: translateStep('navStepFollowDirtPath', 'Follow the dirt path past the practice nets, keeping Cricket Ground 1 on your right.'), icon: 'straight' });
     } else if (isAcademicRow) {
       if (originId === 'main-gate') {
-        steps.push({ text: 'Continue straight along the central avenue past the CUB ATM.', icon: 'straight' });
-        steps.push({ text: 'Turn right at Ganesha Temple junction into the academic quad.', icon: 'turn_right' });
+        steps.push({ text: translateStep('navStepContinueCUB', 'Continue straight along the central avenue past the CUB ATM.'), icon: 'straight' });
+        steps.push({ text: translateStep('navStepTurnRightTemple', 'Turn right at Ganesha Temple junction into the academic quad.'), icon: 'turn_right' });
       } else {
-        steps.push({ text: 'Walk south-east past the Staff Parking lot to the academic courtyard.', icon: 'straight' });
+        steps.push({ text: translateStep('navStepWalkSouthEast', 'Walk south-east past the Staff Parking lot to the academic courtyard.'), icon: 'straight' });
       }
       if (destinationBuilding.id === 'bd-block') {
-        steps.push({ text: 'Walk north past JS block to reach the BD Block Library complex.', icon: 'north' });
+        steps.push({ text: translateStep('navStepWalkNorthLibrary', 'Walk north past JS block to reach the BD Block Library complex.'), icon: 'north' });
       } else if (destinationBuilding.id === 'ks-block') {
-        steps.push({ text: 'Proceed south toward K. Santhanam Block.', icon: 'south' });
+        steps.push({ text: translateStep('navStepProceedSouthKS', 'Proceed south toward K. Santhanam Block.'), icon: 'south' });
       }
     } else if (isWorkshopCanteen) {
-      steps.push({ text: 'Walk toward the volleyball sand court, turning towards the western labs.', icon: 'turn_left' });
-      steps.push({ text: 'Proceed past the main Canteen building to find the workshop entrance.', icon: 'straight' });
+      steps.push({ text: translateStep('navStepWalkVolleyball', 'Walk toward the volleyball sand court, turning towards the western labs.'), icon: 'turn_left' });
+      steps.push({ text: translateStep('navStepProceedPastCanteen', 'Proceed past the main Canteen building to find the workshop entrance.'), icon: 'straight' });
     } else if (destinationBuilding.id === 'boys-hostel') {
-      steps.push({ text: 'Proceed north all the way to the far end of the campus road, past the bus bay.', icon: 'north' });
+      steps.push({ text: translateStep('navStepProceedNorthEnd', 'Proceed north all the way to the far end of the campus road, past the bus bay.'), icon: 'north' });
     } else {
-      steps.push({ text: 'Follow the central campus avenue toward the destination building.', icon: 'straight' });
+      steps.push({ text: translateStep('navStepFollowCentral', 'Follow the central campus avenue toward the destination building.'), icon: 'straight' });
     }
 
     if (nearby) {
-      steps.push({ text: `You will find ${nearby} located in the immediate vicinity.`, icon: 'explore' });
+      steps.push({ text: translateStep('navStepNearby', `You will find ${nearby} located in the immediate vicinity.`, { nearby }), icon: 'explore' });
     }
-    steps.push({ text: `Arrive at ${destName}. ${destDept ? `Enter the main foyer for ${destDept}.` : 'Entrance is straight ahead.'}`, icon: 'where_to_vote' });
+    steps.push({ text: destDept ? translateStep('navStepArriveFoyer', `Arrive at ${destName}. Enter the main foyer for ${destDept}.`, { destName, destDept }) : translateStep('navStepArriveStraight', `Arrive at ${destName}. Entrance is straight ahead.`, { destName }), icon: 'where_to_vote' });
 
     return { distanceMeters, formattedDistance, timeMinutes, steps };
   };
@@ -195,8 +231,8 @@ const LiveNavigationDrawer = ({
             <Navigation size={20} />
           </div>
           <div>
-            <h2 className="text-base font-black text-onSurface">Campus Walking Directions</h2>
-            <p className="text-xs text-onSurfaceVariant">Real-Time GPS & Live Distance Tracking</p>
+            <h2 className="text-base font-black text-onSurface">{t('campusWalkingDirections') || 'Campus Walking Directions'}</h2>
+            <p className="text-xs text-onSurfaceVariant">{t('gpsLiveTrackingSub') || 'Real-Time GPS & Live Distance Tracking'}</p>
           </div>
         </div>
         {onClose && (
@@ -212,9 +248,11 @@ const LiveNavigationDrawer = ({
           <div className="flex items-start gap-3">
             <PartyPopper size={24} className="text-yellow-300 flex-shrink-0 mt-0.5" />
             <div>
-              <h4 className="text-xs font-black">🎉 Destination Reached!</h4>
+              <h4 className="text-xs font-black">🎉 {t('reachedTitle') || 'Destination Reached!'}</h4>
               <p className="text-[11px] font-semibold text-emerald-100 mt-1">
-                You have arrived at <strong>{destinationBuilding.name}</strong>! Have a wonderful day on campus!
+                {t('reachedBody') 
+                  ? t('reachedBody').replace('{dest}', t('mapBlock_' + destinationBuilding.id) || destinationBuilding.name)
+                  : `You have arrived at ${t('mapBlock_' + destinationBuilding.id) || destinationBuilding.name}! Have a wonderful day on campus!`}
               </p>
             </div>
           </div>
@@ -229,11 +267,11 @@ const LiveNavigationDrawer = ({
         {/* Starting Location */}
         <div>
           <label className="block text-[11px] font-black text-gray-500 uppercase tracking-wider mb-1 flex items-center justify-between">
-            <span>SOURCE ADDRESS / START LOCATION</span>
+            <span>{t('sourceAddress') || 'SOURCE ADDRESS / START LOCATION'}</span>
             {useLiveGps ? (
               <span className="text-green-700 font-bold text-[10px] flex items-center gap-1">
                 <span className="w-2 h-2 rounded-full bg-green-600 animate-ping" />
-                LIVE GPS TRACKING
+                {t('gpsActive') || 'LIVE GPS TRACKING'}
               </span>
             ) : (
               <button
@@ -241,10 +279,10 @@ const LiveNavigationDrawer = ({
                   setUseLiveGps(true);
                   if (onOriginChange) onOriginChange('gps');
                 }}
-                className="text-primary hover:underline font-bold text-[10px] flex items-center gap-1"
+                className="text-primary hover:underline font-bold text-[10px] flex items-center gap-1 bg-transparent border-none cursor-pointer outline-none"
               >
                 <Compass size={12} />
-                Detect GPS
+                {t('gpsDetect') || 'Detect GPS'}
               </button>
             )}
           </label>
@@ -263,9 +301,9 @@ const LiveNavigationDrawer = ({
             className="w-full bg-white border border-outline/40 rounded-xl py-2.5 px-3.5 text-xs font-bold text-onSurface shadow-xs"
           >
             {useLiveGps && (
-              <option value="gps">Current Location (GPS Active)</option>
+              <option value="gps">{t('gpsActiveOption') || 'Current Location (GPS Active)'}</option>
             )}
-            {ORIGIN_PRESETS.map(o => (
+            {originPresets.map(o => (
               <option key={o.id} value={o.id}>{o.name}</option>
             ))}
           </select>
@@ -274,7 +312,7 @@ const LiveNavigationDrawer = ({
         {/* Destination Address */}
         <div>
           <label className="block text-[11px] font-black text-gray-500 uppercase tracking-wider mb-1">
-            DESTINATION ADDRESS / BUILDING
+            {t('destinationAddress') || 'DESTINATION ADDRESS / BUILDING'}
           </label>
           <select
             value={destinationId}
@@ -282,7 +320,7 @@ const LiveNavigationDrawer = ({
             className="w-full bg-white border border-outline/40 rounded-xl py-2.5 px-3.5 text-xs font-bold text-onSurface shadow-xs"
           >
             {CAMPUS_MAP_DATA.map(b => (
-              <option key={b.id} value={b.id}>{b.name}</option>
+              <option key={b.id} value={b.id}>{t('mapBlock_' + b.id) || b.name}</option>
             ))}
           </select>
         </div>
@@ -302,20 +340,20 @@ const LiveNavigationDrawer = ({
             onClick={() => {
               if (onToggleNavigation) onToggleNavigation(true);
             }}
-            className="w-full bg-gradient-to-r from-primary to-[#2563EB] hover:from-primaryHover hover:to-primary text-white py-3.5 rounded-2xl font-black text-xs shadow-md flex items-center justify-center gap-2.5 transition-all active:scale-[0.98] border border-primary/20"
+            className="w-full bg-gradient-to-r from-primary to-[#2563EB] hover:from-primaryHover hover:to-primary text-white py-3.5 rounded-2xl font-black text-xs shadow-md flex items-center justify-center gap-2.5 transition-all active:scale-[0.98] border border-primary/20 cursor-pointer"
           >
             <Navigation2 size={18} className="fill-white" />
-            <span>Start Live Navigation</span>
+            <span>{t('startLiveNav') || 'Start Live Navigation'}</span>
           </button>
         ) : (
           <button
             onClick={() => {
               if (onToggleNavigation) onToggleNavigation(false);
             }}
-            className="w-full bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 py-3.5 rounded-2xl font-black text-xs shadow-sm flex items-center justify-center gap-2.5 transition-all active:scale-[0.98]"
+            className="w-full bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 py-3.5 rounded-2xl font-black text-xs shadow-sm flex items-center justify-center gap-2.5 transition-all active:scale-[0.98] cursor-pointer"
           >
             <StopCircle size={18} className="text-rose-600" />
-            <span>Stop Live Navigation</span>
+            <span>{t('stopLiveNav') || 'Stop Live Navigation'}</span>
           </button>
         )}
       </div>
@@ -327,7 +365,7 @@ const LiveNavigationDrawer = ({
             <Footprints size={20} />
           </div>
           <div>
-            <span className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block">LIVE DISTANCE</span>
+            <span className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block">{t('liveDistance') || 'LIVE DISTANCE'}</span>
             <span className="text-base font-black text-primary animate-pulse">{nav.formattedDistance}</span>
           </div>
         </div>
@@ -337,8 +375,8 @@ const LiveNavigationDrawer = ({
             <Clock size={20} />
           </div>
           <div>
-            <span className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block">EST. TIME</span>
-            <span className="text-base font-black text-emerald-700">{nav.timeMinutes} Mins</span>
+            <span className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block">{t('estTime') || 'EST. TIME'}</span>
+            <span className="text-base font-black text-emerald-700">{nav.timeMinutes} {t('minLabel') || 'Mins'}</span>
           </div>
         </div>
       </div>
@@ -346,7 +384,7 @@ const LiveNavigationDrawer = ({
       {/* Turn-by-Turn Instruction Steps */}
       <div className="space-y-3">
         <h4 className="text-xs font-black uppercase tracking-wider text-gray-500">
-          Step-by-Step Directions
+          {t('stepDirections') || 'Step-by-Step Directions'}
         </h4>
 
         <div className="space-y-2">

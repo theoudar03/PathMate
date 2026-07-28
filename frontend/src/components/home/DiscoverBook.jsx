@@ -226,7 +226,7 @@ const DiscoverBook = () => {
                     onClick={() => setCurrentPage(i)}
                     className="w-2 h-2 rounded-full transition-all cursor-pointer"
                     style={{
-                      backgroundColor: i === currentPage ? page.color : '#e2e8f0',
+                      backgroundColor: i === currentPage ? page.color : 'var(--outline-variant)',
                       transform: i === currentPage ? 'scale(1.4)' : 'scale(1)',
                     }}
                   />

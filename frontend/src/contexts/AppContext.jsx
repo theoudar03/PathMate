@@ -129,89 +129,121 @@ export const AppProvider = ({ children }) => {
     .catch(err => console.error('Failed to fetch clubs/events/committees:', err));
   }, []);
 
-  // Verify auth token once on initial startup load
+  // Verify auth token and preload icon fonts once on initial startup load
   useEffect(() => {
-    if (token) {
-      fetch('/auth/me', {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      })
-      .then(res => {
-        // Only treat 401/403 as actual auth failures — not network errors
-        if (res.status === 401 || res.status === 403) {
-          throw Object.assign(new Error('Token validation failed'), { isAuthError: true });
-        }
-        if (!res.ok) throw new Error(`Server error: ${res.status}`);
-        return res.json();
-      })
-      .then(data => {
-        if (data.success && data.user) {
-          setUser(data.user);
-          localStorage.setItem('pm_user', JSON.stringify(data.user));
-          setOnboarded(true);
-          if (data.user.preferred_language) {
-            setLanguage(data.user.preferred_language);
-            localStorage.setItem('pm_lang', data.user.preferred_language);
-          }
-          // Fetch DB-backed user state (reads, bookmarks, checklist)
-          fetch('/api/state/user-state', {
-            headers: { 'Authorization': `Bearer ${token}` }
+    const startInitialization = async () => {
+      // 1. Start preloading the Material Symbols font
+      const fontPromise = document.fonts
+        ? document.fonts.load('1em "Material Symbols Outlined"')
+            .then(() => {
+              if (document.fonts.check('1em "Material Symbols Outlined"')) {
+                document.documentElement.classList.add('pm-icons-loaded');
+              }
+            })
+            .catch(err => console.warn('Failed to load Material Symbols font face:', err))
+        : Promise.resolve();
+
+      // Create a safety timeout of 2.5 seconds for font loading so offline/firewalls don't block app launch
+      const fontTimeout = new Promise((resolve) => setTimeout(resolve, 2500));
+
+      // 2. Start verifying auth token
+      const authPromise = token
+        ? fetch('/auth/me', {
+            headers: {
+              'Authorization': `Bearer ${token}`
+            }
           })
-          .then(r => r.ok ? r.json() : null)
-          .then(stateData => {
-            if (stateData && stateData.success) {
-              setDbReadNotices(stateData.readNotices || []);
-              localStorage.setItem('pm_read_notices', JSON.stringify(stateData.readNotices || []));
-              setDbBookmarkedNotices(stateData.bookmarkedNotices || []);
-              localStorage.setItem('pm_bookmarked_notices', JSON.stringify(stateData.bookmarkedNotices || []));
-              if (stateData.fresherChecklist) {
-                setDbFresherChecklist(stateData.fresherChecklist);
-                localStorage.setItem('pm_fresher_checklist', JSON.stringify(stateData.fresherChecklist));
+          .then(res => {
+            // Only treat 401/403 as actual auth failures — not network errors
+            if (res.status === 401 || res.status === 403) {
+              throw Object.assign(new Error('Token validation failed'), { isAuthError: true });
+            }
+            if (!res.ok) throw new Error(`Server error: ${res.status}`);
+            return res.json();
+          })
+          .then(async (data) => {
+            if (data.success && data.user) {
+              setUser(data.user);
+              localStorage.setItem('pm_user', JSON.stringify(data.user));
+              setOnboarded(true);
+              if (data.user.preferred_language) {
+                setLanguage(data.user.preferred_language);
+                localStorage.setItem('pm_lang', data.user.preferred_language);
+              }
+              // Fetch DB-backed user state (reads, bookmarks, checklist)
+              try {
+                await Promise.all([
+                  fetch('/api/state/user-state', {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                  })
+                  .then(r => r.ok ? r.json() : null)
+                  .then(stateData => {
+                    if (stateData && stateData.success) {
+                      setDbReadNotices(stateData.readNotices || []);
+                      localStorage.setItem('pm_read_notices', JSON.stringify(stateData.readNotices || []));
+                      setDbBookmarkedNotices(stateData.bookmarkedNotices || []);
+                      localStorage.setItem('pm_bookmarked_notices', JSON.stringify(stateData.bookmarkedNotices || []));
+                      if (stateData.fresherChecklist) {
+                        setDbFresherChecklist(stateData.fresherChecklist);
+                        localStorage.setItem('pm_fresher_checklist', JSON.stringify(stateData.fresherChecklist));
+                      }
+                    }
+                  }),
+                  fetch('/api/state/notifications', {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                  })
+                  .then(r => r.ok ? r.json() : null)
+                  .then(notifData => {
+                    if (notifData && notifData.success) {
+                      setNotifications(notifData.notifications || []);
+                    }
+                  })
+                ]);
+              } catch (err) {
+                console.warn('Failed to load DB state in parallel:', err.message);
+              }
+            } else {
+              throw new Error('Invalid user payload');
+            }
+          })
+          .catch(err => {
+            if (err.isAuthError) {
+              // Only clear session on genuine 401/403 (expired or revoked token)
+              console.warn("Session expired or invalid token. Clearing session:", err.message);
+              resetAllData();
+            } else {
+              // Network error / server down — keep the cached session alive
+              console.warn("Auth check failed (network/server issue). Keeping existing session:", err.message);
+              const cachedUser = localStorage.getItem('pm_user');
+              if (cachedUser) {
+                try {
+                  setUser(JSON.parse(cachedUser));
+                  setOnboarded(true);
+                } catch (_) {}
               }
             }
           })
-          .catch(err => console.warn('Failed to load DB user state:', err.message));
+        : Promise.resolve().then(() => {
+            resetAllData();
+          });
 
-          // Fetch user notifications
-          fetch('/api/state/notifications', {
-            headers: { 'Authorization': `Bearer ${token}` }
-          })
-          .then(r => r.ok ? r.json() : null)
-          .then(notifData => {
-            if (notifData && notifData.success) {
-              setNotifications(notifData.notifications || []);
-            }
-          })
-          .catch(err => console.warn('Failed to fetch notifications:', err.message));
-        } else {
-          throw new Error('Invalid user payload');
+      // 3. Wait for both auth check and font loading to complete (with safety race limit)
+      try {
+        await Promise.all([
+          authPromise,
+          Promise.race([fontPromise, fontTimeout])
+        ]);
+      } catch (err) {
+        console.error('Initialization error during startup:', err);
+      } finally {
+        if (document.fonts && document.fonts.check('1em "Material Symbols Outlined"')) {
+          document.documentElement.classList.add('pm-icons-loaded');
         }
-      })
-      .catch(err => {
-        if (err.isAuthError) {
-          // Only clear session on genuine 401/403 (expired or revoked token)
-          console.warn("Session expired or invalid token. Clearing session:", err.message);
-          resetAllData();
-        } else {
-          // Network error / server down — keep the cached session alive
-          console.warn("Auth check failed (network/server issue). Keeping existing session:", err.message);
-          const cachedUser = localStorage.getItem('pm_user');
-          if (cachedUser) {
-            try {
-              setUser(JSON.parse(cachedUser));
-              setOnboarded(true);
-            } catch (_) {}
-          }
-        }
-      })
-      .finally(() => {
         setInitializing(false);
-      });
-    } else {
-      resetAllData();
-      setInitializing(false);
-    }
+      }
+    };
+
+    startInitialization();
   }, [token]);
 
   // Handle branded splash loader timing to avoid flashing on super-fast network queries

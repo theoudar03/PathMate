@@ -94,17 +94,17 @@ const Login = () => {
               <span className="material-symbols-outlined text-[24px] font-bold select-none">account_balance</span>
             </div>
             <div>
-              <h2 className="text-xs font-black tracking-widest text-primary uppercase">Saranathan College</h2>
-              <h1 className="text-xl font-black text-onSurface tracking-tight">PathMate Portal</h1>
+              <h2 className="text-xs font-black tracking-widest text-primary uppercase">{t('collegeName') || 'Saranathan College'}</h2>
+              <h1 className="text-xl font-black text-onSurface tracking-tight">PathMate {t('portal') || 'Portal'}</h1>
             </div>
           </div>
         </div>
 
         {/* Header Title */}
         <div className="mb-6">
-          <h3 className="text-2xl font-black tracking-tight text-onSurface">Student Sign In</h3>
+          <h3 className="text-2xl font-black tracking-tight text-onSurface">{t('studentSignIn') || 'Student Sign In'}</h3>
           <p className="text-xs text-onSurfaceVariant font-medium mt-1">
-            Access your student portal, clubs, study hub, and campus tools securely.
+            {t('loginDescription') || 'Access your student portal, clubs, study hub, and campus tools securely.'}
           </p>
         </div>
 
@@ -122,7 +122,7 @@ const Login = () => {
           {/* Username / Register Number */}
           <div className="space-y-1.5">
             <label htmlFor="login-username" className="block text-[11px] font-bold text-onSurfaceVariant uppercase tracking-wider">
-              Username or Register Number
+              {t('usernameOrRoll') || 'Username or Register Number'}
             </label>
             <div className="relative">
               <span className="material-symbols-outlined absolute left-3.5 top-3 text-onSurfaceVariant/60 text-[20px] select-none">person</span>
@@ -144,14 +144,14 @@ const Login = () => {
           <div className="space-y-1.5">
             <div className="flex justify-between items-center">
               <label htmlFor="login-password" className="block text-[11px] font-bold text-onSurfaceVariant uppercase tracking-wider">
-                Password
+                {t('password') || 'Password'}
               </label>
               <button
                 type="button"
                 onClick={() => setShowForgotModal(true)}
                 className="text-[11px] font-bold text-primary hover:underline outline-none"
               >
-                Forgot Password?
+                {t('forgotPassword') || 'Forgot Password?'}
               </button>
             </div>
             <div className="relative">
@@ -189,7 +189,7 @@ const Login = () => {
                 onChange={(e) => setRememberMe(e.target.checked)}
                 className="w-4 h-4 rounded border-outline/40 text-primary focus:ring-primary/20 cursor-pointer"
               />
-              <span>Remember Register Number</span>
+              <span>{t('rememberRegNumber') || 'Remember Register Number'}</span>
             </label>
           </div>
 
@@ -203,11 +203,11 @@ const Login = () => {
             {loading ? (
               <div className="flex items-center gap-2">
                 <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>
-                <span>Authenticating...</span>
+                <span>{t('authenticating') || 'Authenticating...'}</span>
               </div>
             ) : (
               <>
-                <span>Sign In to Student Portal</span>
+                <span>{t('signInPortal') || 'Sign In to Student Portal'}</span>
                 <span className="material-symbols-outlined text-[18px] font-bold">arrow_forward</span>
               </>
             )}
@@ -217,14 +217,14 @@ const Login = () => {
         {/* Footer Links & Navigation */}
         <div className="mt-7 pt-5 border-t border-outline/20 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-onSurfaceVariant">
           <div>
-            Don't have an account?{' '}
+            {t('dontHaveAccount') || "Don't have an account?"}{' '}
             <Link to="/welcome" className="font-extrabold text-primary hover:underline">
-              Register Here
+              {t('registerHere') || 'Register Here'}
             </Link>
           </div>
           <Link to="/admin/login" className="font-extrabold text-secondary hover:underline flex items-center gap-1">
             <span className="material-symbols-outlined text-[14px]">admin_panel_settings</span>
-            <span>Admin Portal</span>
+            <span>{t('adminPortal') || 'Admin Portal'}</span>
           </Link>
         </div>
 
@@ -238,6 +238,7 @@ const Login = () => {
             <button
               onClick={() => setShowForgotModal(false)}
               className="absolute right-4 top-4 text-onSurfaceVariant hover:text-onSurface p-1.5 rounded-full hover:bg-surfaceContainerHigh transition-colors"
+              aria-label={t('closeText') || "Close modal"}
             >
               <span className="material-symbols-outlined text-[20px]">close</span>
             </button>
@@ -246,22 +247,22 @@ const Login = () => {
               <span className="material-symbols-outlined text-[22px]">lock_reset</span>
             </div>
 
-            <h3 className="text-xl font-black text-onSurface mb-2">Password Reset Assistance</h3>
+            <h3 className="text-xl font-black text-onSurface mb-2">{t('pwResetAssistance') || 'Password Reset Assistance'}</h3>
             <p className="text-xs text-onSurfaceVariant leading-relaxed mb-4">
-              To reset your PathMate portal password, please verify your official Saranathan Register Number with your Department HOD or College IT Administrator.
+              {t('pwResetInstruction') || 'To reset your PathMate portal password, please verify your official Saranathan Register Number with your Department HOD or College IT Administrator.'}
             </p>
 
             <div className="bg-surfaceContainerHigh/60 rounded-2xl p-4 border border-outline/20 text-xs space-y-2 mb-6">
-              <div className="font-bold text-onSurface">Contact Admin Office:</div>
+              <div className="font-bold text-onSurface">{t('contactAdminOffice') || 'Contact Admin Office:'}</div>
               <div className="text-onSurfaceVariant">📧 Email: admin@saranathan.ac.in</div>
-              <div className="text-onSurfaceVariant">📍 Location: Central Office, Santhanam Block</div>
+              <div className="text-onSurfaceVariant">📍 {t('adminLocation') || 'Location: Central Office, Santhanam Block'}</div>
             </div>
 
             <button
               onClick={() => setShowForgotModal(false)}
-              className="w-full bg-primary text-onPrimary font-bold text-xs py-3 rounded-xl shadow-md hover:bg-primaryHover transition-all"
+              className="w-full bg-primary text-onPrimary font-bold text-xs py-3 rounded-xl shadow-md hover:bg-primaryHover transition-all cursor-pointer"
             >
-              Understood
+              {t('understood') || 'Understood'}
             </button>
           </div>
         </div>

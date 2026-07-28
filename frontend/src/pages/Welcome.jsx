@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useApp } from '../contexts/AppContext';
 import Onboarding from './Onboarding';
+import TranslateText from '../components/common/TranslateText';
 
 // Count-Up animation component for Live Statistics
 const CountUp = ({ end, duration = 1200, suffix = "" }) => {
@@ -74,39 +75,42 @@ const AnimatedStatCard = ({ icon, endValue, suffix, label }) => {
 
 // Interactive Checklist Mock Component
 const InteractiveChecklistMock = () => {
-  const [checklist, setChecklist] = useState([
-    { id: 1, text: "Submit original certificates", checked: true },
-    { id: 2, text: "Verify hostel block allotment", checked: true },
-    { id: 3, text: "Connect with Senior Advisor mentor", checked: false },
-    { id: 4, text: "Complete opt-in registration for student clubs", checked: false },
-    { id: 5, text: "Configure campus Wi-Fi credentials", checked: false },
-  ]);
+  const { t } = useApp();
+  const [checkedIds, setCheckedIds] = useState([1, 2]);
+
+  const checklist = [
+    { id: 1, text: t('simChecklistItem1') || "Submit original certificates" },
+    { id: 2, text: t('simChecklistItem2') || "Verify hostel block allotment" },
+    { id: 3, text: t('simChecklistItem3') || "Connect with Senior Advisor mentor" },
+    { id: 4, text: t('simChecklistItem4') || "Complete opt-in registration for student clubs" },
+    { id: 5, text: t('simChecklistItem5') || "Configure campus Wi-Fi credentials" },
+  ].map(item => ({ ...item, checked: checkedIds.includes(item.id) }));
 
   const toggleCheck = (id) => {
-    setChecklist(prev => 
-      prev.map(item => item.id === id ? { ...item, checked: !item.checked } : item)
+    setCheckedIds(prev => 
+      prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]
     );
   };
 
-  const completedCount = checklist.filter(i => i.checked).length;
+  const completedCount = checkedIds.length;
   const progressPercent = Math.round((completedCount / checklist.length) * 100);
 
   return (
     <div className="p-4 text-left space-y-3">
       <div className="flex items-center justify-between border-b pb-2 border-slate-100">
         <div>
-          <h4 className="text-xs font-bold text-slate-800">Freshman Setup Checklist</h4>
-          <p className="text-[9px] text-slate-500">Tapping items simulates real dashboard updates</p>
+          <h4 className="text-xs font-bold text-slate-800">{t('simChecklistTitle') || 'Freshman Setup Checklist'}</h4>
+          <p className="text-[9px] text-slate-500">{t('simChecklistSubtitle') || 'Tapping items simulates real dashboard updates'}</p>
         </div>
         <span className="text-[10px] bg-primaryContainer text-onPrimaryContainer px-2 py-0.5 rounded-full font-bold">
-          {completedCount} / {checklist.length} Done
+          {completedCount} / {checklist.length}
         </span>
       </div>
       
       {/* Progress Bar */}
       <div className="space-y-1">
         <div className="flex justify-between text-[9px] font-bold text-slate-500">
-          <span>COMPLETION RATE</span>
+          <span>{t('simChecklistOverall') || 'COMPLETION RATE'}</span>
           <span>{progressPercent}%</span>
         </div>
         <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden border border-slate-200/50">
@@ -601,7 +605,7 @@ const Welcome = () => {
               <span className="w-3 h-3 rounded-full bg-red-400 inline-block" />
               <span className="w-3 h-3 rounded-full bg-yellow-400 inline-block" />
               <span className="w-3 h-3 rounded-full bg-green-400 inline-block" />
-              <span className="text-[10px] text-slate-400 font-bold ml-2">PathMate Freshman Workspace Simulator</span>
+              <span className="text-[10px] text-slate-400 font-bold ml-2">{t('simulatorTitle') || 'PathMate Freshman Workspace Simulator'}</span>
             </div>
 
             {/* Simulated Address Bar */}
@@ -614,12 +618,12 @@ const Welcome = () => {
           {/* Module Tab Grid layout selector */}
           <div className="grid grid-cols-3 sm:grid-cols-6 border-b border-slate-200/60 bg-slate-50/50 select-none">
             {[
-              { id: 'dashboard', label: 'Dashboard', icon: 'dashboard' },
-              { id: 'ai', label: 'AI Assistant', icon: 'smart_toy' },
-              { id: 'map', label: 'Campus Map', icon: 'explore' },
-              { id: 'study', label: 'Study Hub', icon: 'library_books' },
-              { id: 'notice', label: 'Notice Board', icon: 'notifications' },
-              { id: 'checklist', label: 'Task Checklist', icon: 'task_alt' }
+              { id: 'dashboard', label: t('tabDashboard') || 'Dashboard', icon: 'dashboard' },
+              { id: 'ai', label: t('tabAi') || 'AI Assistant', icon: 'smart_toy' },
+              { id: 'map', label: t('tabMap') || 'Campus Map', icon: 'explore' },
+              { id: 'study', label: t('tabStudy') || 'Study Hub', icon: 'library_books' },
+              { id: 'notice', label: t('tabNotice') || 'Notice Board', icon: 'notifications' },
+              { id: 'checklist', label: t('tabChecklist') || 'Task Checklist', icon: 'task_alt' }
             ].map(tab => (
               <button
                 key={tab.id}
@@ -640,39 +644,39 @@ const Welcome = () => {
               <div className="space-y-4 p-4 text-left">
                 <div className="flex items-center justify-between border-b pb-3 border-slate-100">
                   <div>
-                    <h4 className="text-xs sm:text-sm font-bold text-slate-800">Welcome, Sanjay Kumar</h4>
-                    <p className="text-[10px] text-slate-500 font-semibold">1st Year • Computer Science & Engineering</p>
+                    <h4 className="text-xs sm:text-sm font-bold text-slate-800">{t('simWelcomeName') || 'Welcome, Sanjay Kumar'}</h4>
+                    <p className="text-[10px] text-slate-500 font-semibold">{t('simDept') || '1st Year • Computer Science & Engineering'}</p>
                   </div>
-                  <span className="text-[9px] bg-primaryContainer text-onPrimaryContainer px-2 py-0.5 rounded-full font-bold">Hosteller • Boys Hostel</span>
+                  <span className="text-[9px] bg-primaryContainer text-onPrimaryContainer px-2 py-0.5 rounded-full font-bold">{t('simHostel') || 'Hosteller • Boys Hostel'}</span>
                 </div>
                 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                   <div className="border border-slate-100 rounded-xl p-3 bg-slate-50/50 flex flex-col justify-between">
-                    <p className="text-[10px] font-extrabold text-slate-500 uppercase tracking-wider">Freshman Onboarding Progress</p>
+                    <p className="text-[10px] font-extrabold text-slate-500 uppercase tracking-wider">{t('simOnboardingProg') || 'Freshman Onboarding Progress'}</p>
                     <div className="flex items-center gap-3 mt-1.5">
                       <div className="flex-1 bg-slate-200 h-2 rounded-full overflow-hidden">
                         <div className="bg-primary h-full rounded-full transition-all duration-300" style={{ width: '80%' }}></div>
                       </div>
                       <span className="text-xs font-bold text-primary">80%</span>
                     </div>
-                    <p className="text-[9.5px] text-slate-500 mt-1">4 of 5 core setup checklists completed</p>
+                    <p className="text-[9.5px] text-slate-500 mt-1">{t('simOnboardingSub') || '4 of 5 core setup checklists completed'}</p>
                   </div>
 
                   <div className="border border-slate-100 rounded-xl p-3 bg-slate-50/50">
-                    <p className="text-[10px] font-extrabold text-slate-500 uppercase tracking-wider">Latest Official Notice</p>
-                    <p className="text-xs font-semibold text-slate-800 mt-1 truncate">Verification of original certificate documents starts from Monday...</p>
-                    <p className="text-[9.5px] text-slate-400 mt-0.5">Published 2 hours ago by Student Dean Desk</p>
+                    <p className="text-[10px] font-extrabold text-slate-500 uppercase tracking-wider">{t('simLatestNotice') || 'Latest Official Notice'}</p>
+                    <p className="text-xs font-semibold text-slate-800 mt-1 truncate">{t('simNoticeText') || 'Verification of original certificate documents starts from Monday...'}</p>
+                    <p className="text-[9.5px] text-slate-400 mt-0.5">{t('simNoticeAuthor') || 'Published 2 hours ago by Student Dean Desk'}</p>
                   </div>
                 </div>
 
                 <div className="border border-slate-100 rounded-xl p-3 bg-slate-50/20">
-                  <p className="text-[10px] font-extrabold text-slate-500 uppercase tracking-wider mb-2">Grounded AI Campus Assistant Shortcut</p>
+                  <p className="text-[10px] font-extrabold text-slate-500 uppercase tracking-wider mb-2">{t('simShortcutTitle') || 'Grounded AI Campus Assistant Shortcut'}</p>
                   <div className="flex gap-2">
                     <button onClick={() => { resetAllData(); setActiveDialog('register'); }} type="button" className="flex-1 py-2 px-3 bg-primary hover:bg-primaryHover text-white text-[11px] font-bold rounded-lg flex items-center justify-center gap-1.5 transition-all shadow-sm cursor-pointer">
-                      <span className="material-symbols-outlined text-xs">explore</span> Navigate Campus Buildings
+                      <span className="material-symbols-outlined text-xs">explore</span> {t('simBtnNavigate') || 'Navigate Campus Buildings'}
                     </button>
                     <button onClick={() => { resetAllData(); setActiveDialog('register'); }} type="button" className="flex-1 py-2 px-3 border border-slate-200 text-slate-700 text-[11px] font-bold rounded-lg flex items-center justify-center gap-1.5 hover:bg-slate-50 transition-all cursor-pointer">
-                      <span className="material-symbols-outlined text-xs">smart_toy</span> Ask Grounded Chatbot
+                      <span className="material-symbols-outlined text-xs">smart_toy</span> {t('simBtnChatbot') || 'Ask Grounded Chatbot'}
                     </button>
                   </div>
                 </div>
@@ -687,7 +691,7 @@ const Welcome = () => {
                       <span className="material-symbols-outlined text-[13px] font-bold">smart_toy</span>
                     </div>
                     <div className="bg-slate-100 text-slate-800 p-2.5 rounded-2xl rounded-tl-none text-[11px] leading-relaxed border border-slate-200/50">
-                      Hello Sanjay! I am your PathMate AI assistant. Ask me anything about classrooms, hostel wardens, or library codes.
+                      {t('simAiGreeting') || 'Hello Sanjay! I am your PathMate AI assistant. Ask me anything about classrooms, hostel wardens, or library codes.'}
                     </div>
                   </div>
                   <div className="flex gap-2.5 max-w-[85%] ml-auto flex-row-reverse">
@@ -695,7 +699,7 @@ const Welcome = () => {
                       <span className="material-symbols-outlined text-[13px]">person</span>
                     </div>
                     <div className="bg-primary text-white p-2.5 rounded-2xl rounded-tr-none text-[11px] leading-relaxed shadow-sm">
-                      Where is the HOD Office for Civil Engineering department?
+                      {t('simUserQ1') || 'Where is the HOD Office for Civil Engineering department?'}
                     </div>
                   </div>
                   <div className="flex gap-2.5 max-w-[85%]">
@@ -703,12 +707,12 @@ const Welcome = () => {
                       <span className="material-symbols-outlined text-[13px] font-bold">smart_toy</span>
                     </div>
                     <div className="bg-slate-100 text-slate-800 p-2.5 rounded-2xl rounded-tl-none text-[11px] leading-relaxed shadow-sm border border-slate-100">
-                      The Civil Engineering HOD Office is located on the First Floor of the C-Block (Technology Block), right next to the department computer labs.
+                      {t('simAiA1') || 'The Civil Engineering HOD Office is located on the First Floor of the C-Block (Technology Block), right next to the department computer labs.'}
                     </div>
                   </div>
                 </div>
                 <div className="p-2 border-t border-slate-100 flex gap-2 bg-white">
-                  <input type="text" readOnly placeholder="Where is the Boys Hostel warden desk?" className="flex-1 bg-slate-100 rounded-full px-3 py-1.5 text-xs outline-none text-slate-400 border border-slate-200" />
+                  <input type="text" readOnly placeholder={t('simInputPlaceholder') || 'Where is the Boys Hostel warden desk?'} className="flex-1 bg-slate-100 rounded-full px-3 py-1.5 text-xs outline-none text-slate-400 border border-slate-200" />
                   <button type="button" className="w-8 h-8 rounded-full bg-primary text-white flex items-center justify-center cursor-default"><span className="material-symbols-outlined text-sm font-bold">send</span></button>
                 </div>
               </div>
@@ -718,18 +722,18 @@ const Welcome = () => {
               <div className="p-4 flex flex-col h-[300px] text-left relative overflow-hidden">
                 <div className="flex items-center justify-between border-b pb-2 border-slate-100 mb-2">
                   <div>
-                    <h4 className="text-xs font-bold text-slate-800">Live Campus Location Guide</h4>
-                    <p className="text-[9px] text-slate-500">Directions from Main Auditorium to Mechanical Labs</p>
+                    <h4 className="text-xs font-bold text-slate-800">{t('simMapTitle') || 'Live Campus Location Guide'}</h4>
+                    <p className="text-[9px] text-slate-500">{t('simMapSubtitle') || 'Directions from Main Auditorium to Mechanical Labs'}</p>
                   </div>
-                  <span className="text-[9px] font-bold text-success flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-success animate-pulse"></span> Indoor GPS Active</span>
+                  <span className="text-[9px] font-bold text-success flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-success animate-pulse"></span> {t('simMapGps') || 'Indoor GPS Active'}</span>
                 </div>
                 
                 <div className="flex-1 bg-slate-50 rounded-xl relative border border-slate-200/50 overflow-hidden flex items-center justify-center">
                   <div className="absolute inset-0 opacity-[0.03] bg-[linear-gradient(to_right,#808080_1px,transparent_1px),linear-gradient(to_bottom,#808080_1px,transparent_1px)] bg-[size:14px_24px]"></div>
                   
-                  <div className="absolute top-4 left-6 bg-white border border-slate-200 p-1 px-2 rounded text-[8px] font-bold text-slate-700 shadow-sm">Main Auditorium</div>
-                  <div className="absolute bottom-6 right-6 bg-white border border-slate-200 p-1 px-2 rounded text-[8px] font-bold text-slate-700 shadow-sm">Mechanical Workshops</div>
-                  <div className="absolute bottom-8 left-12 bg-white border border-slate-200 p-1 px-2 rounded text-[8px] font-bold text-slate-700 shadow-sm">Library Complex</div>
+                  <div className="absolute top-4 left-6 bg-white border border-slate-200 p-1 px-2 rounded text-[8px] font-bold text-slate-700 shadow-sm">{t('simMapAuditorium') || 'Main Auditorium'}</div>
+                  <div className="absolute bottom-6 right-6 bg-white border border-slate-200 p-1 px-2 rounded text-[8px] font-bold text-slate-700 shadow-sm">{t('simMapMech') || 'Mechanical Workshops'}</div>
+                  <div className="absolute bottom-8 left-12 bg-white border border-slate-200 p-1 px-2 rounded text-[8px] font-bold text-slate-700 shadow-sm">{t('simMapLibrary') || 'Library Complex'}</div>
                   
                   <svg className="absolute inset-0 w-full h-full" style={{ pointerEvents: 'none' }}>
                     <path d="M 50,45 L 85,90 L 140,160" fill="none" stroke="#D8E2FF" strokeWidth="5" strokeLinecap="round" />
@@ -742,7 +746,7 @@ const Welcome = () => {
 
                   <div className="absolute bottom-2 left-2 bg-slate-900/90 text-white text-[9px] font-semibold px-2 py-1 rounded shadow backdrop-blur flex items-center gap-1.5">
                     <span className="material-symbols-outlined text-[10px] text-accent">navigation</span>
-                    <span>Walk straight 100m, turn left (3 mins)</span>
+                    <span>{t('simMapDirection') || 'Walk straight 100m, turn left (3 mins)'}</span>
                   </div>
                 </div>
               </div>
@@ -751,41 +755,41 @@ const Welcome = () => {
             {activePreviewTab === 'study' && (
               <div className="p-4 text-left space-y-3">
                 <div className="flex items-center justify-between border-b pb-2 border-slate-100">
-                  <h4 className="text-xs font-bold text-slate-800">Freshman Resource Repository</h4>
-                  <span className="text-[9px] text-slate-400 font-semibold">Updated 2 mins ago</span>
+                  <h4 className="text-xs font-bold text-slate-800">{t('simStudyTitle') || 'Freshman Resource Repository'}</h4>
+                  <span className="text-[9px] text-slate-400 font-semibold">{t('simStudyUpdated') || 'Updated 2 mins ago'}</span>
                 </div>
                 <div className="grid grid-cols-2 gap-2">
                   <div className="border border-slate-100 rounded-lg p-2 bg-slate-50/50 flex items-start gap-2 hover:border-primary/30 transition-all cursor-default">
                     <span className="material-symbols-outlined text-primary text-base">picture_as_pdf</span>
                     <div className="truncate">
-                      <p className="text-[10px] font-bold text-slate-800 leading-tight truncate">Engineering Physics IA-1</p>
+                      <p className="text-[10px] font-bold text-slate-800 leading-tight truncate">{t('simStudyPhysics') || 'Engineering Physics IA-1'}</p>
                       <p className="text-[8px] text-slate-400">PDF • 1.2 MB</p>
                     </div>
                   </div>
                   <div className="border border-slate-100 rounded-lg p-2 bg-slate-50/50 flex items-start gap-2 hover:border-primary/30 transition-all cursor-default">
                     <span className="material-symbols-outlined text-accent text-base">article</span>
                     <div className="truncate">
-                      <p className="text-[10px] font-bold text-slate-800 leading-tight truncate">Mathematics Syllabus</p>
+                      <p className="text-[10px] font-bold text-slate-800 leading-tight truncate">{t('simStudyMaths') || 'Mathematics Syllabus'}</p>
                       <p className="text-[8px] text-slate-400">DOCX • 340 KB</p>
                     </div>
                   </div>
                   <div className="border border-slate-100 rounded-lg p-2 bg-slate-50/50 flex items-start gap-2 hover:border-primary/30 transition-all cursor-default">
                     <span className="material-symbols-outlined text-success text-base">description</span>
                     <div className="truncate">
-                      <p className="text-[10px] font-bold text-slate-800 leading-tight truncate">NME Tamil Record Template</p>
+                      <p className="text-[10px] font-bold text-slate-800 leading-tight truncate">{t('simStudyTamil') || 'NME Tamil Record Template'}</p>
                       <p className="text-[8px] text-slate-400">PDF • 4.8 MB</p>
                     </div>
                   </div>
                   <div className="border border-slate-100 rounded-lg p-2 bg-slate-50/50 flex items-start gap-2 hover:border-primary/30 transition-all cursor-default">
                     <span className="material-symbols-outlined text-amber-600 text-base">calendar_today</span>
                     <div className="truncate">
-                      <p className="text-[10px] font-bold text-slate-800 leading-tight truncate">Induction Assembly Guide</p>
+                      <p className="text-[10px] font-bold text-slate-800 leading-tight truncate">{t('simStudyGuide') || 'Induction Assembly Guide'}</p>
                       <p className="text-[8px] text-slate-400">PDF • 820 KB</p>
                     </div>
                   </div>
                 </div>
-                <button type="button" className="w-full py-1.5 border border-dashed border-slate-200 text-slate-600 text-[10px] font-bold rounded-lg hover:border-primary/50 hover:text-primary transition-all cursor-default">
-                  + View All 45 Resource Files
+                <button type="button" className="w-full py-1.5 border border-dashed border-slate-200 text-slate-600 text-[10px] font-bold rounded-lg hover:border-primary/50 hover:text-primary transition-all cursor-default bg-transparent">
+                  {t('simStudyViewAll') || '+ View All 45 Resource Files'}
                 </button>
               </div>
             )}
@@ -793,30 +797,30 @@ const Welcome = () => {
             {activePreviewTab === 'notice' && (
               <div className="p-4 text-left space-y-3">
                 <div className="flex items-center justify-between border-b pb-2 border-slate-100">
-                  <h4 className="text-xs font-bold text-slate-800">SCE Bulletin Notice Board</h4>
-                  <span className="text-[9px] bg-red-100 text-red-800 px-2 py-0.5 rounded-full font-bold">2 New Updates</span>
+                  <h4 className="text-xs font-bold text-slate-800">{t('simNoticeTitle') || 'SCE Bulletin Notice Board'}</h4>
+                  <span className="text-[9px] bg-red-100 text-red-800 px-2 py-0.5 rounded-full font-bold">{t('simNoticeCount') || '2 New Updates'}</span>
                 </div>
                 <div className="space-y-2 max-h-[190px] overflow-y-auto pr-1">
                   <div className="border-l-2 border-red-500 bg-red-50/30 p-2 rounded-r-lg">
                     <div className="flex justify-between items-start">
-                      <span className="text-[8px] bg-red-500 text-white font-bold px-1.5 py-0.5 rounded uppercase leading-none">Urgent</span>
-                      <span className="text-[8px] text-slate-400">10 mins ago</span>
+                      <span className="text-[8px] bg-red-500 text-white font-bold px-1.5 py-0.5 rounded uppercase leading-none">{t('simNoticeUrgent') || 'Urgent'}</span>
+                      <span className="text-[8px] text-slate-400">{t('simNoticeTime') || '10 mins ago'}</span>
                     </div>
-                    <p className="text-[10px] font-bold text-slate-800 mt-1 leading-tight">Original Certificate Verification Schedule details released</p>
+                    <p className="text-[10px] font-bold text-slate-800 mt-1 leading-tight">{t('simNoticeText1') || 'Original Certificate Verification Schedule details released'}</p>
                   </div>
                   <div className="border-l-2 border-primary bg-primary/5 p-2 rounded-r-lg">
                     <div className="flex justify-between items-start">
-                      <span className="text-[8px] bg-primary text-white font-bold px-1.5 py-0.5 rounded uppercase leading-none">Academic</span>
-                      <span className="text-[8px] text-slate-400">Yesterday</span>
+                      <span className="text-[8px] bg-primary text-white font-bold px-1.5 py-0.5 rounded uppercase leading-none">{t('simNoticeAcad') || 'Academic'}</span>
+                      <span className="text-[8px] text-slate-400">{t('simNoticeYesterday') || 'Yesterday'}</span>
                     </div>
-                    <p className="text-[10px] font-bold text-slate-800 mt-1 leading-tight">Odd Semester Academic Calendar commencement dates verified</p>
+                    <p className="text-[10px] font-bold text-slate-800 mt-1 leading-tight">{t('simNoticeText2') || 'Odd Semester Academic Calendar commencement dates verified'}</p>
                   </div>
                   <div className="border-l-2 border-slate-400 bg-slate-50 p-2 rounded-r-lg">
                     <div className="flex justify-between items-start">
-                      <span className="text-[8px] bg-slate-500 text-white font-bold px-1.5 py-0.5 rounded uppercase leading-none">Hostel</span>
-                      <span className="text-[8px] text-slate-400">2 days ago</span>
+                      <span className="text-[8px] bg-slate-500 text-white font-bold px-1.5 py-0.5 rounded uppercase leading-none">{t('simNoticeHostel') || 'Hostel'}</span>
+                      <span className="text-[8px] text-slate-400">{t('simNotice2days') || '2 days ago'}</span>
                     </div>
-                    <p className="text-[10px] font-bold text-slate-800 mt-1 leading-tight">Warden Allotment lists and Roommate Specifications updated</p>
+                    <p className="text-[10px] font-bold text-slate-800 mt-1 leading-tight">{t('simNoticeText3') || 'Warden Allotment lists and Roommate Specifications updated'}</p>
                   </div>
                 </div>
               </div>
@@ -960,7 +964,7 @@ const Welcome = () => {
           <p className="text-xs sm:text-sm text-slate-500 font-semibold">{t('statsSubtitle')}</p>
         </div>
 
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 sm:gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 sm:gap-6">
           <AnimatedStatCard icon="school" endValue={statsData.totalStudents} suffix="+" label={t('studentsCountLabel')} />
           <AnimatedStatCard icon="pin_drop" endValue={statsData.activeLocations} suffix="+" label={t('locationsLabel')} />
           <AnimatedStatCard icon="settings_suggest" endValue={statsData.activeServices} suffix="+" label={t('servicesLabel')} />
@@ -973,8 +977,8 @@ const Welcome = () => {
          ───────────────────────────────────────────────── */}
       <section id="testimonials" className="relative z-10 w-full py-12 border-t border-slate-200/50 overflow-hidden bg-slate-100/50">
         <div className="max-w-5xl mx-auto px-6 text-center space-y-2 mb-8">
-          <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-800 tracking-tight">What Students Say About PathMate</h2>
-          <p className="text-xs sm:text-sm text-slate-500 font-semibold">Real, unedited reviews directly from verified Saranathan freshman students.</p>
+          <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-800 tracking-tight">{t('testimonialsHeading') || 'What Students Say About PathMate'}</h2>
+          <p className="text-xs sm:text-sm text-slate-500 font-semibold">{t('testimonialsSubtitle') || 'Real, unedited reviews directly from verified Saranathan freshman students.'}</p>
         </div>
 
         {/* Overall Rating & Feature Breakdown */}
@@ -994,16 +998,20 @@ const Welcome = () => {
                   </span>
                 ))}
               </div>
-              <p className="text-xs text-slate-500 font-bold uppercase tracking-wider">Overall Campus Rating</p>
-              <p className="text-[10px] text-slate-400 font-semibold mt-1">Based on {reviewsStats.totalReviews} verified reviews</p>
+              <p className="text-xs text-slate-500 font-bold uppercase tracking-wider">{t('overallRating') || 'Overall Campus Rating'}</p>
+              <p className="text-[10px] text-slate-400 font-semibold mt-1">
+                {t('basedOnReviews')
+                  ? t('basedOnReviews').replace('{count}', reviewsStats.totalReviews)
+                  : `Based on ${reviewsStats.totalReviews} verified reviews`}
+              </p>
             </div>
             
             <div className="md:col-span-2 text-left space-y-2.5">
-              <h3 className="text-xs font-black uppercase tracking-widest text-slate-500">Feature Average Ratings</h3>
+              <h3 className="text-xs font-black uppercase tracking-widest text-slate-500">{t('featureRatings') || 'Feature Average Ratings'}</h3>
               <div className="flex flex-wrap gap-2 pt-1">
                 {reviewsStats.categories.map((c, i) => (
                   <div key={i} className="flex items-center gap-1.5 bg-white border border-slate-200/40 px-3 py-1.5 rounded-full text-[11px] font-extrabold text-slate-700 shadow-3xs hover:border-primary/20 transition-all select-none">
-                    <span>{c.category}</span>
+                    <span><TranslateText text={c.category} /></span>
                     <span className="flex items-center text-amber-600 gap-0.5">
                       <span className="material-symbols-outlined text-[12px] fill-current">star</span>
                       {c.avg_rating}

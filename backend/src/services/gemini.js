@@ -369,6 +369,10 @@ Rules:
 2. Keep engineering terms accurate (e.g. "Computer Science" can be translated or kept recognizable).
 3. Do not translate usernames, URLs, department codes, email addresses, numbers, or technical identifiers.
 4. Return only the translated text. Do not add explanations, intros, or markdown wraps.
+5. CRITICAL: Preserve institution proper nouns exactly as specified:
+   - "Saranathan College of Engineering" in Tamil → "சாரநாதன் பொறியியல் கல்லூரி" (NOT "சரவணநாதன்" or any other variant)
+   - "Saranathan" in Tamil → "சாரநாதன்" (this is the ONLY correct Tamil transliteration)
+   - "PathMate" must remain as "PathMate" (do NOT translate this brand name)
 
 Text to translate:
 "${text}"`;

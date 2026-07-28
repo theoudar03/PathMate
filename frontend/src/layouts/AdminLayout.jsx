@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Outlet, NavLink, useNavigate, useLocation } from 'react-router-dom';
 import { LayoutDashboard, Users, BookOpen, Calendar, Settings, LogOut, Menu, X, Bell, Search, Layers, Home, Bus, ShieldAlert, Building, MapPin, ShieldCheck, Briefcase, Brain, RefreshCw, FolderOpen, UserCheck, MessageSquare } from 'lucide-react';
+import ThemeToggle from '../components/common/ThemeToggle';
 
 const AdminLayout = () => {
   // Default: open on desktop (md+), closed on mobile
@@ -164,6 +165,7 @@ const AdminLayout = () => {
             </div>
           </div>
           <div className="flex items-center gap-3 relative">
+            <ThemeToggle />
             <button 
               onClick={() => setShowNotifications(!showNotifications)}
               className="relative p-2 text-onSurfaceVariant hover:bg-surfaceVariant rounded-xl transition-colors"

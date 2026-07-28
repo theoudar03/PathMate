@@ -70,7 +70,7 @@ const LangToggle = () => {
         <div
           role="listbox"
           aria-label="Select language"
-          className="absolute right-0 top-full mt-2 w-36 bg-white border border-outline/50 rounded-2xl p-1.5 z-50 animate-slide-down"
+          className="absolute right-0 top-full mt-2 w-36 bg-white border border-outline/50 rounded-2xl p-1.5 z-50"
           style={{ boxShadow: '0 4px 20px rgba(15,23,42,0.12), 0 1px 4px rgba(0,0,0,0.06)' }}
         >
           {LANG_OPTIONS.map(lang => {

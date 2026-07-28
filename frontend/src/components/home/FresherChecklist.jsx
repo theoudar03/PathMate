@@ -120,8 +120,8 @@ const FresherChecklist = () => {
               onClick={() => setActive(item)}
               className="text-left rounded-2xl border p-3 transition-all duration-150 relative overflow-hidden cursor-pointer"
               style={{
-                borderColor: isDone ? `${item.color}40` : '#e2e8f0',
-                background: isDone ? `${item.color}06` : 'white',
+                borderColor: isDone ? `${item.color}40` : 'var(--outline-variant)',
+                background: isDone ? `${item.color}06` : 'var(--surface-container-lowest)',
               }}
             >
               {isDone && (
@@ -131,13 +131,13 @@ const FresherChecklist = () => {
               <div className="flex items-start justify-between gap-1 mb-2">
                 <div className="w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0"
                      style={{ backgroundColor: `${item.color}15` }}>
-                  <span className="material-symbols-outlined text-[15px]"
-                        style={{ color: item.color, fontVariationSettings: "'FILL' 1" }}>{item.icon}</span>
+                   <span className="material-symbols-outlined text-[15px]"
+                         style={{ color: item.color, fontVariationSettings: "'FILL' 1" }}>{item.icon}</span>
                 </div>
                 <button
                   onClick={e => { e.stopPropagation(); toggle(item.id); }}
                   className="w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all duration-200 flex-shrink-0 mt-0.5"
-                  style={{ borderColor: isDone ? item.color : '#cbd5e1', background: isDone ? item.color : 'transparent' }}
+                  style={{ borderColor: isDone ? item.color : 'var(--outline)', background: isDone ? item.color : 'transparent' }}
                 >
                   {isDone && <span className="material-symbols-outlined text-[10px] text-white" style={{ fontVariationSettings: "'FILL' 1, 'wght' 700" }}>check</span>}
                 </button>
@@ -199,8 +199,8 @@ const FresherChecklist = () => {
                 onClick={() => { toggle(active.id); setActive(null); }}
                 className="flex-1 py-2.5 rounded-full text-[12px] font-bold transition-all cursor-pointer"
                 style={{
-                  background: checked[active.id] ? '#f1f5f9' : active.color,
-                  color: checked[active.id] ? '#64748b' : 'white',
+                  background: checked[active.id] ? 'var(--surface-container-high)' : active.color,
+                  color: checked[active.id] ? 'var(--on-surface-variant)' : 'white',
                 }}
               >
                 {checked[active.id] ? '↩ Mark Incomplete' : '✓ Mark as Done'}

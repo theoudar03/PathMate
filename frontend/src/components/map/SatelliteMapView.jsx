@@ -2,6 +2,9 @@ import React, { useState, useEffect, useRef } from 'react';
 import * as maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import { CAMPUS_MAP_DATA, isValidGps } from '../../config/mapData';
+import { useTheme } from '../../contexts/ThemeContext';
+import { useApp } from '../../contexts/AppContext';
+import TranslateText from '../common/TranslateText';
 import { 
   MapPin, 
   Navigation, 
@@ -166,7 +169,7 @@ const getClosestWaypoint = (coords) => {
   return closestKey;
 };
 
-// Base Style containing all three Google raster sources for quick toggle layer visibility
+// Base Style containing Google raster sources and CartoDB Dark Matter tile source
 const BASE_MAP_STYLE = {
   version: 8,
   sources: {
@@ -198,10 +201,21 @@ const BASE_MAP_STYLE = {
         'https://mt0.google.com/vt/lyrs=m&x={x}&y={y}&z={z}',
         'https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}',
         'https://mt2.google.com/vt/lyrs=m&x={x}&y={y}&z={z}',
-        'https://mt3.google.com/vt/lyrs=m&x={x}/y={y}&z={z}'
+        'https://mt3.google.com/vt/lyrs=m&x={x}&y={y}&z={z}'
       ],
       tileSize: 256,
       attribution: 'Google Maps Roadmap | SCE'
+    },
+    'cartodb-dark': {
+      type: 'raster',
+      tiles: [
+        'https://a.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png',
+        'https://b.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png',
+        'https://c.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png',
+        'https://d.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png'
+      ],
+      tileSize: 256,
+      attribution: '© OpenStreetMap contributors, © CARTO'
     }
   },
   layers: [
@@ -222,6 +236,12 @@ const BASE_MAP_STYLE = {
       type: 'raster',
       source: 'google-roadmap',
       layout: { visibility: 'none' }
+    },
+    {
+      id: 'cartodb-dark-layer',
+      type: 'raster',
+      source: 'cartodb-dark',
+      layout: { visibility: 'none' }
     }
   ]
 };
@@ -235,6 +255,8 @@ const SatelliteMapView = ({
   isNavigating = false,
   onToggleNavigation
 }) => {
+  const { resolvedTheme } = useTheme();
+  const { t } = useApp();
   const [mapType, setMapType] = useState('hybrid');
   const [selectedBuilding, setSelectedBuilding] = useState(activeDestination || CAMPUS_MAP_DATA[0]);
   const [hasArrived, setHasArrived] = useState(false);
@@ -283,11 +305,11 @@ const SatelliteMapView = ({
     });
 
     mapInstanceRef.current = map;
-
     map.on('load', () => {
       // Toggle initial map type layer visibility
-      map.setLayoutProperty(`${mapType}-layer`, 'visibility', 'visible');
-
+      const initialLayer = (mapType === 'roadmap' && resolvedTheme === 'dark') ? 'cartodb-dark' : mapType;
+      map.setLayoutProperty(`${initialLayer}-layer`, 'visibility', 'visible');
+ 
       // Add route GeoJSON source and layer
       map.addSource('route', {
         type: 'geojson',
@@ -300,7 +322,7 @@ const SatelliteMapView = ({
           }
         }
       });
-
+ 
       map.addLayer({
         id: 'route-line',
         type: 'line',
@@ -310,7 +332,7 @@ const SatelliteMapView = ({
           'line-cap': 'round'
         },
         paint: {
-          'line-color': '#2563EB',
+          'line-color': resolvedTheme === 'dark' ? '#60A5FA' : '#2563EB',
           'line-width': 5.5,
           'line-opacity': 0.85
         }
@@ -328,19 +350,33 @@ const SatelliteMapView = ({
     };
   }, []);
 
-  // Update Tile Layers when mapType changes
+  // Update Tile Layers when mapType or theme changes
   useEffect(() => {
     const map = mapInstanceRef.current;
     if (!map || !map.isStyleLoaded()) return;
 
-    ['satellite', 'hybrid', 'roadmap'].forEach(type => {
+    ['satellite', 'hybrid', 'roadmap', 'cartodb-dark'].forEach(type => {
+      let isVisible = false;
+      if (type === 'satellite') isVisible = mapType === 'satellite';
+      else if (type === 'hybrid') isVisible = mapType === 'hybrid';
+      else if (type === 'roadmap') isVisible = mapType === 'roadmap' && resolvedTheme === 'light';
+      else if (type === 'cartodb-dark') isVisible = mapType === 'roadmap' && resolvedTheme === 'dark';
+
       map.setLayoutProperty(
         `${type}-layer`,
         'visibility',
-        type === mapType ? 'visible' : 'none'
+        isVisible ? 'visible' : 'none'
       );
     });
-  }, [mapType]);
+
+    if (map.getLayer('route-line')) {
+      map.setPaintProperty(
+        'route-line',
+        'line-color',
+        resolvedTheme === 'dark' ? '#60A5FA' : '#2563EB'
+      );
+    }
+  }, [mapType, resolvedTheme]);
 
   // Create clean location markers for buildings (clutter-free)
   const renderBuildingMarkers = () => {
@@ -635,24 +671,24 @@ const SatelliteMapView = ({
 
       {/* Floating controls panel */}
       <div className="absolute right-3 bottom-24 sm:top-20 sm:bottom-auto sm:right-4 z-[500] flex flex-col gap-2 bg-white/90 backdrop-blur-md p-1.5 rounded-2xl shadow-md border border-outline/20">
-        <button onClick={zoomIn} className="p-2 hover:bg-slate-100 text-slate-700 rounded-xl cursor-pointer" title="Zoom In">
+        <button onClick={zoomIn} className="p-2 hover:bg-slate-100 text-slate-700 rounded-xl cursor-pointer" title={t('zoomIn') || "Zoom In"}>
           <Plus size={16} />
         </button>
-        <button onClick={zoomOut} className="p-2 hover:bg-slate-100 text-slate-700 rounded-xl cursor-pointer" title="Zoom Out">
+        <button onClick={zoomOut} className="p-2 hover:bg-slate-100 text-slate-700 rounded-xl cursor-pointer" title={t('zoomOut') || "Zoom Out"}>
           <Minus size={16} />
         </button>
-        <button onClick={resetNorth} className="p-2 hover:bg-slate-100 text-slate-700 rounded-xl cursor-pointer" title="Recenter Compass">
+        <button onClick={resetNorth} className="p-2 hover:bg-slate-100 text-slate-700 rounded-xl cursor-pointer" title={t('recenterCompass') || "Recenter Compass"}>
           <Compass size={16} />
         </button>
         <button 
           onClick={locateMe} 
           disabled={!userLocation} 
           className={`p-2 rounded-xl cursor-pointer ${userLocation ? 'hover:bg-slate-100 text-blue-600' : 'text-slate-350'}`} 
-          title="Center on GPS Location"
+          title={t('centerGps') || "Center on GPS Location"}
         >
           <Locate size={16} />
         </button>
-        <button onClick={toggleFullscreen} className="p-2 hover:bg-slate-100 text-slate-700 rounded-xl cursor-pointer" title="Toggle Fullscreen">
+        <button onClick={toggleFullscreen} className="p-2 hover:bg-slate-100 text-slate-700 rounded-xl cursor-pointer" title={t('toggleFullscreen') || "Toggle Fullscreen"}>
           <Maximize size={16} />
         </button>
       </div>
@@ -663,8 +699,12 @@ const SatelliteMapView = ({
           <div className="flex items-center gap-3">
             <PartyPopper size={22} className="text-yellow-300 animate-spin" />
             <div>
-              <h4 className="text-xs font-black">🎉 You Have Arrived!</h4>
-              <p className="text-[11px] font-bold text-emerald-100 mt-0.5">Welcome to {selectedBuilding?.name || 'Destination'}! Have a great day!</p>
+              <h4 className="text-xs font-black">🎉 {t('reachedTitle') || 'You Have Arrived!'}</h4>
+              <p className="text-[11px] font-bold text-emerald-100 mt-0.5">
+                {t('reachedBody') 
+                  ? t('reachedBody').replace('{dest}', t('mapBlock_' + selectedBuilding?.id) || selectedBuilding?.name || 'Destination')
+                  : `Welcome to ${t('mapBlock_' + selectedBuilding?.id) || selectedBuilding?.name || 'Destination'}! Have a great day!`}
+              </p>
             </div>
           </div>
           <button onClick={() => setHasArrived(false)} className="p-1 hover:bg-emerald-700 rounded-full cursor-pointer">
@@ -676,7 +716,7 @@ const SatelliteMapView = ({
       {/* Small Clean Helpful Banner Pill */}
       <div className="absolute bottom-4 left-4 z-[490] max-w-[85vw] sm:max-w-md bg-amber-50/95 backdrop-blur-md text-amber-900 text-[10.5px] font-bold px-3.5 py-1.5 rounded-full border border-amber-300 shadow-md flex items-center gap-1.5">
         <Lightbulb size={13} className="text-amber-600 flex-shrink-0" />
-        <span className="truncate">💡 Use compass & zoom floating bar on the right to tilt & rotate 3D maps.</span>
+        <span className="truncate">{t('mapTiltedTips') || '💡 Use compass & zoom floating bar on the right to tilt & rotate 3D maps.'}</span>
       </div>
 
       {/* MapLibre Map Container */}
@@ -689,9 +729,9 @@ const SatelliteMapView = ({
             <div className="flex justify-between items-start border-b border-outline/20 pb-3">
               <div>
                 <span className="text-[10px] font-black uppercase tracking-wider text-primary bg-primaryContainer/60 px-2.5 py-0.5 rounded-full border border-primaryContainer">
-                  {selectedBuilding.category}
+                  {t('mapCategory_' + selectedBuilding.category) || selectedBuilding.category}
                 </span>
-                <h2 className="text-base font-black text-onSurface mt-1.5 leading-tight">{selectedBuilding.name}</h2>
+                <h2 className="text-base font-black text-onSurface mt-1.5 leading-tight">{t('mapBlock_' + selectedBuilding.id) || selectedBuilding.name}</h2>
               </div>
               <button
                 onClick={() => setSelectedBuilding(null)}
@@ -704,7 +744,7 @@ const SatelliteMapView = ({
             <div className="w-full h-32 sm:h-36 rounded-2xl overflow-hidden bg-slate-100 border border-outline/20 shadow-xs relative">
               <img
                 src={selectedBuilding.image || '/assets/campus-bg.jpg'}
-                alt={selectedBuilding.name}
+                alt={t('mapBlock_' + selectedBuilding.id) || selectedBuilding.name}
                 className="w-full h-full object-cover"
                 onError={(e) => {
                   e.target.onerror = null;
@@ -714,18 +754,18 @@ const SatelliteMapView = ({
             </div>
 
             <p className="text-xs text-onSurfaceVariant leading-relaxed">
-              {selectedBuilding.description}
+              {selectedBuilding.description ? <TranslateText text={selectedBuilding.description} /> : ''}
             </p>
 
             {selectedBuilding.departments && selectedBuilding.departments.length > 0 && (
               <div>
                 <strong className="text-[11px] font-bold text-gray-500 uppercase tracking-wider block mb-1.5 flex items-center gap-1">
-                  <Building size={14} className="text-primary" /> Departments & Wings
+                  <Building size={14} className="text-primary" /> {t('departmentsLabel') || 'Departments & Wings'}
                 </strong>
                 <div className="flex flex-wrap gap-1.5">
                   {selectedBuilding.departments.map(d => (
                     <span key={d} className="px-2.5 py-1 rounded-lg bg-slate-100 text-slate-800 text-[11px] font-semibold border border-outline/20">
-                      {d}
+                      <TranslateText text={d} />
                     </span>
                   ))}
                 </div>
@@ -735,12 +775,12 @@ const SatelliteMapView = ({
             <div className="grid grid-cols-1 gap-2 text-xs bg-slate-50 p-3 rounded-2xl border border-outline/20">
               <div className="flex items-center gap-2 text-onSurfaceVariant">
                 <Clock size={14} className="text-primary flex-shrink-0" />
-                <span><strong className="text-onSurface">Hours:</strong> {selectedBuilding.office_timing || '8:30 AM - 5:00 PM'}</span>
+                <span><strong className="text-onSurface">{t('hoursLabel') || 'Hours:'}</strong> {selectedBuilding.office_timing || '8:30 AM - 5:00 PM'}</span>
               </div>
               {selectedBuilding.faculty && (
                 <div className="flex items-center gap-2 text-onSurfaceVariant">
                   <Users size={14} className="text-green-600 flex-shrink-0" />
-                  <span><strong className="text-onSurface">Head:</strong> {selectedBuilding.faculty.join(', ')}</span>
+                  <span><strong className="text-onSurface">{t('headLabel') || 'Head:'}</strong> {selectedBuilding.faculty.join(', ')}</span>
                 </div>
               )}
             </div>
@@ -756,7 +796,7 @@ const SatelliteMapView = ({
                 className="w-full bg-gradient-to-r from-primary to-[#2563EB] hover:from-primaryHover hover:to-primary text-white py-3.5 rounded-2xl font-black text-xs shadow-lg flex items-center justify-center gap-2 transition-all active:scale-[0.98] border border-primary/20 cursor-pointer"
               >
                 <Navigation2 size={16} className="fill-white" />
-                <span>Start Live Navigation</span>
+                <span>{t('startLiveNav') || 'Start Live Navigation'}</span>
               </button>
             ) : (
               <button
@@ -766,7 +806,7 @@ const SatelliteMapView = ({
                 className="w-full bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 py-3.5 rounded-2xl font-black text-xs shadow-sm flex items-center justify-center gap-2 transition-all active:scale-[0.98] cursor-pointer"
               >
                 <X size={16} className="text-rose-600" />
-                <span>Stop Live Navigation</span>
+                <span>{t('stopLiveNav') || 'Stop Live Navigation'}</span>
               </button>
             )}
           </div>

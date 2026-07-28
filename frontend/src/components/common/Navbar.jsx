@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { NavLink, useNavigate } from 'react-router-dom';
+import { NavLink, useNavigate, useLocation } from 'react-router-dom';
 import LangToggle from '../onboarding/LangToggle';
+import ThemeToggle from './ThemeToggle';
 import { useApp } from '../../contexts/AppContext';
 
 // Main navigation items
@@ -36,8 +37,9 @@ const Navbar = () => {
   const [windowWidth, setWindowWidth] = useState(window.innerWidth);
 
   const navigate = useNavigate();
-  const closeTimeoutRef = useRef(null);
-  const moreTimeoutRef = useRef(null);
+  const location = useLocation();
+  const dropdownRef = useRef(null);
+  const moreRef = useRef(null);
 
   const initials = studentData?.name
     ? studentData.name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()
@@ -57,7 +59,7 @@ const Navbar = () => {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  const isConstrained = windowWidth < 1100;
+  const isConstrained = language === 'en' ? windowWidth < 1120 : true;
 
   const visibleLinks = isConstrained
     ? MAIN_NAV_LINKS.slice(0, 2) // Home, Dashboard
@@ -67,45 +69,25 @@ const Navbar = () => {
     ? MAIN_NAV_LINKS.slice(2) // Clubs, Connect
     : [];
 
-  const handleMouseEnter = () => {
-    if (closeTimeoutRef.current) clearTimeout(closeTimeoutRef.current);
-    setIsDropdownOpen(true);
-  };
-
-  const handleMouseLeave = () => {
-    closeTimeoutRef.current = setTimeout(() => {
-      setIsDropdownOpen(false);
-    }, 200);
-  };
-
-  const handleDropdownClick = (e) => {
-    e.stopPropagation();
-    if (closeTimeoutRef.current) clearTimeout(closeTimeoutRef.current);
+  const handleDropdownClick = () => {
     setIsDropdownOpen(prev => !prev);
+    setIsMoreOpen(false);
   };
 
-  const handleMoreMouseEnter = () => {
-    if (moreTimeoutRef.current) clearTimeout(moreTimeoutRef.current);
-    setIsMoreOpen(true);
-  };
-
-  const handleMoreMouseLeave = () => {
-    moreTimeoutRef.current = setTimeout(() => {
-      setIsMoreOpen(false);
-    }, 200);
-  };
-
-  const handleMoreClick = (e) => {
-    e.stopPropagation();
-    if (moreTimeoutRef.current) clearTimeout(moreTimeoutRef.current);
+  const handleMoreClick = () => {
     setIsMoreOpen(prev => !prev);
+    setIsDropdownOpen(false);
   };
 
   // Close dropdowns on click outside
   useEffect(() => {
-    const handleDocumentClick = () => {
-      setIsDropdownOpen(false);
-      setIsMoreOpen(false);
+    const handleDocumentClick = (e) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
+        setIsDropdownOpen(false);
+      }
+      if (moreRef.current && !moreRef.current.contains(e.target)) {
+        setIsMoreOpen(false);
+      }
     };
     document.addEventListener('click', handleDocumentClick);
     return () => document.removeEventListener('click', handleDocumentClick);
@@ -125,7 +107,7 @@ const Navbar = () => {
 
   // Check if any overflow route is active to highlight "More" dropdown
   const isOverflowActive = () => {
-    return overflowLinks.some(link => window.location.pathname === link.path);
+    return overflowLinks.some(link => location.pathname === link.path);
   };
 
   return (
@@ -187,11 +169,7 @@ const Navbar = () => {
 
               {/* More Dropdown (if overflow is active) */}
               {overflowLinks.length > 0 && (
-                <div
-                  className="relative"
-                  onMouseEnter={handleMoreMouseEnter}
-                  onMouseLeave={handleMoreMouseLeave}
-                >
+                <div className="relative" ref={moreRef}>
                   <button
                     type="button"
                     onClick={handleMoreClick}
@@ -215,7 +193,7 @@ const Navbar = () => {
 
                   {isMoreOpen && (
                     <div
-                      className="absolute top-full left-0 mt-2 w-56 bg-white border border-outline/60 rounded-[16px] p-1.5 z-50 animate-slide-down text-left"
+                      className="absolute left-0 top-full mt-2 w-56 bg-white border border-outline/60 rounded-[16px] p-1.5 z-50 text-left"
                       style={{ boxShadow: '0 4px 20px rgba(15,23,42,0.12), 0 1px 4px rgba(0,0,0,0.06)' }}
                     >
                       {overflowLinks.map((link) => (
@@ -246,16 +224,12 @@ const Navbar = () => {
               )}
 
               {/* Campus Info Dropdown */}
-              <div
-                className="relative"
-                onMouseEnter={handleMouseEnter}
-                onMouseLeave={handleMouseLeave}
-              >
+              <div className="relative" ref={dropdownRef}>
                 <button
                   type="button"
                   onClick={handleDropdownClick}
                   className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[13px] font-semibold tracking-wide transition-all duration-150 active:scale-[0.98] focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1 outline-none whitespace-nowrap ${
-                    isDropdownOpen || window.location.pathname === '/faculty' || window.location.pathname === '/map'
+                    isDropdownOpen || location.pathname === '/faculty' || location.pathname === '/map'
                       ? 'bg-primaryContainer text-primary font-bold shadow-sm'
                       : 'text-onSurfaceVariant hover:bg-surfaceContainer hover:text-onSurface'
                   }`}
@@ -274,7 +248,7 @@ const Navbar = () => {
 
                 {isDropdownOpen && (
                   <div
-                    className="absolute top-full left-0 mt-2 w-56 bg-white border border-outline/60 rounded-[16px] p-1.5 z-50 animate-slide-down text-left"
+                    className="absolute top-full left-0 mt-2 w-56 bg-white border border-outline/60 rounded-[16px] p-1.5 z-50 text-left"
                     style={{ boxShadow: '0 4px 20px rgba(15,23,42,0.12), 0 1px 4px rgba(0,0,0,0.06)' }}
                   >
                     {CAMPUS_INFO_LINKS.map((subLink) => (
@@ -342,6 +316,7 @@ const Navbar = () => {
           {/* ── Right Controls ────────────────────────────────── */}
           <div className="hidden lg:flex items-center gap-1.5 flex-shrink-0">
             <LangToggle />
+            <ThemeToggle />
             {onboarded && (
               <div className="flex items-center gap-1.5 ml-0.5">
                 {/* Avatar chip */}
@@ -368,6 +343,7 @@ const Navbar = () => {
           {/* ── Mobile Toggle ─────────────────────────────────── */}
           <div className="flex lg:hidden items-center gap-2">
             <LangToggle />
+            <ThemeToggle />
             <button
               type="button"
               onClick={() => setIsOpen(!isOpen)}

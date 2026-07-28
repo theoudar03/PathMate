@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useApp } from '../../contexts/AppContext';
 
 const STAT_DETAILS = {
   'Established': {
@@ -64,6 +65,7 @@ function useCountUp(end, active) {
 }
 
 const StatCard = ({ stat, idx }) => {
+  const { t } = useApp();
   const [inView, setInView] = useState(false);
   const [showModal, setShowModal] = useState(false);
   const ref = useRef(null);
@@ -76,13 +78,17 @@ const StatCard = ({ stat, idx }) => {
     return () => obs.disconnect();
   }, []);
 
+  const detailsKey = stat.label === 'NBA Accreditation' ? 'NBA' : stat.label.replace(/\s+/g, '');
+  const labelKey = `statLabel${detailsKey}`;
+  const valueKey = `statValue${detailsKey}`;
+
   const numericPart = parseInt(stat.value);
   const hasNumber = !isNaN(numericPart);
   const counted = useCountUp(numericPart, inView && hasNumber);
   const display = () => {
-    if (!hasNumber || !inView) return stat.value;
-    const suffix = stat.value.replace(/[0-9]/g, '').trim();
-    return `${counted}${suffix}`;
+    const translatedValue = t(valueKey) || stat.value;
+    if (!hasNumber || !inView) return translatedValue;
+    return translatedValue.replace(numericPart.toString(), counted.toString());
   };
 
   return (
@@ -103,13 +109,13 @@ const StatCard = ({ stat, idx }) => {
             <span className="material-symbols-outlined text-[18px] select-none"
                   style={{ color, fontVariationSettings: "'FILL' 1" }}>{stat.icon}</span>
           </div>
-          <span className="text-[10px] font-black uppercase tracking-wider text-onSurfaceVariant">{stat.label}</span>
+          <span className="text-[10px] font-black uppercase tracking-wider text-onSurfaceVariant">{t(labelKey) || stat.label}</span>
         </div>
         <p className="text-[24px] font-black tracking-tight leading-none mb-2" style={{ color }}>{display()}</p>
         {details && (
           <div className="flex items-center gap-1 text-[10px] font-bold text-onSurfaceVariant/45 group-hover:text-primary transition-colors duration-150">
             <span className="material-symbols-outlined text-[11px]">info</span>
-            <span>Tap to learn more</span>
+            <span>{t('learnMoreTap') || 'Tap to learn more'}</span>
           </div>
         )}
       </div>
@@ -128,18 +134,22 @@ const StatCard = ({ stat, idx }) => {
                       style={{ color, fontVariationSettings: "'FILL' 1" }}>{stat.icon}</span>
               </div>
               <div className="flex-1">
-                <p className="text-[9px] font-black uppercase tracking-widest text-onSurfaceVariant mb-0.5">{stat.label}</p>
-                <h3 className="text-[21px] font-black tracking-tight" style={{ color }}>{stat.value}</h3>
+                <p className="text-[9px] font-black uppercase tracking-widest text-onSurfaceVariant mb-0.5">{t(labelKey) || stat.label}</p>
+                <h3 className="text-[21px] font-black tracking-tight" style={{ color }}>{t(valueKey) || stat.value}</h3>
               </div>
               <button onClick={() => setShowModal(false)}
                       className="p-1.5 rounded-full hover:bg-slate-100 text-onSurfaceVariant/50 flex-shrink-0">
                 <span className="material-symbols-outlined text-[18px]">close</span>
               </button>
             </div>
-            <h4 className="text-[13px] font-extrabold text-onSurface mb-2">{details.fullTitle}</h4>
-            <p className="text-[12px] text-onSurfaceVariant leading-relaxed mb-4">{details.body}</p>
+            <h4 className="text-[13px] font-extrabold text-onSurface mb-2">{t(`statModalTitle${detailsKey}`) || details.fullTitle}</h4>
+            <p className="text-[12px] text-onSurfaceVariant leading-relaxed mb-4">{t(`statModalBody${detailsKey}`) || details.body}</p>
             <div className="space-y-2 bg-slate-50 rounded-2xl p-3.5">
-              {details.facts.map((f, i) => (
+              {[
+                t(`statModalFact1${detailsKey}`) || details.facts[0],
+                t(`statModalFact2${detailsKey}`) || details.facts[1],
+                t(`statModalFact3${detailsKey}`) || details.facts[2],
+              ].filter(Boolean).map((f, i) => (
                 <div key={i} className="flex items-start gap-2 text-[11px] text-onSurfaceVariant">
                   <span className="material-symbols-outlined text-[13px] flex-shrink-0 mt-0.5" style={{ color }}>check_circle</span>
                   {f}

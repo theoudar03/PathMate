@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useApp } from '../contexts/AppContext';
+import { useTheme } from '../contexts/ThemeContext';
 import BusRouteWidget from '../components/dashboard/BusRouteWidget';
 import ToastSnackbar from '../components/common/ToastSnackbar';
 import FloatingNotice from '../components/notices/FloatingNotice';
@@ -78,7 +79,8 @@ const getDeptTheme = (deptName) => {
 };
 
 const Dashboard = () => {
-  const { studentData, resetAllData, token, updateProfile, user, dbReadNotices, dbBookmarkedNotices, markNoticeReadDb, toggleNoticeBookmarkDb, notifications, markNotificationRead } = useApp();
+  const { studentData, resetAllData, token, updateProfile, user, dbReadNotices, dbBookmarkedNotices, markNoticeReadDb, toggleNoticeBookmarkDb, notifications, markNotificationRead, t } = useApp();
+  const { theme: appTheme, setTheme: setAppTheme } = useTheme();
   const navigate = useNavigate();
 
   const name       = studentData?.name       || 'Freshman';
@@ -133,6 +135,7 @@ const Dashboard = () => {
   const [editHostelBlock, setEditHostelBlock] = useState(studentData?.hostel_block || 'B-Block (Boys Hostel)');
   const [editTravelMode, setEditTravelMode] = useState(travelMode);
   const [editInterests, setEditInterests] = useState(interests);
+  const [editTheme, setEditTheme] = useState(user?.preferred_theme || 'light');
   const [isSavingProfile, setIsSavingProfile] = useState(false);
 
   // Study Streak Modal States
@@ -380,8 +383,9 @@ const Dashboard = () => {
       setEditHostelBlock(studentData.hostel_block || 'B-Block (Boys Hostel)');
       setEditTravelMode(studentData.travel_mode || 'own_transport');
       setEditInterests(studentData.interests || []);
+      setEditTheme(user?.preferred_theme || 'light');
     }
-  }, [studentData, isProfileModalOpen]);
+  }, [studentData, isProfileModalOpen, user]);
 
   const handleEditProfile = () => {
     setIsProfileModalOpen(true);
@@ -451,6 +455,7 @@ const Dashboard = () => {
         interests: editInterests
       });
       if (updated) {
+        await setAppTheme(editTheme);
         showNotification('Profile updated successfully!', 'success');
         setIsProfileModalOpen(false);
       }
@@ -598,28 +603,28 @@ const Dashboard = () => {
           <span className="material-symbols-outlined text-[16px] text-primary">analytics</span>
           Today's Campus Snapshot
         </h2>
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-4">
           <div className="bg-surface border border-outline/15 rounded-2xl p-4 flex flex-col justify-between hover:border-primary/20 transition-colors shadow-3xs">
-            <span className="text-[10px] font-black uppercase text-onSurfaceVariant/70 tracking-wider">Classes Today</span>
+            <span className="text-[10px] font-black uppercase text-onSurfaceVariant/70 tracking-wider">{t('statClassesToday')}</span>
             <div className="mt-2.5">
               <span className="text-xl font-extrabold text-onSurface">4 lectures</span>
-              <p className="text-[9px] text-onSurfaceVariant/80 font-bold mt-0.5 uppercase tracking-wide text-primary">Live Timetable</p>
+              <p className="text-[9px] text-onSurfaceVariant/80 font-bold mt-0.5 uppercase tracking-wide text-primary">{t('statLiveTimetable')}</p>
             </div>
           </div>
 
           <div className="bg-surface border border-outline/15 rounded-2xl p-4 flex flex-col justify-between hover:border-primary/20 transition-colors shadow-3xs">
-            <span className="text-[10px] font-black uppercase text-onSurfaceVariant/70 tracking-wider">Unread Circulars</span>
+            <span className="text-[10px] font-black uppercase text-onSurfaceVariant/70 tracking-wider">{t('statUnreadCirculars')}</span>
             <div className="mt-2.5">
               <span className={`text-xl font-extrabold ${unreadNoticeCount > 0 ? 'text-rose-600' : 'text-onSurface'}`}>{unreadNoticeCount} unread</span>
-              <p className="text-[9px] text-onSurfaceVariant/80 font-bold mt-0.5 uppercase tracking-wide">Notices board</p>
+              <p className="text-[9px] text-onSurfaceVariant/80 font-bold mt-0.5 uppercase tracking-wide">{t('statNoticesBoard')}</p>
             </div>
           </div>
 
           <div className="bg-surface border border-outline/15 rounded-2xl p-4 flex flex-col justify-between hover:border-primary/20 transition-colors shadow-3xs">
-            <span className="text-[10px] font-black uppercase text-onSurfaceVariant/70 tracking-wider">Events This Week</span>
+            <span className="text-[10px] font-black uppercase text-onSurfaceVariant/70 tracking-wider">{t('statEventsWeek')}</span>
             <div className="mt-2.5">
               <span className="text-xl font-extrabold text-onSurface">{events.length} planned</span>
-              <p className="text-[9px] text-onSurfaceVariant/80 font-bold mt-0.5 uppercase tracking-wide text-indigo-600">Events Directory</p>
+              <p className="text-[9px] text-onSurfaceVariant/80 font-bold mt-0.5 uppercase tracking-wide text-indigo-600">{t('statViewCalendar')}</p>
             </div>
           </div>
 
@@ -647,31 +652,31 @@ const Dashboard = () => {
             <div className="absolute right-1 top-1 text-orange-500 opacity-15 select-none transform rotate-12 group-hover:scale-110 transition-transform">
               <span className="material-symbols-outlined text-[44px]">local_fire_department</span>
             </div>
-            <span className="text-[10px] font-black uppercase text-onSurfaceVariant/70 tracking-wider">Study Streak</span>
+            <span className="text-[10px] font-black uppercase text-onSurfaceVariant/70 tracking-wider">{t('statStudyStreak')}</span>
             <div className="mt-2.5 z-10">
               <div className="flex items-center gap-1.5">
-                <span className="text-xl font-black text-orange-600">{studyStreak} Days</span>
+                <span className="text-xl font-black text-orange-600">{studyStreak} {t('statDays')}</span>
                 <button 
                   onClick={incrementStreak}
                   className="p-1 hover:bg-orange-100 rounded-full text-orange-600 cursor-pointer active:scale-95 transition-transform"
-                  title="Extend Streak"
+                  title={t('statClickExtend')}
                 >
                   <span className="material-symbols-outlined text-[15px]" style={{ fontVariationSettings: "'FILL' 1" }}>add</span>
                 </button>
               </div>
-              <p className="text-[9px] text-onSurfaceVariant/85 font-black mt-0.5 uppercase tracking-wide">Click to Extend</p>
+              <p className="text-[9px] text-onSurfaceVariant/85 font-black mt-0.5 uppercase tracking-wide">{t('statClickExtend')}</p>
             </div>
           </div>
         </div>
       </section>
 
       {/* === SMART ACTION CARDS GRID === */}
-      <div className={`grid grid-cols-2 ${isHostel ? 'sm:grid-cols-4' : 'sm:grid-cols-3'} gap-4`}>
+      <div className={`grid grid-cols-1 sm:grid-cols-2 ${isHostel ? 'lg:grid-cols-4' : 'lg:grid-cols-3'} gap-4`}>
         {[
-          { title: 'Roommate Matcher', desc: 'Find accommodation roommates.', stats: 'Verified Hostel', icon: 'bedroom_parent', color: 'text-purple-600', bg: 'bg-purple-50', path: '/connect', show: isHostel },
-          { title: 'Senior Mentors', desc: 'Get placement & syllabus tips.', stats: '12 Seniors Active', icon: 'school', color: 'text-blue-600', bg: 'bg-blue-50', path: '/connect', show: true },
-          { title: 'Clubs & Events', desc: 'Register for upcoming fests.', stats: `${events.length} Upcoming`, icon: 'celebration', color: 'text-amber-600', bg: 'bg-amber-50', path: '/clubs-events', show: true },
-          { title: 'Campus Map', desc: 'Saranathan 3D floor map.', stats: 'GPS Calibrated', icon: 'map', color: 'text-emerald-600', bg: 'bg-emerald-50', path: '/campus-map', show: true },
+          { title: t('dashRoommateMatcher'), desc: t('dashRoommateMatcherDesc'), stats: t('dashRoommateStats'), icon: 'bedroom_parent', color: 'text-purple-600', bg: 'bg-purple-50', path: '/connect', show: isHostel },
+          { title: t('dashSeniorMentors'), desc: t('dashSeniorMentorsDesc'), stats: t('dashSeniorMentorsStats'), icon: 'school', color: 'text-blue-600', bg: 'bg-blue-50', path: '/connect', show: true },
+          { title: t('dashClubsEvents'), desc: t('dashClubsEventsDesc'), stats: `${events.length} Upcoming`, icon: 'celebration', color: 'text-amber-600', bg: 'bg-amber-50', path: '/clubs-events', show: true },
+          { title: t('dashCampusMap'), desc: t('dashCampusMapDesc'), stats: t('dashCampusMapStats'), icon: 'map', color: 'text-emerald-600', bg: 'bg-emerald-50', path: '/campus-map', show: true },
         ].filter(item => item.show).map((item, idx) => (
           <div
             key={idx}
@@ -763,7 +768,7 @@ const Dashboard = () => {
                     <span className="material-symbols-outlined text-[32px] text-onSurfaceVariant/35 select-none block">category</span>
                     <p className="text-xs text-onSurfaceVariant/70 italic leading-snug">No skill interests mapped to your student profile yet.</p>
                     <button onClick={handleEditProfile} className="px-3.5 py-1.5 bg-primary text-white font-bold rounded-xl text-[11px] shadow-2xs hover:bg-primaryHover cursor-pointer">
-                      Map Interests
+                      {t('mapInterests')}
                     </button>
                   </div>
                 )}
@@ -1362,6 +1367,18 @@ const Dashboard = () => {
                     </select>
                   </div>
                 )}
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-[10px] font-black text-slate-500 uppercase tracking-wide">Appearance Theme</label>
+                <select 
+                  value={editTheme}
+                  onChange={(e) => setEditTheme(e.target.value)}
+                  className="w-full px-3 py-2.5 border border-slate-200 bg-slate-50 rounded-xl text-xs outline-none focus:border-primary text-slate-800 font-bold cursor-pointer"
+                >
+                  <option value="light">Light Theme</option>
+                  <option value="dark">Dark Theme (Professional)</option>
+                </select>
               </div>
 
               {/* Interests checklist as dynamic interactive chips */}

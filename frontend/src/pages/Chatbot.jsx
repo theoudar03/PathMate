@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import ChatWindow from '../components/chatbot/ChatWindow';
 import { safeFetchJson } from '../utils/api';
+import { useApp } from '../contexts/AppContext';
 
 const Chatbot = () => {
+  const { t } = useApp();
   const [suggestedFaqs, setSuggestedFaqs] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -32,13 +34,13 @@ const Chatbot = () => {
 
       {/* ── Page Header ─────────────────────────────────────────── */}
       <div className="border-b border-surfaceVariant pb-3.5">
-        <span className="text-xs text-onSurfaceVariant font-medium">Query Desk</span>
+        <span className="text-xs text-onSurfaceVariant font-medium">{t('chatbotPageDesk')}</span>
         <h1 className="text-3xl font-extrabold text-primary mt-1 flex items-center">
           <span className="material-symbols-outlined text-primary text-[32px] select-none align-middle mr-2">chat</span>
-          PathMate Grounded Assistant
+          {t('chatbotPageTitle')}
         </h1>
         <p className="text-sm text-onSurfaceVariant mt-2 leading-relaxed">
-          Ask questions about SCE academic calendars, hostel guidelines, document requirements, and anti-ragging support. All answers are grounded in official campus circulars.
+          {t('chatbotPageDesc')}
         </p>
       </div>
 
@@ -49,8 +51,8 @@ const Chatbot = () => {
       <div className="flex items-start gap-3 bg-surfaceVariant/40 border border-outline/15 rounded-xl px-4 py-3">
         <span className="material-symbols-outlined text-primary text-[20px] select-none mt-0.5 flex-shrink-0">info</span>
         <p className="text-xs text-onSurfaceVariant leading-relaxed">
-          <span className="font-bold text-onSurface">Grounded AI standard —</span>{' '}
-          Every answer displays an official document reference tag. If a response does not match current SCE policies, use the auto-generated escalation email draft to request official registrar feedback.
+          <span className="font-bold text-onSurface">{t('groundedAiStandard')}</span>{' '}
+          {t('groundedAiDesc')}
         </p>
       </div>
 
@@ -59,7 +61,7 @@ const Chatbot = () => {
         <div>
           <h3 className="text-sm font-bold text-onSurface mb-3 flex items-center gap-1.5">
             <span className="material-symbols-outlined text-primary text-[18px] select-none align-middle">help</span>
-            Suggested questions
+            {t('suggestedQuestions')}
           </h3>
 
           {/* Scrollable horizontal row */}
@@ -90,7 +92,7 @@ const Chatbot = () => {
                 </p>
                 <div className="mt-2 flex items-center gap-1 text-[10px] text-primary font-bold opacity-0 group-hover:opacity-100 transition-opacity">
                   <span className="material-symbols-outlined text-[12px] select-none">send</span>
-                  Ask this
+                  {t('askThis')}
                 </div>
               </button>
             ))}

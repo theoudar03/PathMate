@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Users, MessagesSquare, Calendar, Building, BookOpen, Clock, Activity, ShieldCheck, Database, Award, UserCheck, HelpCircle, Layers, RefreshCw } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import { safeFetchJson } from '../../utils/api';
+import { useTheme } from '../../contexts/ThemeContext';
 
 const StatCard = ({ title, value, icon: Icon, colorClass, subtitle }) => (
   <div className="bg-surface border border-surfaceVariant/60 rounded-3xl p-6 shadow-sm flex items-start justify-between group hover:shadow-md transition-all">
@@ -19,6 +20,8 @@ const StatCard = ({ title, value, icon: Icon, colorClass, subtitle }) => (
 );
 
 const AdminDashboard = () => {
+  const { resolvedTheme } = useTheme();
+  const isDark = resolvedTheme === 'dark';
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -219,15 +222,23 @@ const AdminDashboard = () => {
           <div className="h-72 w-full">
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={chartData} margin={{ top: 10, right: 20, bottom: 5, left: -10 }}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E2E8F0" />
-                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#64748B', fontSize: 11, fontWeight: 600 }} dy={10} />
-                <YAxis axisLine={false} tickLine={false} tick={{ fill: '#64748B', fontSize: 11, fontWeight: 600 }} />
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={isDark ? '#2E323A' : '#E2E8F0'} />
+                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: isDark ? '#94A3B8' : '#64748B', fontSize: 11, fontWeight: 600 }} dy={10} />
+                <YAxis axisLine={false} tickLine={false} tick={{ fill: isDark ? '#94A3B8' : '#64748B', fontSize: 11, fontWeight: 600 }} />
                 <Tooltip 
-                  contentStyle={{ borderRadius: '16px', border: '1px solid #E2E8F0', boxShadow: '0 4px 12px rgba(0,0,0,0.08)' }} 
+                  contentStyle={{ 
+                    borderRadius: '16px', 
+                    backgroundColor: isDark ? '#202228' : '#FFFFFF', 
+                    border: `1px solid ${isDark ? '#3A3F4D' : '#E2E8F0'}`, 
+                    boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+                    color: isDark ? '#E2E2E9' : '#0F172A'
+                  }} 
+                  itemStyle={{ color: isDark ? '#E2E2E9' : '#0F172A' }}
+                  labelStyle={{ color: isDark ? '#C3C6CF' : '#475569', fontWeight: 'bold' }}
                 />
                 <Legend iconType="circle" wrapperStyle={{ paddingTop: '15px', fontSize: '12px' }} />
-                <Line type="monotone" dataKey="activeStudents" name="Active Student Sessions" stroke="#1B4DA6" strokeWidth={3} dot={{ r: 4 }} activeDot={{ r: 6 }} />
-                <Line type="monotone" dataKey="aiQueries" name="AI Grounded Queries" stroke="#7C3AED" strokeWidth={3} dot={{ r: 4 }} activeDot={{ r: 6 }} />
+                <Line type="monotone" dataKey="activeStudents" name="Active Student Sessions" stroke={isDark ? '#A4C6FF' : '#1B4DA6'} strokeWidth={3} dot={{ r: 4 }} activeDot={{ r: 6 }} />
+                <Line type="monotone" dataKey="aiQueries" name="AI Grounded Queries" stroke={isDark ? '#C084FC' : '#7C3AED'} strokeWidth={3} dot={{ r: 4 }} activeDot={{ r: 6 }} />
               </LineChart>
             </ResponsiveContainer>
           </div>

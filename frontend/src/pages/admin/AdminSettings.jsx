@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { Settings, Save, RefreshCw, CheckCircle2 } from 'lucide-react';
 import { safeFetchJson } from '../../utils/api';
+import { useTheme } from '../../contexts/ThemeContext';
 
 const AdminSettings = () => {
+  const { theme, setTheme } = useTheme();
   const [settings, setSettings] = useState({});
   const [logs, setLogs] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -166,8 +168,39 @@ const AdminSettings = () => {
           </div>
         </form>
 
-        {/* Audit Log column */}
-        <div className="lg:col-span-1 bg-surface border border-outline/25 rounded-3xl p-6 shadow-2xs">
+        {/* Audit Log column / Theme Selector */}
+        <div className="lg:col-span-1 space-y-6">
+          {/* Theme Settings Card */}
+          <div className="bg-surface border border-outline/25 rounded-3xl p-6 shadow-2xs space-y-4">
+            <h2 className="text-xs font-black uppercase text-onSurfaceVariant flex items-center gap-1.5">
+              <span className="material-symbols-outlined text-[16px] select-none">palette</span>
+              <span>Interface Theme</span>
+            </h2>
+            <div className="space-y-2.5">
+              <p className="text-[11px] text-onSurfaceVariant leading-normal font-medium">
+                Choose the appearance of the PathMate administration portal.
+              </p>
+              <div className="grid grid-cols-2 gap-1.5">
+                {['light', 'dark'].map((t) => (
+                  <button
+                    key={t}
+                    type="button"
+                    onClick={() => setTheme(t)}
+                    className={`py-2 text-[10px] font-black rounded-xl border text-center capitalize cursor-pointer active:scale-95 transition-all duration-150 ${
+                      theme === t
+                        ? 'border-primary bg-primary/5 text-primary'
+                        : 'border-outline/20 text-onSurfaceVariant bg-slate-50 hover:bg-slate-100'
+                    }`}
+                  >
+                    {t}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* Audit Logs */}
+          <div className="bg-surface border border-outline/25 rounded-3xl p-6 shadow-2xs">
           <h2 className="text-xs font-black uppercase text-onSurfaceVariant mb-3">Admin Activity Audit Logs</h2>
           <div className="space-y-3 max-h-[350px] overflow-y-auto pr-1">
             {logs.map((log) => (
@@ -187,7 +220,8 @@ const AdminSettings = () => {
         </div>
       </div>
     </div>
-  );
+  </div>
+);
 };
 
 export default AdminSettings;

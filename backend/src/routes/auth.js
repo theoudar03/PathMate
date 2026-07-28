@@ -62,6 +62,7 @@ router.get('/me', authenticateToken, async (req, res) => {
         const queryRes = await db.query(
           `SELECT u.id, u.username, u.full_name, u.name, u.register_number, u.roll_number, u.email, 
                   u.stay_type, u.hostel_block, u.role, u.status, u.created_at, u.gender, u.travel_mode,
+                  u.preferred_theme,
                   d.name as department_name, d.full_name as department
            FROM users u
            LEFT JOIN departments d ON u.department_id = d.id
@@ -100,7 +101,8 @@ router.get('/me', authenticateToken, async (req, res) => {
         status: user.status || 'active',
         created_at: user.created_at,
         gender: user.gender || 'Male',
-        travel_mode: user.travel_mode || 'own_transport'
+        travel_mode: user.travel_mode || 'own_transport',
+        preferred_theme: user.preferred_theme || 'light'
       }
     });
   } catch (error) {
@@ -475,7 +477,9 @@ router.post('/login', loginRateLimiter, async (req, res) => {
         const userRes = await db.query(
           `SELECT u.id, u.username, u.password_hash, u.name, u.department_id, u.stay_type, u.hostel_block, 
                   u.language_pref, u.custom_notes, u.full_name, u.roll_number, u.register_number, u.email, 
-                  u.preferred_language, u.hosteller, u.is_first_login, u.role, u.status, u.gender, u.travel_mode, d.name as department_name 
+                  u.preferred_language, u.hosteller, u.is_first_login, u.role, u.status, u.gender, u.travel_mode,
+                  u.preferred_theme,
+                  d.name as department_name 
            FROM users u
            LEFT JOIN departments d ON u.department_id = d.id
            WHERE LOWER(u.username) = LOWER($1) OR LOWER(u.register_number) = LOWER($1) OR LOWER(u.roll_number) = LOWER($1) OR LOWER(u.email) = LOWER($1)`,
@@ -556,7 +560,8 @@ router.post('/login', loginRateLimiter, async (req, res) => {
         department: user.department_name,
         is_first_login: user.is_first_login,
         interests: userInterests,
-        gender: user.gender || 'Male'
+        gender: user.gender || 'Male',
+        preferred_theme: user.preferred_theme || 'light'
       }
     });
   } catch (error) {
@@ -710,6 +715,38 @@ router.post('/change-language', authenticateToken, async (req, res) => {
 });
 
 /**
+ * 5b. POST /auth/change-theme
+ * Updates preferred theme for the authenticated user
+ */
+router.post('/change-theme', authenticateToken, async (req, res) => {
+  const { theme } = req.body;
+  if (!theme || !['light', 'dark'].includes(theme)) {
+    return res.status(400).json({ error: 'Valid theme code (light, dark) is required.' });
+  }
+
+  try {
+    await safeDbCall(
+      async () => {
+        await db.query(
+          'UPDATE users SET preferred_theme = $1, updated_at = now() WHERE id = $2',
+          [theme, req.user.userId]
+        );
+      },
+      async () => {
+        const u = MOCK_STORE.users.find(u => u.id === req.user.userId);
+        if (u) {
+          u.preferred_theme = theme;
+        }
+      }
+    );
+
+    res.json({ success: true, message: 'Theme preference updated.' });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+/**
  * 6. POST /auth/logout
  * Standardised logout endpoint
  */
@@ -728,7 +765,8 @@ router.get('/me', authenticateToken, async (req, res) => {
         const userRes = await db.query(
           `SELECT u.id, u.username, u.name, u.department_id, u.stay_type, u.hostel_block, u.language_pref, 
                   u.custom_notes, u.full_name, u.roll_number, u.register_number, u.email, u.preferred_language, 
-                  u.hosteller, u.is_first_login, u.role, u.status, u.gender, u.travel_mode, d.name as department_name 
+                  u.hosteller, u.is_first_login, u.role, u.status, u.gender, u.travel_mode, u.preferred_theme,
+                  d.name as department_name 
            FROM users u
            LEFT JOIN departments d ON u.department_id = d.id
            WHERE u.id = $1`,
@@ -769,7 +807,8 @@ router.get('/me', authenticateToken, async (req, res) => {
         is_first_login: user.is_first_login,
         interests: userInterests,
         gender: user.gender || 'Male',
-        travel_mode: user.travel_mode || 'own_transport'
+        travel_mode: user.travel_mode || 'own_transport',
+        preferred_theme: user.preferred_theme || 'light'
       }
     });
   } catch (error) {
@@ -866,6 +905,7 @@ router.put('/profile', authenticateToken, async (req, res) => {
         const userRes = await db.query(
           `SELECT u.id, u.username, u.full_name, u.name, u.register_number, u.roll_number, u.email, 
                   u.stay_type, u.hostel_block, u.role, u.status, u.created_at, u.gender, u.travel_mode,
+                  u.preferred_theme,
                   d.name as department_name, d.full_name as department
            FROM users u
            LEFT JOIN departments d ON u.department_id = d.id
@@ -898,7 +938,8 @@ router.put('/profile', authenticateToken, async (req, res) => {
         created_at: updatedUser.created_at,
         gender: updatedUser.gender || 'Male',
         travel_mode: updatedUser.travel_mode || 'own_transport',
-        interests: userInterests
+        interests: userInterests,
+        preferred_theme: updatedUser.preferred_theme || 'light'
       }
     });
   } catch (error) {

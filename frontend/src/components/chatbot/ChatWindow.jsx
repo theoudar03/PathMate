@@ -174,11 +174,11 @@ const BotMessageContent = ({ msg, isStreaming, onFeedback, feedbackState, onRege
   );
 };
 
-const INITIAL_MESSAGES = [
+const getInitialMessages = (t) => [
   {
     id: 'msg-init',
     sender: 'bot',
-    text: "Hello! I am PathMate, your Saranathan College of Engineering guide. I can answer questions about document verification, hostel allocations, anti-ragging policies, canteen timings, or SCE clubs. How can I help you settle in today?",
+    text: t('chatInitGreeting'),
     sources: [],
     showEscalation: false
   }
@@ -187,6 +187,7 @@ const INITIAL_MESSAGES = [
 const ChatWindow = () => {
   const { user, language, t } = useApp();
   const storageKey = user ? `pm_chat_history_${user.username || user.id}` : 'pm_chat_history';
+  const INITIAL_MESSAGES = getInitialMessages(t);
 
   const [messages, setMessages] = useState(() => {
     const saved = localStorage.getItem(storageKey);
@@ -501,11 +502,11 @@ const ChatWindow = () => {
 
   // Rotate input placeholder examples dynamically
   const placeholders = [
-    "Ask about clubs...",
-    "Where is the library?",
-    "When is the next event?",
-    "Tell me about hostel allocations...",
-    "Search UG academic regulations..."
+    t('chatPlaceholder1'),
+    t('chatPlaceholder2'),
+    t('chatPlaceholder3'),
+    t('chatPlaceholder4'),
+    t('chatPlaceholder5'),
   ];
   const [placeholderIdx, setPlaceholderIdx] = useState(0);
   useEffect(() => {
@@ -642,7 +643,7 @@ const ChatWindow = () => {
                 <span className="material-symbols-outlined text-[18px] select-none align-middle">smart_toy</span>
               </div>
               <div className="bg-white border border-outline/10 rounded-2xl px-4.5 py-3 text-xs text-onSurfaceVariant/80 shadow-sm flex items-center gap-2">
-                <span className="font-bold">PathMate is thinking</span>
+                <span className="font-bold">{t('chatThinking')}</span>
                 <span className="inline-flex gap-0.5 items-center">
                   <span className="w-1 h-1 bg-onSurfaceVariant rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></span>
                   <span className="w-1 h-1 bg-onSurfaceVariant rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></span>
@@ -659,36 +660,36 @@ const ChatWindow = () => {
                 <span className="material-symbols-outlined text-[32px]">waving_hand</span>
               </div>
               <div className="space-y-2">
-                <h3 className="text-lg font-extrabold text-onSurface">Hey, I'm PathMate! 👋</h3>
+                <h3 className="text-lg font-extrabold text-onSurface">{t('chatWelcomeHeading')}</h3>
                 <p className="text-xs text-onSurfaceVariant font-medium leading-relaxed">
-                  I'm your official SCE AI companion. Click any suggestion below to start, or type your own question!
+                  {t('chatWelcomeSubtitle')}
                 </p>
               </div>
 
               {/* Suggestions Grid */}
               <div className="grid grid-cols-2 gap-2.5 pt-2">
                 {[
-                  { label: "📍 Navigate Campus", q: "How do I navigate to the different blocks on campus?" },
-                  { label: "📅 Upcoming Events", q: "What are the upcoming events at Saranathan College?" },
-                  { label: "🏠 Hostel Facilities", q: "Tell me about the hostel facilities and warden allocations." },
-                  { label: "📚 Regulations Hub", q: "What are the academic regulations and assessment rules?" },
-                  { label: "🎓 Campus Clubs", q: "What student clubs can I join at SCE?" },
-                  { label: "🤖 Ask General Info", q: "Tell me general details about Saranathan College of Engineering." }
+                  { labelKey: 'chatSuggestNavigate', qKey: 'chatSuggestNavigateQ' },
+                  { labelKey: 'chatSuggestEvents',   qKey: 'chatSuggestEventsQ' },
+                  { labelKey: 'chatSuggestHostel',   qKey: 'chatSuggestHostelQ' },
+                  { labelKey: 'chatSuggestRegulations', qKey: 'chatSuggestRegulationsQ' },
+                  { labelKey: 'chatSuggestClubs',    qKey: 'chatSuggestClubsQ' },
+                  { labelKey: 'chatSuggestGeneral',  qKey: 'chatSuggestGeneralQ' },
                 ].map((s, idx) => (
                   <button
                     key={idx}
                     type="button"
-                    onClick={() => handleSuggestionClick(s.q)}
+                    onClick={() => handleSuggestionClick(t(s.qKey))}
                     className="p-3 text-xs font-bold text-onSurface/90 border border-outline/15 bg-white rounded-xl hover:bg-primaryContainer hover:border-primary/35 hover:text-primary transition-all text-left shadow-sm active-press"
                   >
-                    {s.label}
+                    {t(s.labelKey)}
                   </button>
                 ))}
               </div>
             </div>
           )}
           {/* Bottom Spacer to prevent floating input bar overlap */}
-          <div className="h-28 flex-shrink-0" />
+          <div className="h-40 sm:h-32 flex-shrink-0" />
         </div>
       </div>
 
@@ -715,12 +716,12 @@ const ChatWindow = () => {
               <span className="w-1.5 h-5 bg-red-500 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></span>
               <span className="w-1.5 h-4 bg-red-500 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></span>
               <span className="w-1.5 h-6 bg-red-500 rounded-full animate-bounce" style={{ animationDelay: '450ms' }}></span>
-              <span>LISTENING... TALK NOW</span>
+              <span>{t('chatListening')}</span>
             </div>
           ) : inputError ? (
             <span className="font-semibold text-error truncate mr-2">{inputError}</span>
           ) : (
-            <span className="font-bold text-onSurfaceVariant/60 select-none">AI ground-truth answering</span>
+            <span className="font-bold text-onSurfaceVariant/60 select-none">{t('chatAiGroundTruth')}</span>
           )}
           
           <div className="flex items-center gap-1.5 shrink-0">
@@ -735,7 +736,7 @@ const ChatWindow = () => {
               className="w-3.5 h-3.5 text-primary rounded border-outline focus:ring-primary focus:ring-1 cursor-pointer accent-primary"
             />
             <label htmlFor="voiceReplyToggle" className="font-bold text-onSurface/70 cursor-pointer select-none text-[10px]">
-              Voice Reply
+              {t('chatVoiceReply')}
             </label>
           </div>
         </div>
@@ -797,7 +798,7 @@ const ChatWindow = () => {
             <div className="px-6 py-4.5 border-b border-outline/10 flex items-center justify-between bg-slate-50">
               <div className="flex items-center gap-2">
                 <span className="material-symbols-outlined text-red-500 text-[22px] select-none">report_problem</span>
-                <h3 className="font-extrabold text-sm text-onSurface">Report AI Answer Inaccuracy</h3>
+                <h3 className="font-extrabold text-sm text-onSurface">{t('reportModalTitle')}</h3>
               </div>
               <button
                 type="button"
@@ -815,9 +816,9 @@ const ChatWindow = () => {
                   <div className="w-12 h-12 bg-emerald-50 text-emerald-600 rounded-full flex items-center justify-center border border-emerald-100 shadow-sm animate-bounce">
                     <span className="material-symbols-outlined text-[26px] select-none">check_circle</span>
                   </div>
-                  <h4 className="font-bold text-sm text-onSurface">Report Submitted successfully!</h4>
+                  <h4 className="font-bold text-sm text-onSurface">{t('reportSuccess')}</h4>
                   <p className="text-xs text-onSurfaceVariant max-w-xs">
-                    Thank you. Our campus administration team will review the answer and correct the database immediately.
+                    {t('reportSuccessDesc')}
                   </p>
                 </div>
               ) : (
@@ -825,11 +826,11 @@ const ChatWindow = () => {
                   {/* Read-only details */}
                   <div className="bg-slate-50 border border-outline/10 rounded-xl p-3.5 space-y-2 text-left">
                     <div>
-                      <span className="text-[10px] uppercase font-bold text-onSurfaceVariant/70">Student Question</span>
+                      <span className="text-[10px] uppercase font-bold text-onSurfaceVariant/70">{t('reportStudentQuestion')}</span>
                       <p className="text-xs text-onSurface font-medium line-clamp-2 mt-0.5">{reportQuestion}</p>
                     </div>
                     <div className="border-t border-outline/5 pt-2">
-                      <span className="text-[10px] uppercase font-bold text-onSurfaceVariant/70">AI Response Preview</span>
+                      <span className="text-[10px] uppercase font-bold text-onSurfaceVariant/70">{t('reportAiPreview')}</span>
                       <p className="text-xs text-onSurfaceVariant line-clamp-2 mt-0.5 italic">"{reportMsg?.text}"</p>
                     </div>
                   </div>
@@ -838,7 +839,7 @@ const ChatWindow = () => {
                   <div className="grid grid-cols-2 gap-3 text-left">
                     <div className="space-y-1.5">
                       <label htmlFor="reportReason" className="text-xs font-bold text-onSurfaceVariant">
-                        Reason for Report <span className="text-red-500">*</span>
+                        {t('reportReasonLabel')} <span className="text-red-500">*</span>
                       </label>
                       <select
                         id="reportReason"
@@ -847,17 +848,17 @@ const ChatWindow = () => {
                         className="w-full bg-slate-50 border border-outline/20 rounded-xl px-3 py-2.5 text-xs font-semibold text-onSurface focus:border-primary focus:bg-white focus:outline-none"
                         required
                       >
-                        <option value="Incorrect faculty/staff details">Incorrect Faculty/Staff Details</option>
-                        <option value="Incorrect department details">Incorrect Department Details</option>
-                        <option value="Outdated schedule or calendar dates">Outdated Timetable/Calendar Dates</option>
-                        <option value="Incorrect academic rules/regulations">Incorrect Rules/Regulations</option>
-                        <option value="Other factual inaccuracy">Other Factual Inaccuracy</option>
+                        <option value="Incorrect faculty/staff details">{t('reportReasonFaculty')}</option>
+                        <option value="Incorrect department details">{t('reportReasonDept')}</option>
+                        <option value="Outdated schedule or calendar dates">{t('reportReasonSchedule')}</option>
+                        <option value="Incorrect academic rules/regulations">{t('reportReasonRules')}</option>
+                        <option value="Other factual inaccuracy">{t('reportReasonOther')}</option>
                       </select>
                     </div>
 
                     <div className="space-y-1.5">
                       <label htmlFor="reportSeverity" className="text-xs font-bold text-onSurfaceVariant">
-                        Severity Level
+                        {t('reportSeverityLabel')}
                       </label>
                       <select
                         id="reportSeverity"
@@ -865,9 +866,9 @@ const ChatWindow = () => {
                         onChange={(e) => setReportSeverity(e.target.value)}
                         className="w-full bg-slate-50 border border-outline/20 rounded-xl px-3 py-2.5 text-xs font-semibold text-onSurface focus:border-primary focus:bg-white focus:outline-none"
                       >
-                        <option value="Low">Low (Typo / Format)</option>
-                        <option value="Medium">Medium (Incorrect info)</option>
-                        <option value="High">High (Critical dates/numbers)</option>
+                        <option value="Low">{t('reportSeverityLow')}</option>
+                        <option value="Medium">{t('reportSeverityMedium')}</option>
+                        <option value="High">{t('reportSeverityHigh')}</option>
                       </select>
                     </div>
                   </div>
@@ -875,7 +876,7 @@ const ChatWindow = () => {
                   {/* Textarea for comments */}
                   <div className="space-y-1.5 text-left">
                     <label htmlFor="reportComments" className="text-xs font-bold text-onSurfaceVariant">
-                      What is the correct information? (Optional)
+                      {t('reportCommentsLabel')}
                     </label>
                     <textarea
                       id="reportComments"
@@ -891,7 +892,7 @@ const ChatWindow = () => {
                   <div className="text-[10px] text-onSurfaceVariant/85 bg-primary/5 rounded-xl p-3 flex items-start gap-1.5 text-left">
                     <span className="material-symbols-outlined text-primary text-[15px] shrink-0 select-none">info</span>
                     <span>
-                      <strong>Auto-Attached Context:</strong> Conversation ID, Timestamp, current department, and source tag ({ (reportMsg?.sources && reportMsg.sources[0]) || 'Gemini' }) will be transmitted to help the admin verify this report.
+                      <strong>{t('reportAutoContext')}</strong> {t('reportAutoContextDesc')}
                     </span>
                   </div>
 
@@ -903,7 +904,7 @@ const ChatWindow = () => {
                       className="px-4 py-2 text-xs font-bold text-onSurfaceVariant hover:bg-slate-100 rounded-xl transition-colors active-press"
                       disabled={reportSubmitting}
                     >
-                      Cancel
+                      {t('reportCancel')}
                     </button>
                     <button
                       type="submit"
@@ -913,12 +914,12 @@ const ChatWindow = () => {
                       {reportSubmitting ? (
                         <>
                           <span className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>
-                          <span>Submitting...</span>
+                          <span>{t('reportSubmitting')}</span>
                         </>
                       ) : (
                         <>
                           <span className="material-symbols-outlined text-[14px]">send</span>
-                          <span>Submit Report</span>
+                          <span>{t('reportSubmit')}</span>
                         </>
                       )}
                     </button>

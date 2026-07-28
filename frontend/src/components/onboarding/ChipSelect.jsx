@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useApp } from '../../contexts/AppContext';
 
 const ChipSelect = ({
   options,
@@ -10,6 +11,7 @@ const ChipSelect = ({
   onOtherTextChange,
   placeholder = 'Please specify...'
 }) => {
+  const { t } = useApp();
   const [showOtherInput, setShowOtherInput] = useState(
     multiple 
       ? selected.includes('Other') 
@@ -69,7 +71,7 @@ const ChipSelect = ({
               }`}
             >
               {active && <span className="material-symbols-outlined text-[13px] font-black select-none">check</span>}
-              <span>{option}</span>
+              <span>{t('interest_' + option) === 'interest_' + option ? option : t('interest_' + option)}</span>
             </button>
           );
         })}
@@ -82,7 +84,7 @@ const ChipSelect = ({
             htmlFor="custom-chip-specify" 
             className="block text-xs font-semibold text-onSurfaceVariant mb-1.5"
           >
-            Please specify details:
+            {t('pleaseSpecifyDetails') || 'Please specify details:'}
           </label>
           <input
             id="custom-chip-specify"

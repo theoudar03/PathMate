@@ -82,7 +82,7 @@ const CampusIllustration = () => (
 // Per-action accent colors
 const ACTION_ACCENTS = [
   { bg: 'bg-blue-50',   iconBg: 'bg-blue-100',   icon: 'text-blue-600',   glow: '0 0 20px rgba(37,99,235,0.14)',   border: 'border-blue-100' },
-  { bg: 'bg-violet-50', iconBg: 'bg-violet-100',  icon: 'text-violet-600', glow: '0 0 20px rgba(124,58,237,0.14)', border: 'border-violet-100' },
+  { bg: 'bg-purple-50', iconBg: 'bg-purple-100',  icon: 'text-purple-600', glow: '0 0 20px rgba(124,58,237,0.14)', border: 'border-purple-100' },
   { bg: 'bg-emerald-50',iconBg: 'bg-emerald-100', icon: 'text-emerald-600',glow: '0 0 20px rgba(5,150,105,0.14)',  border: 'border-emerald-100' },
   { bg: 'bg-amber-50',  iconBg: 'bg-amber-100',   icon: 'text-amber-600',  glow: '0 0 20px rgba(217,119,6,0.14)',  border: 'border-amber-100' },
 ];
@@ -139,10 +139,10 @@ const Home = () => {
   ];
 
   const quickActions = [
-    { title: 'Find Clubs',  subtitle: 'Explore student groups & events',   icon: 'explore',   path: '/clubs' },
-    { title: 'Assistant',   subtitle: 'Ask questions about SCE',            icon: 'chat',      path: '/chatbot' },
-    { title: 'Campus Map',  subtitle: 'Navigate classrooms & buildings',    icon: 'map',       path: '/map' },
-    { title: 'Study Hub',   subtitle: 'Academic drives & curriculum',       icon: 'school',    path: '/study-hub' },
+    { titleKey: 'actionFindClubs',  subtitleKey: 'actionFindClubsSub',  icon: 'explore',   path: '/clubs' },
+    { titleKey: 'actionAssistant',  subtitleKey: 'actionAssistantSub',  icon: 'chat',      path: '/chatbot' },
+    { titleKey: 'actionCampusMap',  subtitleKey: 'actionCampusMapSub',  icon: 'map',       path: '/map' },
+    { titleKey: 'actionStudyHub',   subtitleKey: 'actionStudyHubSub',   icon: 'school',    path: '/study-hub' },
   ];
 
   // Current day/date
@@ -163,7 +163,7 @@ const Home = () => {
           <div className="flex flex-wrap items-center gap-2">
             <span className="inline-flex items-center gap-1.5 text-[11px] font-black text-primary uppercase tracking-widest bg-primaryContainer px-3 py-1 rounded-full">
               <span className="material-symbols-outlined text-[13px] select-none">school</span>
-              <TranslateText text="Student Desk" />
+              <TranslateText text="studentDeskLabel" />
             </span>
             <span className="inline-flex items-center gap-1 text-[10px] font-bold text-onSurfaceVariant bg-surfaceVariant/50 px-2.5 py-1 rounded-full">
               <span className="material-symbols-outlined text-[12px]">calendar_today</span>
@@ -220,7 +220,7 @@ const Home = () => {
           </h2>
         </div>
 
-        <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
           {quickActions.map((action, idx) => {
             const accent = ACTION_ACCENTS[idx % ACTION_ACCENTS.length];
             return (
@@ -252,10 +252,10 @@ const Home = () => {
                     </span>
                   </div>
                   <h3 className="text-[13px] sm:text-[14px] font-extrabold text-onSurface mb-0.5 group-hover:text-primary transition-colors duration-150">
-                    <TranslateText text={action.title} />
+                    {t(action.titleKey)}
                   </h3>
                   <p className="text-[11px] sm:text-[12px] text-onSurfaceVariant leading-normal">
-                    <TranslateText text={action.subtitle} />
+                    {t(action.subtitleKey)}
                   </p>
                 </div>
                 <div className="flex justify-end mt-3 sm:mt-4 w-full">
@@ -282,7 +282,7 @@ const Home = () => {
         <h2 className="text-[11px] font-black text-onSurfaceVariant uppercase tracking-widest">
           <TranslateText text="snapshotTitle" />
         </h2>
-        <div className="grid grid-cols-2 md:grid-cols-3 gap-3 sm:gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 sm:gap-4">
           {stats.map((stat, idx) => (
             <StatCard key={idx} stat={stat} idx={idx} />
           ))}

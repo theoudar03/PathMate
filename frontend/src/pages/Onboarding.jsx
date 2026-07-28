@@ -504,7 +504,7 @@ const Onboarding = ({ isOpen, onClose, onOpenLogin }) => {
                   className="text-xs font-bold text-primary hover:underline flex items-center gap-1.5 cursor-pointer bg-transparent border-0 outline-none"
                 >
                   <span className="material-symbols-outlined text-[16px] font-bold">login</span>
-                  <span>Already have an account</span>
+                  <span>{t('alreadyAccountText') || 'Already have an account'}</span>
                 </button>
                 <button
                   type="button"

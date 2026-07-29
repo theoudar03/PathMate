@@ -243,6 +243,7 @@ const AdminSeniors = () => {
                     <option value="Instrumentation & Control Engineering">Instrumentation & Control Engineering</option>
                     <option value="Civil Engineering">Civil Engineering</option>
                     <option value="Information Technology">Information Technology</option>
+                    <option value="Mechanical Engineering">Mechanical Engineering</option>
                   </select>
                 </div>
                 <div>

@@ -7,6 +7,7 @@ const AdminStudents = () => {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
+  const [emailVerifiedFilter, setEmailVerifiedFilter] = useState('all');
 
   // Modals
   const [showAddModal, setShowAddModal] = useState(false);
@@ -21,6 +22,7 @@ const AdminStudents = () => {
     register_number: '',
     username: '',
     email: '',
+    email_verified: true,
     department: 'Computer Science & Engineering',
     password: '',
     stay_type: 'day_scholar',
@@ -41,6 +43,7 @@ const AdminStudents = () => {
       const params = new URLSearchParams();
       if (search) params.append('search', search);
       if (statusFilter !== 'all') params.append('status', statusFilter);
+      if (emailVerifiedFilter !== 'all') params.append('email_verified', emailVerifiedFilter);
 
       const res = await safeFetchJson(`/api/admin/students?${params.toString()}`, {
         headers: { 'Authorization': `Bearer ${token}` }
@@ -60,7 +63,44 @@ const AdminStudents = () => {
 
   useEffect(() => {
     fetchStudents();
-  }, [search, statusFilter]);
+  }, [search, statusFilter, emailVerifiedFilter]);
+
+  const exportToCSV = () => {
+    if (!students || students.length === 0) {
+      alert("No student data available to export.");
+      return;
+    }
+    const headers = ['Full Name', 'Username', 'Email', 'Email Status', 'Register Number', 'Department', 'Stay Type', 'Hostel Block', 'Gender', 'Travel Mode', 'Status', 'Role', 'Created At'];
+    const rows = students.map(student => [
+      student.full_name || student.name || '',
+      `@${student.username}`,
+      student.email || '',
+      student.email_verified ? 'Verified' : 'Pending',
+      student.register_number || student.roll_number || 'N/A',
+      student.department_name || 'General Engineering',
+      student.stay_type || 'day_scholar',
+      student.hostel_block || '',
+      student.gender || 'Male',
+      student.travel_mode || 'own_transport',
+      student.status || 'active',
+      student.role || 'student',
+      student.created_at ? new Date(student.created_at).toLocaleString() : ''
+    ]);
+
+    const csvContent = [
+      headers.join(','),
+      ...rows.map(e => e.map(val => `"${val.replace(/"/g, '""')}"`).join(','))
+    ].join('\n');
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.setAttribute("href", url);
+    link.setAttribute("download", `students_export_${Date.now()}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
 
   const handleAddSubmit = async (e) => {
     e.preventDefault();
@@ -83,7 +123,7 @@ const AdminStudents = () => {
       }
 
       setShowAddModal(false);
-      setFormData({ full_name: '', register_number: '', username: '', email: '', department: 'Computer Science & Engineering', password: '', stay_type: 'day_scholar', hostel_block: '', status: 'active', role: 'student', gender: 'Male', travel_mode: 'own_transport' });
+      setFormData({ full_name: '', register_number: '', username: '', email: '', email_verified: true, department: 'Computer Science & Engineering', password: '', stay_type: 'day_scholar', hostel_block: '', status: 'active', role: 'student', gender: 'Male', travel_mode: 'own_transport' });
       fetchStudents();
     } catch (err) {
       setErrorMsg('An unexpected error occurred while creating student.');
@@ -181,7 +221,6 @@ const AdminStudents = () => {
       setActionLoading(false);
     }
   };
-
   const openEditModal = (student) => {
     setSelectedStudent(student);
     setFormData({
@@ -189,6 +228,7 @@ const AdminStudents = () => {
       register_number: student.register_number || student.roll_number || '',
       username: student.username || '',
       email: student.email || '',
+      email_verified: student.email_verified || false,
       department: student.department_name || 'Computer Science & Engineering',
       password: '',
       stay_type: student.stay_type || 'day_scholar',
@@ -201,7 +241,6 @@ const AdminStudents = () => {
     setErrorMsg('');
     setShowEditModal(true);
   };
-
   return (
     <div className="space-y-6 text-left">
       
@@ -214,17 +253,27 @@ const AdminStudents = () => {
           </p>
         </div>
 
-        <button
-          onClick={() => {
-            setFormData({ full_name: '', register_number: '', username: '', email: '', department: 'Computer Science & Engineering', password: '', stay_type: 'day_scholar', hostel_block: '', status: 'active', role: 'student', gender: 'Male', travel_mode: 'own_transport' });
-            setErrorMsg('');
-            setShowAddModal(true);
-          }}
-          className="bg-primary hover:bg-primaryHover text-onPrimary font-extrabold text-xs px-5 py-3 rounded-2xl shadow-md transition-all flex items-center gap-2"
-        >
-          <Plus size={16} />
-          <span>Add New Student</span>
-        </button>
+        <div className="flex flex-wrap gap-2">
+          <button
+            onClick={exportToCSV}
+            className="border border-outline/30 hover:bg-slate-100 text-primary font-bold text-xs px-4 py-2.5 rounded-2xl shadow-sm transition-all flex items-center gap-1.5 bg-surface active:scale-[0.98]"
+          >
+            <RefreshCw size={14} />
+            <span>Export CSV</span>
+          </button>
+          
+          <button
+            onClick={() => {
+              setFormData({ full_name: '', register_number: '', username: '', email: '', email_verified: true, department: 'Computer Science & Engineering', password: '', stay_type: 'day_scholar', hostel_block: '', status: 'active', role: 'student', gender: 'Male', travel_mode: 'own_transport' });
+              setErrorMsg('');
+              setShowAddModal(true);
+            }}
+            className="bg-primary hover:bg-primaryHover text-onPrimary font-extrabold text-xs px-5 py-3 rounded-2xl shadow-md transition-all flex items-center gap-2"
+          >
+            <Plus size={16} />
+            <span>Add New Student</span>
+          </button>
+        </div>
       </div>
 
       {/* Controls Bar (Search & Filter) */}
@@ -240,19 +289,35 @@ const AdminStudents = () => {
           />
         </div>
 
-        <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
-          <Filter size={16} className="text-onSurfaceVariant" />
-          <span className="text-xs font-bold text-onSurfaceVariant">Status:</span>
-          <select
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-            className="bg-surface border border-outline/30 rounded-xl px-3 py-1.5 text-xs font-bold text-onSurface outline-none cursor-pointer"
-          >
-            <option value="all">All Statuses</option>
-            <option value="active">Active</option>
-            <option value="inactive">Inactive</option>
-            <option value="blocked">Blocked</option>
-          </select>
+        <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto justify-end">
+          <div className="flex items-center gap-1.5">
+            <Filter size={15} className="text-onSurfaceVariant" />
+            <span className="text-xs font-bold text-onSurfaceVariant">Status:</span>
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+              className="bg-surface border border-outline/30 rounded-xl px-2.5 py-1.5 text-xs font-bold text-onSurface outline-none cursor-pointer"
+            >
+              <option value="all">All Statuses</option>
+              <option value="active">Active</option>
+              <option value="inactive">Inactive</option>
+              <option value="blocked">Blocked</option>
+            </select>
+          </div>
+
+          <div className="flex items-center gap-1.5">
+            <Mail size={15} className="text-onSurfaceVariant" />
+            <span className="text-xs font-bold text-onSurfaceVariant">Email:</span>
+            <select
+              value={emailVerifiedFilter}
+              onChange={(e) => setEmailVerifiedFilter(e.target.value)}
+              className="bg-surface border border-outline/30 rounded-xl px-2.5 py-1.5 text-xs font-bold text-onSurface outline-none cursor-pointer"
+            >
+              <option value="all">All Verification</option>
+              <option value="verified">Verified Only</option>
+              <option value="pending">Pending Only</option>
+            </select>
+          </div>
         </div>
       </div>
 
@@ -285,7 +350,14 @@ const AdminStudents = () => {
                     </div>
                     <div className="min-w-0 flex-1">
                       <p className="font-bold text-onSurface text-sm truncate">{student.full_name || student.name}</p>
-                      <p className="text-[11px] text-onSurfaceVariant font-mono truncate">{student.email || `${student.username}@saranathan.ac.in`}</p>
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <span className="text-[11px] text-onSurfaceVariant font-mono truncate">{student.email || `${student.username}@saranathan.ac.in`}</span>
+                        {student.email_verified ? (
+                          <span className="text-[8px] bg-emerald-50 text-emerald-700 border border-emerald-200 rounded px-1 font-extrabold uppercase">Verified</span>
+                        ) : (
+                          <span className="text-[8px] bg-amber-50 text-amber-700 border border-amber-200 rounded px-1 font-extrabold uppercase">Pending</span>
+                        )}
+                      </div>
                     </div>
                   </div>
 
@@ -344,6 +416,7 @@ const AdminStudents = () => {
                 <thead className="bg-surfaceContainerHigh text-onSurfaceVariant font-extrabold uppercase tracking-wider border-b border-outline/20">
                   <tr>
                     <th className="px-5 py-3.5">Student Details</th>
+                    <th className="px-5 py-3.5">Email Status</th>
                     <th className="px-5 py-3.5">Register #</th>
                     <th className="px-5 py-3.5">Department</th>
                     <th className="px-5 py-3.5">Status</th>
@@ -366,7 +439,24 @@ const AdminStudents = () => {
                             </div>
                             <div>
                               <p className="font-bold text-onSurface text-sm">{student.full_name || student.name}</p>
-                              <p className="text-[11px] text-onSurfaceVariant font-mono">{student.email || `${student.username}@saranathan.ac.in`}</p>
+                              <p className="text-[10px] text-onSurfaceVariant font-mono">@{student.username}</p>
+                            </div>
+                          </div>
+                        </td>
+
+                        <td className="px-5 py-3.5 font-mono">
+                          <div className="flex flex-col">
+                            <span className="text-onSurface font-semibold text-xs">{student.email || '—'}</span>
+                            <div className="mt-1">
+                              {student.email_verified ? (
+                                <span className="inline-flex items-center gap-0.5 text-[8px] bg-emerald-50 text-emerald-700 border border-emerald-200 rounded px-1.5 py-0.2 font-black uppercase">
+                                  Verified
+                                </span>
+                              ) : (
+                                <span className="inline-flex items-center gap-0.5 text-[8px] bg-amber-50 text-amber-700 border border-amber-200 rounded px-1.5 py-0.2 font-black uppercase">
+                                  Pending
+                                </span>
+                              )}
                             </div>
                           </div>
                         </td>
@@ -453,9 +543,18 @@ const AdminStudents = () => {
                   <input type="text" required value={formData.username} onChange={e => setFormData({...formData, username: e.target.value})} placeholder="aravind_sce" className="w-full p-2.5 border rounded-xl bg-surfaceContainerLow font-mono" />
                 </div>
               </div>
-              <div>
-                <label className="block font-bold text-onSurfaceVariant mb-1 uppercase">Email Address</label>
-                <input type="email" value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} placeholder="e.g. student@saranathan.ac.in" className="w-full p-2.5 border rounded-xl bg-surfaceContainerLow" />
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="block font-bold text-onSurfaceVariant mb-1 uppercase">Email Address</label>
+                  <input type="email" value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} placeholder="e.g. student@gmail.com" className="w-full p-2.5 border rounded-xl bg-surfaceContainerLow" />
+                </div>
+                <div>
+                  <label className="block font-bold text-onSurfaceVariant mb-1 uppercase">Email Verification</label>
+                  <select value={formData.email_verified} onChange={e => setFormData({...formData, email_verified: e.target.value === 'true'})} className="w-full p-2.5 border rounded-xl bg-surfaceContainerLow font-semibold">
+                    <option value="true">Verified</option>
+                    <option value="false">Pending</option>
+                  </select>
+                </div>
               </div>
               <div className="grid grid-cols-2 gap-2">
                 <div>
@@ -470,6 +569,7 @@ const AdminStudents = () => {
                     <option value="Instrumentation & Control Engineering">Instrumentation & Control Engineering</option>
                     <option value="Civil Engineering">Civil Engineering</option>
                     <option value="Information Technology">Information Technology</option>
+                    <option value="Mechanical Engineering">Mechanical Engineering</option>
                   </select>
                 </div>
                 <div>
@@ -565,9 +665,18 @@ const AdminStudents = () => {
                   <input type="text" required value={formData.username} onChange={e => setFormData({...formData, username: e.target.value})} className="w-full p-2.5 border rounded-xl bg-surfaceContainerLow font-mono" />
                 </div>
               </div>
-              <div>
-                <label className="block font-bold text-onSurfaceVariant mb-1 uppercase">Email</label>
-                <input type="email" value={formData.email || ''} onChange={e => setFormData({...formData, email: e.target.value})} className="w-full p-2.5 border rounded-xl bg-surfaceContainerLow" />
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="block font-bold text-onSurfaceVariant mb-1 uppercase">Email Address</label>
+                  <input type="email" value={formData.email || ''} onChange={e => setFormData({...formData, email: e.target.value})} className="w-full p-2.5 border rounded-xl bg-surfaceContainerLow" />
+                </div>
+                <div>
+                  <label className="block font-bold text-onSurfaceVariant mb-1 uppercase">Email Verification</label>
+                  <select value={formData.email_verified} onChange={e => setFormData({...formData, email_verified: e.target.value === 'true'})} className="w-full p-2.5 border rounded-xl bg-surfaceContainerLow font-semibold">
+                    <option value="true">Verified</option>
+                    <option value="false">Pending</option>
+                  </select>
+                </div>
               </div>
               <div className="grid grid-cols-2 gap-2">
                 <div>
@@ -582,6 +691,7 @@ const AdminStudents = () => {
                     <option value="Instrumentation & Control Engineering">Instrumentation & Control Engineering</option>
                     <option value="Civil Engineering">Civil Engineering</option>
                     <option value="Information Technology">Information Technology</option>
+                    <option value="Mechanical Engineering">Mechanical Engineering</option>
                   </select>
                 </div>
                 <div>

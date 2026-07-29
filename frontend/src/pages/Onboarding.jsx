@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useApp } from '../contexts/AppContext';
 import ChipSelect from '../components/onboarding/ChipSelect';
@@ -6,7 +6,7 @@ import VoiceInputButton from '../components/onboarding/VoiceInputButton';
 import TranslateText from '../components/common/TranslateText';
 
 const DEPARTMENTS = [
-  'CSE', 'CSE(AI&ML)', 'AI&DS', 'CSBS', 'ECE', 'EEE', 'ICE', 'Civil', 'IT'
+  'CSE', 'CSE(AI&ML)', 'AI&DS', 'CSBS', 'ECE', 'EEE', 'ICE', 'Civil', 'IT', 'MECH'
 ];
 
 const INTERESTS = [
@@ -47,6 +47,7 @@ const validatePasswordLocal = (password) => {
 const Onboarding = ({ isOpen, onClose, onOpenLogin }) => {
   const navigate = useNavigate();
   const { completeOnboarding, t, language } = useApp();
+  const otpRefs = useRef([]);
 
   // Onboarding Stepper Steps (1 to 5)
   const [step, setStep] = useState(1);
@@ -57,6 +58,22 @@ const Onboarding = ({ isOpen, onClose, onOpenLogin }) => {
   const [fullName, setFullName] = useState('');
   const [rollNumber, setRollNumber] = useState('');
   const [email, setEmail] = useState('');
+  const [emailError, setEmailError] = useState('');
+
+  // Live personal email format validator
+  useEffect(() => {
+    if (!email) {
+      setEmailError('');
+      return;
+    }
+    const cleanEmail = email.trim();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanEmail)) {
+      setEmailError(t('invalidEmail') || 'Invalid email address format');
+    } else {
+      setEmailError('');
+    }
+  }, [email]);
+
   const [preferredLang, setPreferredLang] = useState('en');
   const [gender, setGender] = useState('Male'); // 'Male' | 'Female'
   const [hosteller, setHosteller] = useState(null); // true = Hosteller, false = Day Scholar
@@ -77,8 +94,24 @@ const Onboarding = ({ isOpen, onClose, onOpenLogin }) => {
   const [showPass, setShowPass] = useState(false);
   const [passwordStrength, setPasswordStrength] = useState('Weak'); // Weak | Fair | Good | Strong
 
-  // Step 4: Summary / Confirmation Response Data
   const [finalCreds, setFinalCreds] = useState(null); // { user, token }
+
+  // Step 4b: OTP Verification States
+  const [showOtpModal, setShowOtpModal] = useState(false);
+  const [showEmailConfirmModal, setShowEmailConfirmModal] = useState(false);
+  const [otpDigits, setOtpDigits] = useState(['', '', '', '', '', '']);
+  const [otpLoading, setOtpLoading] = useState(false);
+  const [otpError, setOtpError] = useState('');
+  const [otpSuccess, setOtpSuccess] = useState(false);
+  const [otpResendCooldown, setOtpResendCooldown] = useState(0);
+
+  useEffect(() => {
+    if (otpResendCooldown <= 0) return;
+    const timer = setInterval(() => {
+      setOtpResendCooldown(prev => prev - 1);
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [otpResendCooldown]);
 
   // Debounced API username validation
   useEffect(() => {
@@ -139,14 +172,19 @@ const Onboarding = ({ isOpen, onClose, onOpenLogin }) => {
     }
   }, [password]);
 
-  // Step 4: Run backend account registration
-  const handleRegisterSubmit = async (e) => {
+  // Step 4: Run backend account registration - Prompt user to confirm email first
+  const handleRegisterSubmit = (e) => {
     e.preventDefault();
+    setShowEmailConfirmModal(true);
+  };
+
+  const confirmAndSendOtp = async () => {
+    setShowEmailConfirmModal(false);
     setLoading(true);
     setErrorMsg('');
 
     try {
-      const res = await fetch('/auth/register', {
+      const res = await fetch('/auth/register/send-otp', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -168,15 +206,151 @@ const Onboarding = ({ isOpen, onClose, onOpenLogin }) => {
 
       const data = await res.json();
       if (!res.ok) {
-        throw new Error(data.error || 'Failed to complete registration');
+        throw new Error(data.error || 'Failed to send verification code');
+      }
+
+      // Open OTP Verification Dialog Modal
+      setShowOtpModal(true);
+      setOtpDigits(['', '', '', '', '', '']);
+      setOtpResendCooldown(60);
+      setOtpError('');
+    } catch (err) {
+      setErrorMsg(err.message || 'Verification failed. Please check inputs and try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleVerifyOtp = async (codeStr) => {
+    setOtpLoading(true);
+    setOtpError('');
+
+    try {
+      const res = await fetch('/auth/register/verify-otp', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          full_name: fullName.trim(),
+          roll_number: rollNumber.trim() || null,
+          email: email.trim() || null,
+          preferred_language: preferredLang,
+          hosteller: hosteller,
+          department: department,
+          interests: selectedInterests,
+          custom_notes: customNotes.trim() || null,
+          hostel_block: hosteller ? hostelBlock : null,
+          username: username.toLowerCase().trim(),
+          password: password,
+          gender: gender,
+          travel_mode: hosteller ? 'own_transport' : travelMode,
+          otp: codeStr
+        })
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || 'Incorrect code or verification failed');
       }
 
       setFinalCreds({ user: data.user, token: data.token });
-      setStep(5);
+      setOtpSuccess(true);
+      
+      // Auto-transition to Step 5 after brief delay for premium experience
+      setTimeout(() => {
+        setShowOtpModal(false);
+        setOtpSuccess(false);
+        setStep(5);
+      }, 1000);
     } catch (err) {
-      setErrorMsg(err.message || 'Registration failed. Please check inputs and try again.');
+      setOtpError(err.message);
     } finally {
-      setLoading(false);
+      setOtpLoading(false);
+    }
+  };
+
+  const handleResendOtp = async () => {
+    if (otpResendCooldown > 0) return;
+    setOtpLoading(true);
+    setOtpError('');
+
+    try {
+      const res = await fetch('/auth/register/send-otp', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          full_name: fullName.trim(),
+          roll_number: rollNumber.trim() || null,
+          email: email.trim() || null,
+          preferred_language: preferredLang,
+          hosteller: hosteller,
+          department: department,
+          interests: selectedInterests,
+          custom_notes: customNotes.trim() || null,
+          hostel_block: hosteller ? hostelBlock : null,
+          username: username.toLowerCase().trim(),
+          password: password,
+          gender: gender,
+          travel_mode: hosteller ? 'own_transport' : travelMode
+        })
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || 'Failed to resend verification code');
+      }
+
+      setOtpDigits(['', '', '', '', '', '']);
+      setOtpResendCooldown(60);
+      setOtpError('');
+    } catch (err) {
+      setOtpError(err.message);
+    } finally {
+      setOtpLoading(false);
+    }
+  };
+
+  const handleChangeOtpDigit = (index, value) => {
+    const cleanVal = value.replace(/[^0-9]/g, '').slice(-1);
+    const newDigits = [...otpDigits];
+    newDigits[index] = cleanVal;
+    setOtpDigits(newDigits);
+
+    // Autofocus next input if filled
+    if (cleanVal && index < 5) {
+      otpRefs.current[index + 1]?.focus();
+    }
+
+    // Auto verify if all digits are filled
+    const codeStr = newDigits.join('');
+    if (codeStr.length === 6 && !newDigits.includes('')) {
+      handleVerifyOtp(codeStr);
+    }
+  };
+
+  const handleKeyDownOtpDigit = (index, e) => {
+    if (e.key === 'Backspace' && !otpDigits[index] && index > 0) {
+      otpRefs.current[index - 1]?.focus();
+    }
+  };
+
+  const handlePasteOtp = (e) => {
+    e.preventDefault();
+    const text = e.clipboardData.getData('text').trim().replace(/[^0-9]/g, '').slice(0, 6);
+    if (text) {
+      const newDigits = [...otpDigits];
+      for (let i = 0; i < 6; i++) {
+        newDigits[i] = text[i] || '';
+      }
+      setOtpDigits(newDigits);
+
+      // Focus appropriate box
+      const targetIndex = Math.min(text.length, 5);
+      otpRefs.current[targetIndex]?.focus();
+
+      // Auto verify if complete
+      if (text.length === 6) {
+        handleVerifyOtp(text);
+      }
     }
   };
 
@@ -190,7 +364,7 @@ const Onboarding = ({ isOpen, onClose, onOpenLogin }) => {
   };
 
   // Step Nav validation checks
-  const canNextStep1 = fullName.trim().length > 0 && hosteller !== null;
+  const canNextStep1 = fullName.trim().length > 0 && hosteller !== null && email.trim().length > 0 && !emailError;
   const canNextStep2 = department !== '' && selectedInterests.length > 0;
   const canNextStep3 = 
     usernameStatus?.available && 
@@ -336,7 +510,7 @@ const Onboarding = ({ isOpen, onClose, onOpenLogin }) => {
                   {/* Email */}
                   <div className="space-y-1 text-left">
                     <label htmlFor="reg-email" className="text-[10px] font-bold text-onSurfaceVariant uppercase tracking-wider">
-                      {t('emailAddress')} <span className="text-onSurfaceVariant/60">({t('optional')})</span>
+                      {t('personalEmailAddress') || 'Personal Email Address'} <span className="text-error">*</span>
                     </label>
                     <div className="relative">
                       <span className="material-symbols-outlined absolute left-3.5 top-3 text-onSurfaceVariant/70 text-[18px]">mail</span>
@@ -344,11 +518,14 @@ const Onboarding = ({ isOpen, onClose, onOpenLogin }) => {
                         id="reg-email"
                         type="email"
                         value={email}
-                        onChange={(e) => setEmail(e.target.value)}
+                        onChange={(e) => setEmail(e.target.value.toLowerCase().replace(/\s+/g, ''))}
                         placeholder={t('emailPlaceholder')}
-                        className="w-full pl-10 pr-4 py-2.5 border border-outline/35 rounded-2xl text-sm bg-surfaceContainerLowest focus:border-primary focus:ring-1 focus:ring-primary outline-none"
+                        className={`w-full pl-10 pr-4 py-2.5 border rounded-2xl text-sm bg-surfaceContainerLowest focus:ring-1 focus:ring-primary outline-none ${emailError ? 'border-error focus:ring-error' : 'border-outline/35 focus:border-primary'}`}
                       />
                     </div>
+                    {emailError && (
+                      <p className="text-[10px] text-error font-medium mt-1 leading-tight">{emailError}</p>
+                    )}
                   </div>
                 </div>
 
@@ -875,6 +1052,158 @@ const Onboarding = ({ isOpen, onClose, onOpenLogin }) => {
 
         </div>
       </div>
+
+      {/* EMAIL ADDRESS CONFIRMATION MODAL WARNING POPUP */}
+      {showEmailConfirmModal && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-[60] animate-fade-in">
+          <div className="bg-surfaceContainerLowest border border-surfaceVariant/60 rounded-[28px] max-w-sm w-full p-6 text-center shadow-elevation3 relative select-none animate-scale-up">
+            
+            {/* Warning Logo */}
+            <div className="w-12 h-12 rounded-2xl bg-amber-500/10 text-amber-500 flex items-center justify-center mx-auto mb-4">
+              <span className="material-symbols-outlined text-[24px]">report</span>
+            </div>
+
+            <h3 className="text-lg font-black text-onSurface">{t('confirmEmailTitle') || 'Confirm Your Email Address'}</h3>
+            <p className="text-xs text-onSurfaceVariant mt-2 leading-relaxed">
+              {t('confirmEmailSubtitle') || 'Please verify that your personal email address is correct. An OTP verification code will be sent here.'}
+            </p>
+
+            {/* Email Box Highlight */}
+            <div className="my-4 bg-surfaceContainerLow p-3 rounded-xl border border-outline/10 font-mono text-sm font-black text-primary break-all">
+              {email}
+            </div>
+
+            {/* Actions */}
+            <div className="flex gap-2.5 mt-5">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowEmailConfirmModal(false);
+                  setStep(1); // Go to step 1 to edit email
+                }}
+                className="flex-1 border border-outline/35 hover:bg-surfaceContainerHigh text-onSurface text-xs font-bold py-2.5 rounded-full min-h-[40px] cursor-pointer outline-none transition-all active:scale-[0.98]"
+              >
+                {t('editEmailBtn') || 'Edit Email'}
+              </button>
+
+              <button
+                type="button"
+                onClick={confirmAndSendOtp}
+                className="flex-1 bg-primary hover:bg-primaryHover text-white text-xs font-bold py-2.5 rounded-full shadow-md min-h-[40px] cursor-pointer outline-none transition-all active:scale-[0.98]"
+              >
+                {t('sendOtpBtn') || 'Send OTP'}
+              </button>
+            </div>
+
+          </div>
+        </div>
+      )}
+
+      {/* EMAIL OTP VERIFICATION MODAL OVERLAY */}
+      {showOtpModal && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-[60] animate-fade-in">
+          <div className="bg-surfaceContainerLowest border border-surfaceVariant/60 rounded-[28px] max-w-md w-full p-6 sm:p-8 text-center shadow-elevation3 relative select-none animate-scale-up">
+            
+            {/* Logo */}
+            <div className="w-12 h-12 rounded-2xl bg-primary/10 text-primary flex items-center justify-center mx-auto mb-4">
+              <span className="material-symbols-outlined text-[24px]">mark_email_read</span>
+            </div>
+
+            <h3 className="text-lg font-black text-onSurface">{t('verifyEmailTitle') || 'Verify Your Email Address'}</h3>
+            <p className="text-xs text-onSurfaceVariant mt-1.5 leading-relaxed">
+              {t('verifyEmailSubtitle') || 'We have sent a verification code to'} <strong className="text-primary block font-extrabold break-all mt-0.5">{email}</strong>
+            </p>
+
+            {otpError && (
+              <div className="bg-errorContainer text-onErrorContainer border border-error/25 rounded-2xl p-3 mt-4 text-xs font-semibold leading-normal flex items-start gap-2 text-left">
+                <span className="material-symbols-outlined text-[15px] text-error flex-shrink-0 mt-0.5">error</span>
+                <span>{otpError}</span>
+              </div>
+            )}
+
+            {/* Inputs Grid */}
+            <div className="my-6">
+              <label className="text-[10px] font-bold text-onSurfaceVariant uppercase tracking-wider block mb-3 text-left">
+                {t('verifyOtpLabel') || '6-Digit Verification Code'}
+              </label>
+              <div className="flex justify-between gap-2.5" onPaste={handlePasteOtp}>
+                {otpDigits.map((digit, idx) => (
+                  <input
+                    key={idx}
+                    ref={(el) => (otpRefs.current[idx] = el)}
+                    type="text"
+                    pattern="[0-9]*"
+                    inputMode="numeric"
+                    maxLength={1}
+                    value={digit}
+                    onChange={(e) => handleChangeOtpDigit(idx, e.target.value)}
+                    onKeyDown={(e) => handleKeyDownOtpDigit(idx, e)}
+                    disabled={otpLoading || otpSuccess}
+                    className="w-11 h-12 border border-outline/35 rounded-xl text-center text-lg font-black bg-surfaceContainerLowest text-onSurface focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all shadow-elevation1"
+                  />
+                ))}
+              </div>
+            </div>
+
+            {/* Actions */}
+            <div className="space-y-4 pt-2 border-t border-surfaceVariant/60">
+              <div className="flex justify-between items-center text-xs">
+                {/* Change Email Option */}
+                <button
+                  type="button"
+                  onClick={() => setShowOtpModal(false)}
+                  disabled={otpLoading || otpSuccess}
+                  className="text-primary font-bold hover:underline bg-transparent border-none outline-none cursor-pointer flex items-center gap-1"
+                >
+                  <span className="material-symbols-outlined text-[15px]">edit_note</span>
+                  {t('changeEmailBtn') || 'Change Email'}
+                </button>
+
+                {/* Resend Countdown / Button */}
+                {otpResendCooldown > 0 ? (
+                  <span className="text-onSurfaceVariant/60 font-bold">
+                    {(t('resendCountdown') || 'Resend in {seconds}s').replace('{seconds}', otpResendCooldown)}
+                  </span>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={handleResendOtp}
+                    disabled={otpLoading || otpSuccess}
+                    className="text-primary font-black hover:underline bg-transparent border-none outline-none cursor-pointer flex items-center gap-1"
+                  >
+                    <span className="material-symbols-outlined text-[15px]">refresh</span>
+                    {t('resendOtpBtn') || 'Resend Code'}
+                  </button>
+                )}
+              </div>
+
+              {/* Verify Manual Action Button */}
+              <button
+                type="button"
+                onClick={() => handleVerifyOtp(otpDigits.join(''))}
+                disabled={otpLoading || otpSuccess || otpDigits.includes('')}
+                className="w-full bg-primary hover:bg-primaryHover text-white text-xs font-bold py-3 rounded-full shadow-md flex items-center justify-center gap-2 min-h-[44px]"
+              >
+                {otpLoading ? (
+                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                ) : otpSuccess ? (
+                  <span className="material-symbols-outlined text-[16px] font-bold">check</span>
+                ) : (
+                  <span className="material-symbols-outlined text-[16px]">verified</span>
+                )}
+                <span>
+                  {otpLoading 
+                    ? (t('otpVerifying') || 'Verifying...') 
+                    : otpSuccess 
+                      ? (t('otpVerifiedSuccess') || 'Verified!') 
+                      : (t('verifyBtn') || 'Verify Code')}
+                </span>
+              </button>
+            </div>
+
+          </div>
+        </div>
+      )}
 
       {/* Footer */}
       <div className="text-[10px] text-onSurfaceVariant/60 text-center max-w-xl mx-auto border-t border-surfaceVariant/30 pt-4 w-full select-none">

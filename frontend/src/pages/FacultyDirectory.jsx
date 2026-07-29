@@ -14,6 +14,7 @@ const DEPARTMENTS = [
   // --- All department links are now confirmed ---
   { name: 'Civil Engineering', shortName: 'Civil', code: 'CE', confirmed: true, icon: 'architecture' },
   { name: 'CSE (Artificial Intelligence & Machine Learning)', shortName: 'CSE(AI&ML)', code: 'AIML', confirmed: true, icon: 'smart_toy' },
+  { name: 'Mechanical Engineering', shortName: 'Mechanical', code: 'ME', confirmed: true, icon: 'precision_manufacturing' },
 ];
 
 const BASE_URL = 'https://saranathan.ac.in/dept.php?tgt=faculty&dept=';

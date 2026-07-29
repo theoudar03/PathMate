@@ -1303,12 +1303,16 @@ const Dashboard = () => {
               </div>
 
               <div className="space-y-1">
-                <label className="text-[10px] font-black text-slate-500 uppercase tracking-wide">Email Address</label>
+                <label className="text-[10px] font-black text-slate-500 uppercase tracking-wide flex items-center gap-1">
+                  Email Address 
+                  <span className="text-[9px] text-emerald-600 bg-emerald-50 border border-emerald-200 rounded-full px-1.5 py-0.2 font-extrabold lowercase">Verified</span>
+                </label>
                 <input 
                   type="email" 
                   value={editEmail}
-                  onChange={(e) => setEditEmail(e.target.value)}
-                  className="w-full px-4 py-2.5 border border-slate-200 rounded-xl text-xs bg-slate-50 outline-none focus:border-primary text-slate-800 font-semibold"
+                  readOnly
+                  disabled
+                  className="w-full px-4 py-2.5 border border-slate-200 rounded-xl text-xs bg-slate-100 outline-none text-slate-400 font-semibold cursor-not-allowed"
                   placeholder="Enter email address"
                 />
               </div>

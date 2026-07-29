@@ -106,7 +106,8 @@ const runMigrationsSafely = async () => {
       '28_production_ready_upgrades.sql',
       '29_reviews_system.sql',
       '30_update_emergency_contacts.sql',
-      '31_add_preferred_theme.sql'
+      '31_add_preferred_theme.sql',
+      '32_add_email_verification.sql'
     ];
 
     for (const file of migrationFiles) {

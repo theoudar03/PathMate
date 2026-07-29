@@ -14,7 +14,8 @@ const TARGET_OPTIONS = [
   'Electrical & Electronics Engineering',
   'Instrumentation & Control Engineering',
   'Civil Engineering',
-  'Information Technology'
+  'Information Technology',
+  'Mechanical Engineering'
 ];
 
 const AdminNotices = () => {

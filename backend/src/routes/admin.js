@@ -245,11 +245,11 @@ router.get('/activity', async (req, res) => {
 // GET Students with search and filter
 router.get('/students', async (req, res) => {
   try {
-    const { search, department, status } = req.query;
+    const { search, department, status, email_verified } = req.query;
     let sql = `
       SELECT 
         u.id, u.username, u.name, u.full_name, u.register_number, u.roll_number,
-        u.email, u.department_id, d.name as department_name, 
+        u.email, COALESCE(u.email_verified, FALSE) as email_verified, u.department_id, d.name as department_name, 
         u.stay_type, u.hostel_block, u.language_pref, u.preferred_language,
         COALESCE(u.role, 'student') as role, COALESCE(u.status, 'active') as status,
         u.created_at, u.last_login, u.gender, u.travel_mode
@@ -274,6 +274,11 @@ router.get('/students', async (req, res) => {
       sql += ` AND LOWER(u.status) = LOWER($${params.length})`;
     }
 
+    if (email_verified && email_verified !== 'all') {
+      const isVerified = email_verified === 'verified';
+      sql += ` AND COALESCE(u.email_verified, FALSE) = ${isVerified ? 'TRUE' : 'FALSE'}`;
+    }
+
     sql += ` ORDER BY u.created_at DESC`;
     const result = await db.query(sql, params);
     res.json(result.rows);
@@ -285,7 +290,7 @@ router.get('/students', async (req, res) => {
 // POST Create new student
 router.post('/students', async (req, res) => {
   try {
-    const { full_name, register_number: rawRegNum, username, email, department, password, stay_type = 'day_scholar', hostel_block, gender = 'Male', travel_mode = 'own_transport' } = req.body;
+    const { full_name, register_number: rawRegNum, username, email, email_verified, department, password, stay_type = 'day_scholar', hostel_block, gender = 'Male', travel_mode = 'own_transport' } = req.body;
     if (!full_name || !username || !password || !department) {
       return res.status(400).json({ error: 'Full name, username, password, and department are required' });
     }
@@ -296,11 +301,13 @@ router.post('/students', async (req, res) => {
 
     const hash = await bcrypt.hash(password, 12);
 
+    const isVerified = email_verified === undefined ? true : (email_verified === true || email_verified === 'true');
+
     const userRes = await db.query(
-      `INSERT INTO users (full_name, name, register_number, roll_number, username, email, department_id, password_hash, stay_type, hostel_block, hosteller, role, status, gender, travel_mode)
-       VALUES ($1, $1, $2, $2, $3, $4, $5, $6, $7, $8, $9, 'student', 'active', $10, $11)
-       RETURNING id, full_name, username, register_number, email, status, role, created_at, gender, travel_mode`,
-      [full_name, register_number, username, email, deptId, hash, stay_type, hostel_block || null, stay_type === 'hostel', gender, travel_mode]
+      `INSERT INTO users (full_name, name, register_number, roll_number, username, email, email_verified, email_verified_at, department_id, password_hash, stay_type, hostel_block, hosteller, role, status, gender, travel_mode)
+       VALUES ($1, $1, $2, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, 'student', 'active', $12, $13)
+       RETURNING id, full_name, username, register_number, email, email_verified, status, role, created_at, gender, travel_mode`,
+      [full_name, register_number, username, email, isVerified, isVerified ? new Date() : null, deptId, hash, stay_type, hostel_block || null, stay_type === 'hostel', gender, travel_mode]
     );
 
     // Upsert into official_students
@@ -336,12 +343,13 @@ router.post('/students', async (req, res) => {
 router.put('/students/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    const { full_name, email, status, role, stay_type, hostel_block, department, register_number, username, gender, travel_mode } = req.body;
+    const { full_name, email, email_verified, status, role, stay_type, hostel_block, department, register_number, username, gender, travel_mode } = req.body;
 
-    const userBeforeRes = await db.query('SELECT register_number, username FROM users WHERE id = $1', [id]);
+    const userBeforeRes = await db.query('SELECT register_number, username, email_verified FROM users WHERE id = $1', [id]);
     if (userBeforeRes.rows.length === 0) return res.status(404).json({ error: 'Student not found' });
     const oldRegNumber = userBeforeRes.rows[0].register_number;
     const oldUsername = userBeforeRes.rows[0].username;
+    const oldEmailVerified = userBeforeRes.rows[0].email_verified;
 
     let deptId = null;
     if (department) {
@@ -372,28 +380,33 @@ router.put('/students/:id', async (req, res) => {
       }
     }
 
+    const isVerified = email_verified === undefined ? oldEmailVerified : (email_verified === true || email_verified === 'true');
+
     const updateRes = await db.query(
       `UPDATE users SET 
         full_name = COALESCE($1, full_name),
         name = COALESCE($1, name),
         email = COALESCE($2, email),
-        status = COALESCE($3, status),
-        role = COALESCE($4, role),
-        stay_type = COALESCE($5, stay_type),
-        hostel_block = COALESCE($6, hostel_block),
-        hosteller = COALESCE($7, hosteller),
-        department_id = COALESCE($8, department_id),
-        register_number = COALESCE($9, register_number),
-        roll_number = COALESCE($9, roll_number),
-        username = COALESCE($10, username),
-        gender = COALESCE($11, gender),
-        travel_mode = COALESCE($12, travel_mode),
+        email_verified = $3,
+        email_verified_at = CASE WHEN $3 = TRUE AND email_verified = FALSE THEN NOW() WHEN $3 = FALSE THEN NULL ELSE email_verified_at END,
+        status = COALESCE($4, status),
+        role = COALESCE($5, role),
+        stay_type = COALESCE($6, stay_type),
+        hostel_block = COALESCE($7, hostel_block),
+        hosteller = COALESCE($8, hosteller),
+        department_id = COALESCE($9, department_id),
+        register_number = COALESCE($10, register_number),
+        roll_number = COALESCE($10, roll_number),
+        username = COALESCE($11, username),
+        gender = COALESCE($12, gender),
+        travel_mode = COALESCE($13, travel_mode),
         updated_at = NOW()
-       WHERE id = $13
-       RETURNING id, full_name, username, register_number, email, status, role, gender, travel_mode`,
+       WHERE id = $14
+       RETURNING id, full_name, username, register_number, email, email_verified, status, role, gender, travel_mode`,
       [
         full_name, 
         email, 
+        isVerified,
         status, 
         role, 
         stay_type, 

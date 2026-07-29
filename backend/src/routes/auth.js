@@ -4,6 +4,8 @@ import jwt from 'jsonwebtoken';
 import db from '../database/index.js';
 import { mapTextToInterests } from '../services/gemini.js';
 import { authenticateToken, JWT_SECRET, loginRateLimiter, registerRateLimiter } from '../middleware/auth.js';
+import { requestNewOtp, verifyOtpCode, logAccountCreated } from '../services/otpService.js';
+import { sendOtpEmail } from '../services/emailService.js';
 
 export { authenticateToken };
 
@@ -183,6 +185,336 @@ router.get('/check-username', async (req, res) => {
     return res.json({ success: true, available: true });
   } catch (error) {
     return res.status(500).json({ error: error.message });
+  }
+});
+
+/**
+ * 2a. POST /auth/register/send-otp
+ * Validates registration details, checks email duplicate, and dispatches a 6-digit verification code.
+ */
+router.post('/register/send-otp', registerRateLimiter, async (req, res) => {
+  const {
+    full_name,
+    roll_number,
+    register_number: rawRegNum,
+    email,
+    username,
+    password,
+    department
+  } = req.body;
+
+  // Basic validation checks
+  if (!full_name || !department) {
+    return res.status(400).json({ error: 'Full name and department are required.' });
+  }
+
+  const cleanEmail = (email || '').trim().toLowerCase();
+  if (!cleanEmail) {
+    return res.status(400).json({ error: 'Personal email address is required.' });
+  }
+
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanEmail)) {
+    return res.status(400).json({ error: 'Invalid email address format.' });
+  }
+
+  const usernameError = validateUsernameFormat(username);
+  if (usernameError) {
+    return res.status(400).json({ error: usernameError });
+  }
+
+  const passwordError = validatePasswordFormat(password);
+  if (passwordError) {
+    return res.status(400).json({ error: passwordError });
+  }
+
+  const regNumber = (rawRegNum || roll_number || '').trim();
+
+  try {
+    // Check uniqueness of username, email, register number in users table
+    const uniquenessCheck = await safeDbCall(
+      async () => {
+        const query = `SELECT username, email, register_number FROM users 
+                       WHERE LOWER(username) = LOWER($1) 
+                          OR LOWER(email) = LOWER($2) 
+                          OR (register_number IS NOT NULL AND register_number <> '' AND LOWER(register_number) = LOWER($3))`;
+        const checkRes = await db.query(query, [username, cleanEmail, regNumber]);
+        return checkRes.rows;
+      },
+      async () => {
+        return MOCK_STORE.users.filter(u => 
+          u.username?.toLowerCase() === username.toLowerCase() ||
+          u.email?.toLowerCase() === cleanEmail ||
+          (regNumber && u.register_number?.toLowerCase() === regNumber.toLowerCase())
+        );
+      }
+    );
+
+    if (uniquenessCheck.length > 0) {
+      for (const match of uniquenessCheck) {
+        if (match.username?.toLowerCase() === username.toLowerCase()) {
+          return res.status(400).json({ error: 'Username is already taken. Please choose a different username.' });
+        }
+        if (match.email?.toLowerCase() === cleanEmail) {
+          return res.status(400).json({ error: 'An account with this email address already exists. Try logging in.' });
+        }
+        if (regNumber && match.register_number?.toLowerCase() === regNumber.toLowerCase()) {
+          return res.status(400).json({ error: 'An account with this Register Number already exists. Please log in.' });
+        }
+      }
+    }
+
+    // Rate Limit, generate, hash, and store OTP
+    const rawOtp = await requestNewOtp(cleanEmail, req.ip, req.headers['user-agent'] || '');
+    
+    // Dispatch OTP using Gmail SMTP
+    await sendOtpEmail(cleanEmail, rawOtp);
+
+    return res.json({ success: true, message: 'Verification code sent to email.' });
+  } catch (error) {
+    console.error('[SendOTP Error]', error.message);
+    return res.status(500).json({ error: error.message });
+  }
+});
+
+/**
+ * 2b. POST /auth/register/verify-otp
+ * Verifies the email verification OTP, and on success immediately performs registration.
+ */
+router.post('/register/verify-otp', registerRateLimiter, async (req, res) => {
+  const {
+    full_name,
+    roll_number,
+    register_number: rawRegNum,
+    email,
+    preferred_language = 'en',
+    hosteller = false,
+    department,
+    interests = [],
+    custom_notes,
+    hostel_block,
+    username,
+    password,
+    gender = 'Male',
+    travel_mode = 'own_transport',
+    otp
+  } = req.body;
+
+  const cleanEmail = (email || '').trim().toLowerCase();
+  if (!cleanEmail) {
+    return res.status(400).json({ error: 'Email address is required.' });
+  }
+
+  // 1. Verify OTP first
+  try {
+    const verificationResult = await verifyOtpCode(cleanEmail, otp, req.ip, req.headers['user-agent'] || '');
+    if (!verificationResult.success) {
+      return res.status(400).json({ error: verificationResult.error });
+    }
+  } catch (verifyErr) {
+    console.error('[VerifyOTP Error]', verifyErr.message);
+    return res.status(500).json({ error: verifyErr.message });
+  }
+
+  // 2. Perform register account creation since verification succeeded!
+  let regNumber = (rawRegNum || roll_number || '').trim();
+
+  if (!full_name || !department) {
+    return res.status(400).json({ error: 'Full name and department are required.' });
+  }
+
+  if (!regNumber) {
+    const cleanUser = (username || '').toLowerCase().trim();
+    regNumber = `TEMP_${cleanUser || Math.random().toString(36).substring(7)}_${Math.floor(1000 + Math.random() * 9000)}`;
+  }
+
+  const usernameError = validateUsernameFormat(username);
+  if (usernameError) {
+    return res.status(400).json({ error: usernameError });
+  }
+
+  const passwordError = validatePasswordFormat(password);
+  if (passwordError) {
+    return res.status(400).json({ error: passwordError });
+  }
+
+  try {
+    // 1. Check official student database to prevent fake registrations
+    const officialStudent = await safeDbCall(
+      async () => {
+        const checkRes = await db.query(
+          'SELECT * FROM official_students WHERE LOWER(register_number) = LOWER($1)',
+          [regNumber]
+        );
+        return checkRes.rows[0] || null;
+      },
+      async () => {
+        return { register_number: regNumber, department: department, is_registered: false };
+      }
+    );
+
+    let isRegistered = false;
+    if (!officialStudent) {
+      await safeDbCall(async () => {
+        try {
+          await db.query(
+            'INSERT INTO official_students (register_number, full_name, email, department, is_registered, gender, travel_mode) VALUES ($1, $2, $3, $4, false, $5, $6) ON CONFLICT (register_number) DO NOTHING',
+            [regNumber, full_name, cleanEmail, department, gender, travel_mode]
+          );
+        } catch (insertErr) {
+          if (insertErr.code === '23505' || insertErr.message.includes('unique constraint')) {
+            const uniqueEmail = `dup_${Date.now()}_${cleanEmail}`;
+            await db.query(
+              'INSERT INTO official_students (register_number, full_name, email, department, is_registered, gender, travel_mode) VALUES ($1, $2, $3, $4, false, $5, $6) ON CONFLICT (register_number) DO NOTHING',
+              [regNumber, full_name, uniqueEmail, department, gender, travel_mode]
+            );
+          } else {
+            throw insertErr;
+          }
+        }
+      });
+    } else {
+      isRegistered = officialStudent.is_registered;
+      if (isRegistered) {
+        const userExistsCheck = await safeDbCall(async () => {
+          const r = await db.query('SELECT id FROM users WHERE LOWER(register_number) = LOWER($1)', [regNumber]);
+          return r.rows.length > 0;
+        }, async () => true);
+
+        if (!userExistsCheck) {
+          await safeDbCall(async () => {
+            await db.query('UPDATE official_students SET is_registered = false WHERE LOWER(register_number) = LOWER($1)', [regNumber]);
+          }, async () => {});
+          isRegistered = false;
+        }
+      }
+    }
+
+    if (isRegistered) {
+      return res.status(400).json({
+        error: `An account for Register Number '${regNumber}' has already been registered. Please log in instead.`
+      });
+    }
+
+    // 2. Hash password
+    const passwordHash = await bcrypt.hash(password, 12);
+
+    const result = await safeDbCall(
+      async () => {
+        // Resolve department ID
+        const deptRes = await db.query('SELECT id FROM departments WHERE name ILIKE $1 OR full_name ILIKE $1', [`%${department}%`]);
+        const deptId = deptRes.rows[0]?.id || 1;
+
+        // Save User
+        const userRes = await db.query(
+          `INSERT INTO users (full_name, name, roll_number, register_number, email, email_verified, email_verified_at, preferred_language, language_pref, hosteller, stay_type, department_id, username, password_hash, role, status, is_first_login, hostel_block, custom_notes, gender, travel_mode)
+           VALUES ($1, $1, $2, $2, $3, true, now(), $4, $4, $5, $6, $7, $8, $9, 'student', 'active', false, $10, $11, $12, $13) RETURNING id`,
+          [full_name, regNumber, cleanEmail, preferred_language, hosteller, hosteller ? 'hostel' : 'day_scholar', deptId, username, passwordHash, hostel_block, custom_notes, gender, travel_mode]
+        );
+        const userId = userRes.rows[0].id;
+
+        // Mark student as registered in official_students
+        await db.query('UPDATE official_students SET is_registered = true WHERE LOWER(register_number) = LOWER($1)', [regNumber]);
+
+        // Map interests using Gemini
+        const interestsRes = await db.query('SELECT id, label FROM interests');
+        const dbInterests = interestsRes.rows;
+
+        let mappedInterestIds = [];
+        if (custom_notes) {
+          const geminiResult = await mapTextToInterests(custom_notes, dbInterests);
+          mappedInterestIds = geminiResult.interestIds || [];
+        }
+
+        const selectedInterestIds = dbInterests
+          .filter(i => interests.includes(i.label))
+          .map(i => i.id);
+
+        const allInterestIds = Array.from(new Set([...selectedInterestIds, ...mappedInterestIds]));
+
+        for (const interestId of allInterestIds) {
+          await db.query(
+            'INSERT INTO user_interests (user_id, interest_id) VALUES ($1, $2) ON CONFLICT DO NOTHING',
+            [userId, interestId]
+          );
+        }
+
+        // Initialize roommate opt-in
+        await db.query('INSERT INTO roommate_opt_in (user_id, is_visible) VALUES ($1, false) ON CONFLICT DO NOTHING', [userId]);
+
+        return { userId };
+      },
+      async () => {
+        // Fallback Mock Register
+        const dept = MOCK_STORE.departments.find(d => d.name === department || d.full_name === department) || MOCK_STORE.departments[0];
+        const userId = MOCK_STORE.users.length + 1;
+
+        const newUser = {
+          id: userId,
+          full_name,
+          name: full_name,
+          roll_number: regNumber,
+          register_number: regNumber,
+          email: cleanEmail,
+          email_verified: true,
+          email_verified_at: new Date().toISOString(),
+          preferred_language,
+          language_pref: preferred_language,
+          hosteller,
+          stay_type: hosteller ? 'hostel' : 'day_scholar',
+          hostel_block,
+          department_id: dept.id,
+          username,
+          password_hash: passwordHash,
+          role: 'student',
+          status: 'active',
+          is_first_login: false,
+          custom_notes,
+          created_at: new Date().toISOString(),
+          gender,
+          travel_mode
+        };
+
+        MOCK_STORE.users.push(newUser);
+        return { userId };
+      }
+    );
+
+    // Audit log account creation
+    await logAccountCreated(cleanEmail, req.ip, req.headers['user-agent'] || '');
+
+    const tokenPayload = {
+      id: result.userId,
+      userId: result.userId,
+      username,
+      role: 'student',
+      status: 'active'
+    };
+    const token = jwt.sign(tokenPayload, JWT_SECRET, { expiresIn: '7d' });
+
+    res.status(201).json({
+      success: true,
+      token,
+      user: {
+        id: result.userId,
+        full_name,
+        username,
+        register_number: regNumber,
+        roll_number: regNumber,
+        email: cleanEmail,
+        role: 'student',
+        status: 'active',
+        preferred_language,
+        hosteller,
+        department,
+        is_first_login: false,
+        interests,
+        gender,
+        travel_mode
+      }
+    });
+  } catch (error) {
+    console.error('[Register Verify Error]', error.message);
+    res.status(500).json({ error: error.message });
   }
 });
 
@@ -846,20 +1178,19 @@ router.put('/profile', authenticateToken, async (req, res) => {
           }
         }
 
-        // Update user basic info
+        // Update user basic info (Email is locked and read-only)
         await db.query(
           `UPDATE users 
            SET full_name = COALESCE($1, full_name),
                name = COALESCE($1, name),
-               email = COALESCE($2, email),
-               stay_type = COALESCE($3, stay_type),
-               hosteller = ($3 = 'hostel'),
-               hostel_block = COALESCE($4, hostel_block),
-               travel_mode = COALESCE($5, travel_mode),
-               department_id = COALESCE($6, department_id),
+               stay_type = COALESCE($2, stay_type),
+               hosteller = ($2 = 'hostel'),
+               hostel_block = COALESCE($3, hostel_block),
+               travel_mode = COALESCE($4, travel_mode),
+               department_id = COALESCE($5, department_id),
                updated_at = now()
-           WHERE id = $7`,
-          [full_name, email, stay_type, hostel_block, travel_mode, deptId, userId]
+           WHERE id = $6`,
+          [full_name, stay_type, hostel_block, travel_mode, deptId, userId]
         );
 
         // Update interests (if interests array is provided)
@@ -890,7 +1221,7 @@ router.put('/profile', authenticateToken, async (req, res) => {
         const u = MOCK_STORE.users.find(x => x.id === userId);
         if (u) {
           if (full_name) { u.full_name = full_name; u.name = full_name; }
-          if (email) u.email = email;
+          // email is read-only
           if (stay_type) { u.stay_type = stay_type; u.hosteller = (stay_type === 'hostel'); }
           if (hostel_block) u.hostel_block = hostel_block;
           if (travel_mode) u.travel_mode = travel_mode;

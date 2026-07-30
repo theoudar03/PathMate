@@ -30,8 +30,11 @@ export const sendOtpEmail = async (email, otp) => {
   const transporter = getTransporter();
   
   if (!transporter) {
-    console.log(`[EmailService MOCK] OTP for ${email} is: ${otp}`);
-    return true; // Return true to allow registration in local/offline test mode
+    if (process.env.ALLOW_MOCK_DATA === 'true') {
+      console.log(`[EmailService MOCK] OTP for ${email} is: ${otp}`);
+      return true; // Return true to allow registration in local/offline test mode
+    }
+    throw new Error("SMTP email credentials are not configured on the server. Please set EMAIL_USER and EMAIL_PASS environment variables.");
   }
 
   const mailOptions = {

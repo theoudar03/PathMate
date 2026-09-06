@@ -112,7 +112,7 @@ const Navbar = () => {
 
   return (
     <nav
-      className="bg-white/80 backdrop-blur-md text-onSurface sticky top-0 z-40 font-sans border-b border-outline/10 transition-premium"
+      className="bg-surfaceContainerLowest/90 backdrop-blur-md text-onSurface sticky top-0 z-40 font-sans border-b border-outline/15 transition-premium"
     >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-[72px]">
@@ -193,8 +193,7 @@ const Navbar = () => {
 
                   {isMoreOpen && (
                     <div
-                      className="absolute left-0 top-full mt-2 w-56 bg-white border border-outline/60 rounded-[16px] p-1.5 z-50 text-left"
-                      style={{ boxShadow: '0 4px 20px rgba(15,23,42,0.12), 0 1px 4px rgba(0,0,0,0.06)' }}
+                      className="absolute left-0 top-full mt-2 w-56 bg-surfaceContainerLowest border border-outline/30 rounded-[16px] p-1.5 z-50 text-left shadow-card"
                     >
                       {overflowLinks.map((link) => (
                         <NavLink
@@ -248,8 +247,7 @@ const Navbar = () => {
 
                 {isDropdownOpen && (
                   <div
-                    className="absolute top-full left-0 mt-2 w-56 bg-white border border-outline/60 rounded-[16px] p-1.5 z-50 text-left"
-                    style={{ boxShadow: '0 4px 20px rgba(15,23,42,0.12), 0 1px 4px rgba(0,0,0,0.06)' }}
+                    className="absolute top-full left-0 mt-2 w-56 bg-surfaceContainerLowest border border-outline/30 rounded-[16px] p-1.5 z-50 text-left shadow-card"
                   >
                     {CAMPUS_INFO_LINKS.map((subLink) => (
                       <NavLink
@@ -361,7 +359,7 @@ const Navbar = () => {
 
       {/* ── Mobile Drawer ─────────────────────────────────────── */}
       {isOpen && (
-        <div className="lg:hidden border-t border-outline/30 bg-white px-3 pt-2 pb-5 space-y-0.5 animate-slide-down text-left">
+        <div className="lg:hidden border-t border-outline/20 bg-surfaceContainerLowest px-3 pt-2 pb-5 space-y-0.5 animate-slide-down text-left">
           {onboarded && MOBILE_NAV_LINKS.map((link) => (
             <NavLink
               key={link.path}

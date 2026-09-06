@@ -27,7 +27,7 @@ const SeniorConnectCard = ({ senior, index }) => {
 
   return (
     <div
-      className={`bg-surfaceContainerLowest border border-surfaceVariant rounded-2xl p-5 shadow-elevation1 hover:shadow-elevation2 hover:border-primary/30 transition-all duration-200 ease-out flex flex-col justify-between stagger-item stagger-delay-${(index % 8) + 1}`}
+      className={`bg-surfaceContainerLowest border border-outline/30 rounded-2xl p-5 shadow-card hover:shadow-card-hover hover:border-primary/40 transition-all duration-200 ease-out flex flex-col justify-between stagger-item stagger-delay-${(index % 8) + 1}`}
     >
       <div>
         {/* Header */}

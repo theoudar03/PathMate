@@ -69,33 +69,21 @@
   --on-info-container-rgb: 12 74 110;
   --on-info-container: rgb(var(--on-info-container-rgb));
 
-  --surface-rgb: 245 247 250;
-  --surface: rgb(var(--surface-rgb));
-  --surface-variant-rgb: 226 232 240;
-  --surface-variant: rgb(var(--surface-variant-rgb));
-  --on-surface-rgb: 15 23 42;
-  --on-surface: rgb(var(--on-surface-rgb));
-  --on-surface-variant-rgb: 71 85 105;
-  --on-surface-variant: rgb(var(--on-surface-variant-rgb));
+  --surface-rgb: 238 242 248;             /* #EEF2F8 Page Background - crisp contrast against white cards */
+  --surface-variant-rgb: 226 232 240;     /* #E2E8F0 Sub-surface */
+  --on-surface-rgb: 15 23 42;             /* #0F172A Text */
+  --on-surface-variant-rgb: 71 85 105;     /* #475569 Secondary Text */
 
-  --surface-container-lowest-rgb: 255 255 255;
-  --surface-container-lowest: rgb(var(--surface-container-lowest-rgb));
-  --surface-container-low-rgb: 248 250 252;
-  --surface-container-low: rgb(var(--surface-container-low-rgb));
-  --surface-container-rgb: 241 245 249;
-  --surface-container: rgb(var(--surface-container-rgb));
-  --surface-container-high-rgb: 232 237 245;
-  --surface-container-high: rgb(var(--surface-container-high-rgb));
-  --surface-container-highest-rgb: 221 227 238;
-  --surface-container-highest: rgb(var(--surface-container-highest-rgb));
+  --surface-container-lowest-rgb: 255 255 255; /* #FFFFFF Pure White Card Container */
+  --surface-container-low-rgb: 245 248 253;    /* #F5F8FD Low Surface */
+  --surface-container-rgb: 238 242 248;        /* #EEF2F8 Container */
+  --surface-container-high-rgb: 230 236 246;   /* #E6ECF6 Elevated Container */
+  --surface-container-highest-rgb: 218 225 238;/* #DDE1EE Highest Surface */
 
-  --outline-rgb: 203 213 225;
-  --outline: rgb(var(--outline-rgb));
-  --outline-variant-rgb: 226 232 240;
-  --outline-variant: rgb(var(--outline-variant-rgb));
+  --outline-rgb: 198 208 224;             /* #C6D0E0 High Contrast Border */
+  --outline-variant-rgb: 222 228 238;     /* #DEE4EE Crisp Container Border */
 
   --accent-rgb: 245 158 11;
-  --accent: rgb(var(--accent-rgb));
   --shadow-color: 15, 23, 42;
 
   /* RGB variables for standard Tailwind colors override */
@@ -181,36 +169,37 @@
   --info-container-rgb: 0 76 112;
   --on-info-container-rgb: 203 230 255;
 
-  --surface-rgb: 26 28 34;
-  --surface-variant-rgb: 65 69 85;
-  --on-surface-rgb: 232 237 245;
-  --on-surface-variant-rgb: 176 184 198;
+  /* Deep Obsidian MD3 Surface Hierarchy & High Contrast Cards */
+  --surface-rgb: 15 18 24;                /* #0F1218 Deep Page Background */
+  --surface-variant-rgb: 24 29 38;        /* #181D26 Sub-surface */
+  --on-surface-rgb: 241 245 249;         /* #F1F5F9 Primary Text */
+  --on-surface-variant-rgb: 160 174 192; /* #A0AEC0 Secondary Text */
 
-  --surface-container-lowest-rgb: 40 42 53;
-  --surface-container-low-rgb: 33 35 44;
-  --surface-container-rgb: 47 50 63;
-  --surface-container-high-rgb: 56 59 75;
-  --surface-container-highest-rgb: 69 73 91;
+  --surface-container-lowest-rgb: 28 34 44; /* #1C222C Card Surface */
+  --surface-container-low-rgb: 20 24 33;    /* #141821 Low Surface */
+  --surface-container-rgb: 28 34 44;        /* #1C222C Card Surface */
+  --surface-container-high-rgb: 36 43 56;   /* #242B38 Elevated Card Surface */
+  --surface-container-highest-rgb: 44 53 68;/* #2C3544 Dialog Surface */
 
-  --outline-rgb: 140 146 172;
-  --outline-variant-rgb: 53 57 73;
+  --outline-rgb: 58 70 90;                /* #3A465A Crisp Dark Borders */
+  --outline-variant-rgb: 42 51 66;        /* #2A3342 Container Border */
 
   --accent-rgb: 255 183 77;
   --shadow-color: 0, 0, 0;
 
   /* RGB variables for dark mode overrides */
-  --white-rgb: 40 42 53;
+  --white-rgb: 36 41 50;
   
-  --slate-50-rgb: 33 35 44;
-  --slate-100-rgb: 49 52 66;
-  --slate-200-rgb: 53 57 73;
-  --slate-300-rgb: 68 73 92;
-  --slate-400-rgb: 144 153 168;
-  --slate-500-rgb: 180 192 212;
-  --slate-600-rgb: 201 213 232;
-  --slate-700-rgb: 221 230 245;
-  --slate-800-rgb: 238 244 255;
-  --slate-900-rgb: 248 250 255;
+  --slate-50-rgb: 31 35 43;
+  --slate-100-rgb: 36 41 50;
+  --slate-200-rgb: 41 47 56;
+  --slate-300-rgb: 51 65 85;
+  --slate-400-rgb: 148 163 184;
+  --slate-500-rgb: 160 174 192;
+  --slate-600-rgb: 203 213 225;
+  --slate-700-rgb: 226 232 240;
+  --slate-800-rgb: 241 245 249;
+  --slate-900-rgb: 248 250 252;
 
   --blue-50-rgb: 34 51 79;
   --blue-100-rgb: 42 68 111;
@@ -1124,13 +1113,15 @@ nav .flex-1 > * {
   transition: background-color 0.2s ease, opacity 0.2s ease;
 }
 
-/* Fallback/Loading state: hide text and display pulsing circle */
+/* Fallback/Loading state: hide text completely and display pulsing circle skeleton */
 html:not(.pm-icons-loaded) .material-symbols-outlined {
   color: transparent !important;
+  font-size: 0 !important;
+  text-indent: -9999px !important;
   background-color: rgba(148, 163, 184, 0.15) !important; /* Soft gray slate skeleton */
   border-radius: 9999px !important;
   position: relative;
-  overflow: hidden;
+  overflow: hidden !important;
   animation: pm-icon-pulse 1.8s cubic-bezier(0.4, 0, 0.6, 1) infinite;
 }
 

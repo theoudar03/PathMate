@@ -539,7 +539,7 @@ const ActivityManagerModal = ({ isOpen, onClose, defaultTab = 'all', onTaskChang
                           College Activity
                         </h4>
                         <p className="text-xs text-onSurfaceVariant leading-relaxed mt-1">
-                          Fetch events, clubs, committees, workshops, hackathons, and NSS activities live from SCE Postgres database.
+                          Explore events, clubs, committees, workshops, hackathons, and NSS activities live from Saranathan campus hub.
                         </p>
                       </div>
                       <div className="flex justify-end pt-2">

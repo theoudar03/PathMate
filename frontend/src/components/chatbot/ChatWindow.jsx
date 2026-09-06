@@ -43,7 +43,7 @@ const BotMessageContent = ({ msg, isStreaming, onFeedback, feedbackState, onRege
     }
   };
 
-  const isFallback = msg.text && msg.text.includes("couldn't find official details about that in the campus directory database");
+  const isFallback = msg.text && (msg.text.includes("couldn't find official details") || msg.text.includes("campus directory"));
   const isInit = msg.id === 'msg-init';
   const currentFeedback = feedbackState?.[msg.id];
 

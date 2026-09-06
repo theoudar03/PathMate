@@ -203,16 +203,16 @@ const Connect = () => {
       {activeTab === 'roommate' && (
         <div className="space-y-6 animate-fade-in">
           {/* Privacy note */}
-          <div className="bg-surfaceVariant/40 border border-outline/15 rounded-2xl p-4 flex gap-3 text-xs text-onSurfaceVariant leading-relaxed">
+          <div className="bg-surfaceContainerLowest border border-outline/30 rounded-2xl p-4 flex gap-3 text-xs text-onSurfaceVariant leading-relaxed shadow-card">
             <span className="material-symbols-outlined text-primary select-none text-[22px] flex-shrink-0 mt-0.5">shield</span>
             <div>
               <strong className="font-semibold block text-onSurface">Hostel Verification & Privacy:</strong>
-              All roommate profiles are dynamically loaded from PostgreSQL. Contact emails remain locked until a connection request is accepted.
+              All roommate profiles are verified campus records. Contact details remain protected until a mutual connection is confirmed.
             </div>
           </div>
 
           {/* Filter Bar */}
-          <div className="bg-surface border border-surfaceVariant rounded-xl p-4 flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4 text-xs shadow-elevation1">
+          <div className="bg-surfaceContainerLowest border border-outline/30 rounded-xl p-4 flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4 text-xs shadow-card">
             <div className="relative flex-1">
               <span className="material-symbols-outlined text-onSurfaceVariant absolute left-3 top-3.5 text-[18px] select-none">search</span>
               <input

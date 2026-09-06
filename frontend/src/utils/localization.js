@@ -128,7 +128,7 @@ export const LOCALIZATION_DICTS = {
 
     // Onboarding Summary
     confirmReg: "Confirm Registration",
-    summarySubtitle: "Verify your freshman card details before deploying to Saranathan database.",
+    summarySubtitle: "Verify your freshman card details before completing your profile registration.",
     fullNameLabel: "Full Name",
     streamDept: "Stream Department",
     stayTypeLabel: "Stay Type",
@@ -139,7 +139,7 @@ export const LOCALIZATION_DICTS = {
 
     // Onboarding Finished
     setupComplete: "Setup Complete!",
-    setupCompleteSubtitle: "Your freshman profile is registered on the Saranathan database.",
+    setupCompleteSubtitle: "Your freshman profile is registered on the Saranathan campus portal.",
     permanentUsername: "Permanent Username",
     enterPortal: "Enter PathMate Portal",
     detailsVerified: "Log in details verified. Press below to initialize your personalized PathMate freshers workspace.",

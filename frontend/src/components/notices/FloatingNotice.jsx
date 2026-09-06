@@ -82,20 +82,20 @@ const FloatingNotice = ({ notice, onClose, onMarkRead }) => {
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header Section */}
-        <div className="flex justify-between items-center px-6 py-4 border-b border-gray-100 bg-white sticky top-0 z-20">
+        <div className="flex justify-between items-center px-6 py-4 border-b border-outline/20 bg-surfaceContainerLowest sticky top-0 z-20">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-2xl bg-primaryContainer text-primary flex items-center justify-center font-black tracking-tighter shadow-xs">
               PM
             </div>
             <div>
-              <p className="text-[10px] font-black text-gray-500 uppercase tracking-widest">Saranathan College</p>
-              <p className="text-sm font-extrabold text-gray-800">Official Circular</p>
+              <p className="text-[10px] font-black text-onSurfaceVariant/70 uppercase tracking-widest">Saranathan College</p>
+              <p className="text-sm font-extrabold text-onSurface">Official Circular</p>
             </div>
           </div>
 
           <button 
             onClick={onClose}
-            className="p-2 rounded-full hover:bg-gray-100 text-gray-500 transition-colors"
+            className="p-2 rounded-full hover:bg-surfaceContainer text-onSurfaceVariant transition-colors cursor-pointer"
             aria-label="Close Notice"
           >
             <X size={20} />
@@ -263,15 +263,15 @@ const FloatingNotice = ({ notice, onClose, onMarkRead }) => {
         </div>
 
         {/* Footer Actions Bar */}
-        <div className="px-6 py-4 bg-gray-50 border-t border-gray-100 flex justify-between items-center flex-wrap gap-4 sticky bottom-0 z-20">
-          <p className="text-xs text-gray-400 font-mono">Notice ID: #{notice.id}</p>
+        <div className="px-6 py-4 bg-surfaceContainerLow border-t border-outline/20 flex justify-between items-center flex-wrap gap-4 sticky bottom-0 z-20">
+          <p className="text-xs text-onSurfaceVariant/60 font-mono">Notice ID: #{notice.id}</p>
           <div className="flex items-center gap-2">
             <button 
               onClick={() => {
                 if (onMarkRead) onMarkRead(notice.id);
                 onClose();
               }}
-              className="flex items-center gap-2 px-5 py-2.5 bg-primary text-white text-xs font-black rounded-full shadow-sm hover:bg-primaryHover transition-all active:scale-[0.98]"
+              className="flex items-center gap-2 px-5 py-2.5 bg-primary text-white text-xs font-black rounded-full shadow-sm hover:bg-primaryHover transition-all active:scale-[0.98] cursor-pointer"
             >
               <Check size={16} />
               Mark as Read

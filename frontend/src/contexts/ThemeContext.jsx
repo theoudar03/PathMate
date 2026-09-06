@@ -94,8 +94,8 @@ export const ThemeProvider = ({ children }) => {
           contrastText: isDark ? '#690005' : '#FFFFFF',
         },
         background: {
-          default: isDark ? '#111318' : '#F5F7FA',
-          paper: isDark ? '#202228' : '#FFFFFF',
+          default: isDark ? '#1A1D23' : '#F5F7FA',
+          paper: isDark ? '#242932' : '#FFFFFF',
         },
         text: {
           primary: isDark ? '#E2E2E9' : '#0F172A',

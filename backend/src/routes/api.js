@@ -1103,31 +1103,203 @@ router.get('/notices', async (req, res) => {
   }
 });
 
+// --- CLUBS ENDPOINTS (Single Source of Truth: PostgreSQL Database) ---
 router.get('/clubs', async (req, res) => {
   try {
+    const { category, department, search } = req.query;
+    let query = `
+      SELECT c.id, 
+             c.name, 
+             c.description, 
+             c.short_description,
+             COALESCE(c.category, 'General') as category,
+             COALESCE(c.department, 'All Departments') as department,
+             c.faculty_coordinator,
+             c.student_coordinator,
+             c.contact_email,
+             c.contact_phone,
+             COALESCE(c.meeting_location, c.location_text, 'SCE Campus') as meeting_location,
+             COALESCE(c.meeting_location, c.location_text, 'SCE Campus') as location,
+             c.meeting_schedule,
+             COALESCE(c.membership_status, 'open') as membership_status,
+             c.membership_url,
+             c.image_url,
+             c.logo_url,
+             COALESCE(c.featured, false) as featured,
+             COALESCE(c.status, 'PUBLISHED') as status,
+             c.eligibility,
+             rp.raw_process_text as registration_steps
+      FROM clubs c
+      LEFT JOIN registration_process rp ON c.id = rp.club_or_event_id AND rp.club_or_event_type = 'club'
+      WHERE UPPER(COALESCE(c.status, 'PUBLISHED')) IN ('PUBLISHED', 'ACTIVE')
+    `;
+    const queryParams = [];
+
+    if (category && category.toLowerCase() !== 'all') {
+      queryParams.push(category);
+      query += ` AND LOWER(c.category) = LOWER($${queryParams.length})`;
+    }
+    if (department && department.toLowerCase() !== 'all') {
+      queryParams.push(department);
+      query += ` AND LOWER(c.department) = LOWER($${queryParams.length})`;
+    }
+    if (search) {
+      queryParams.push(`%${search.toLowerCase()}%`);
+      query += ` AND (LOWER(c.name) LIKE $${queryParams.length} OR LOWER(c.description) LIKE $${queryParams.length})`;
+    }
+
+    query += ` ORDER BY c.featured DESC, c.id DESC`;
+
+    const result = await db.query(query, queryParams);
+    res.json(result.rows);
+  } catch (error) {
+    console.error('GET /api/clubs error:', error.message);
+    res.status(500).json({ success: false, error: 'Unable to load clubs right now.' });
+  }
+});
+
+router.get('/clubs/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
     const result = await db.query(`
       SELECT c.*, rp.raw_process_text as registration_steps 
       FROM clubs c
       LEFT JOIN registration_process rp ON c.id = rp.club_or_event_id AND rp.club_or_event_type = 'club'
-      WHERE c.status = 'active'
-    `);
-    res.json(result.rows);
+      WHERE c.id = $1 AND UPPER(COALESCE(c.status, 'PUBLISHED')) IN ('PUBLISHED', 'ACTIVE')
+    `, [id]);
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ success: false, error: 'Club not found or not published' });
+    }
+    res.json(result.rows[0]);
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ success: false, error: 'Failed to load club details' });
   }
 });
 
+// --- EVENTS ENDPOINTS (Single Source of Truth: PostgreSQL Database) ---
 router.get('/events', async (req, res) => {
   try {
-    const result = await db.query(`
-      SELECT e.*, rp.raw_process_text as registration_steps 
+    const { category, search, featured } = req.query;
+    let query = `
+      SELECT e.id, 
+             COALESCE(e.title, e.name) as title, 
+             COALESCE(e.title, e.name) as name, 
+             e.description, 
+             e.short_description,
+             COALESCE(e.event_type, 'General') as event_type,
+             COALESCE(e.category, 'General') as category,
+             COALESCE(e.organizer, 'Saranathan College of Engineering') as organizer,
+             COALESCE(e.venue, e.location_text, 'SCE Campus') as venue,
+             COALESCE(e.venue, e.location_text, 'SCE Campus') as location,
+             e.event_date,
+             e.start_time,
+             e.end_time,
+             e.registration_deadline,
+             e.registration_url,
+             COALESCE(e.capacity, 100) as capacity,
+             (SELECT COUNT(*)::int FROM event_registrations er WHERE er.event_id = e.id) as registration_count,
+             COALESCE(e.image_url, e.poster) as image_url,
+             COALESCE(e.image_url, e.poster) as poster,
+             COALESCE(e.status, 'PUBLISHED') as status,
+             COALESCE(e.featured, e.is_featured, false) as featured,
+             COALESCE(e.is_registration_open, true) as is_registration_open,
+             rp.raw_process_text as registration_steps
       FROM events e
       LEFT JOIN registration_process rp ON e.id = rp.club_or_event_id AND rp.club_or_event_type = 'event'
-      WHERE e.status = 'upcoming' OR e.status = 'ongoing'
-    `);
+      WHERE UPPER(COALESCE(e.status, 'PUBLISHED')) IN ('PUBLISHED', 'UPCOMING', 'ONGOING')
+    `;
+    const queryParams = [];
+
+    if (category && category.toLowerCase() !== 'all') {
+      queryParams.push(category);
+      query += ` AND LOWER(e.category) = LOWER($${queryParams.length})`;
+    }
+    if (featured === 'true') {
+      query += ` AND (e.featured = true OR e.is_featured = true)`;
+    }
+    if (search) {
+      queryParams.push(`%${search.toLowerCase()}%`);
+      query += ` AND (LOWER(e.title) LIKE $${queryParams.length} OR LOWER(e.description) LIKE $${queryParams.length} OR LOWER(e.name) LIKE $${queryParams.length})`;
+    }
+
+    query += ` ORDER BY e.featured DESC, e.event_date ASC, e.id DESC`;
+
+    const result = await db.query(query, queryParams);
     res.json(result.rows);
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    console.error('GET /api/events error:', error.message);
+    res.status(500).json({ success: false, error: 'Unable to load events right now.' });
+  }
+});
+
+router.get('/events/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const result = await db.query(`
+      SELECT e.*, 
+             (SELECT COUNT(*)::int FROM event_registrations er WHERE er.event_id = e.id) as registration_count,
+             rp.raw_process_text as registration_steps 
+      FROM events e
+      LEFT JOIN registration_process rp ON e.id = rp.club_or_event_id AND rp.club_or_event_type = 'event'
+      WHERE e.id = $1 AND UPPER(COALESCE(e.status, 'PUBLISHED')) IN ('PUBLISHED', 'UPCOMING', 'ONGOING', 'CANCELLED')
+    `, [id]);
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ success: false, error: 'Event not found or not published' });
+    }
+    res.json(result.rows[0]);
+  } catch (error) {
+    res.status(500).json({ success: false, error: 'Failed to load event details' });
+  }
+});
+
+// Event Registration Endpoint (PostgreSQL Database Backed)
+router.post('/events/:id/register', authenticateToken, async (req, res) => {
+  const eventId = parseInt(req.params.id);
+  const studentId = req.user?.id || req.user?.userId;
+  if (!studentId) return res.status(401).json({ success: false, error: 'Unauthorized' });
+
+  try {
+    await db.query(
+      `INSERT INTO event_registrations (event_id, student_id, status) VALUES ($1, $2, 'registered')
+       ON CONFLICT (event_id, student_id) DO UPDATE SET registered_at = NOW()`,
+      [eventId, studentId]
+    );
+
+    // Update count in events table
+    await db.query(
+      `UPDATE events SET registration_count = (SELECT COUNT(*)::int FROM event_registrations WHERE event_id = $1) WHERE id = $1`,
+      [eventId]
+    );
+
+    res.json({ success: true, message: 'Successfully registered for event' });
+  } catch (err) {
+    console.error('Event registration error:', err.message);
+    res.status(500).json({ success: false, error: 'Failed to complete registration' });
+  }
+});
+
+router.delete('/events/:id/register', authenticateToken, async (req, res) => {
+  const eventId = parseInt(req.params.id);
+  const studentId = req.user?.id || req.user?.userId;
+  if (!studentId) return res.status(401).json({ success: false, error: 'Unauthorized' });
+
+  try {
+    await db.query(
+      `DELETE FROM event_registrations WHERE event_id = $1 AND student_id = $2`,
+      [eventId, studentId]
+    );
+
+    await db.query(
+      `UPDATE events SET registration_count = (SELECT COUNT(*)::int FROM event_registrations WHERE event_id = $1) WHERE id = $1`,
+      [eventId]
+    );
+
+    res.json({ success: true, message: 'Cancelled event registration' });
+  } catch (err) {
+    console.error('Event unregister error:', err.message);
+    res.status(500).json({ success: false, error: 'Failed to cancel registration' });
   }
 });
 
@@ -2584,29 +2756,7 @@ router.get('/committees', async (req, res) => {
  * GET /api/clubs
  * Fetch registered student clubs directly from PostgreSQL
  */
-router.get('/clubs', async (req, res) => {
-  try {
-    const result = await db.query(`SELECT * FROM clubs ORDER BY id DESC`);
-    res.json(result.rows);
-  } catch (error) {
-    console.error("GET /api/clubs error:", error.message);
-    res.status(500).json({ error: error.message });
-  }
-});
 
-/**
- * GET /api/events
- * Fetch upcoming campus events directly from PostgreSQL
- */
-router.get('/events', async (req, res) => {
-  try {
-    const result = await db.query(`SELECT * FROM events ORDER BY date ASC, id DESC`);
-    res.json(result.rows);
-  } catch (error) {
-    console.error("GET /api/events error:", error.message);
-    res.status(500).json({ error: error.message });
-  }
-});
 
 /**
  * GET /api/notices

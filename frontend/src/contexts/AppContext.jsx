@@ -81,52 +81,94 @@ export const AppProvider = ({ children }) => {
   const [showSplash, setShowSplash] = useState(false);
   const [fetchedClubsEvents, setFetchedClubsEvents] = useState([]);
 
-  // Fetch real clubs and events on mount
-  useEffect(() => {
-    Promise.all([
-      fetch('/api/clubs').then(res => res.json()),
-      fetch('/api/events').then(res => res.json()),
-      fetch('/api/committees').then(res => res.json())
-    ])
-    .then(([clubs, events, committees]) => {
-      const formattedClubs = clubs.map(c => ({
+  // Fetch real clubs and events from PostgreSQL database
+  const refetchClubsEvents = async () => {
+    try {
+      const [clubsRes, eventsRes, commRes] = await Promise.all([
+        fetch('/api/clubs'),
+        fetch('/api/events'),
+        fetch('/api/committees')
+      ]);
+      const clubs = clubsRes.ok ? await clubsRes.json() : [];
+      const events = eventsRes.ok ? await eventsRes.json() : [];
+      const committees = commRes.ok ? await commRes.json() : [];
+
+      const formattedClubs = (Array.isArray(clubs) ? clubs : []).map(c => ({
         id: `club-${c.id}`,
+        dbId: c.id,
         name: c.name,
-        description: c.description,
-        reason: 'Curated club from DB',
-        category: 'Club',
+        title: c.name,
+        short_description: c.short_description || '',
+        description: c.description || c.short_description || c.name,
+        reason: 'Official SCE Club',
+        category: c.category || 'Club',
         type: 'Club',
-        location: c.location_text || 'TBD',
-        requirements: c.eligibility || 'Open to all',
-        timings: 'TBD',
+        department: c.department || 'All Departments',
+        location: c.meeting_location || c.location || 'SCE Campus',
+        meeting_location: c.meeting_location || c.location || 'SCE Campus',
+        meeting_schedule: c.meeting_schedule || 'TBD',
+        faculty_coordinator: c.faculty_coordinator || '',
+        student_coordinator: c.student_coordinator || '',
+        contact_email: c.contact_email || '',
+        contact_phone: c.contact_phone || '',
+        membership_url: c.membership_url || '',
+        image_url: c.image_url || '',
+        logo_url: c.logo_url || '',
+        requirements: c.eligibility || 'Open to all students',
+        timings: c.meeting_schedule || 'TBD',
         registration_steps: c.registration_steps || 'Please contact the coordinator.'
       }));
-      const formattedEvents = events.map(e => ({
+
+      const formattedEvents = (Array.isArray(events) ? events : []).map(e => ({
         id: `event-${e.id}`,
-        name: e.name || e.title,
-        description: e.description || e.name,
-        reason: 'Upcoming campus event',
-        category: 'Event',
+        dbId: e.id,
+        name: e.title || e.name,
+        title: e.title || e.name,
+        short_description: e.short_description || '',
+        description: e.description || e.short_description || e.name,
+        reason: 'Upcoming Campus Event',
+        category: e.category || 'Event',
+        event_type: e.event_type || 'General',
         type: 'Event',
-        location: e.location_text || e.location || 'TBD',
-        requirements: 'Open to all',
-        timings: e.event_date ? new Date(e.event_date).toLocaleString() : 'TBD',
+        organizer: e.organizer || 'Saranathan College of Engineering',
+        venue: e.venue || e.location || 'SCE Campus',
+        location: e.venue || e.location || 'SCE Campus',
+        event_date: e.event_date || e.date,
+        start_time: e.start_time || '',
+        end_time: e.end_time || '',
+        registration_deadline: e.registration_deadline || null,
+        registration_url: e.registration_url || '',
+        capacity: e.capacity || 100,
+        registration_count: e.registration_count || 0,
+        image_url: e.image_url || e.poster || '',
+        poster: e.image_url || e.poster || '',
+        requirements: 'Open to all students',
+        timings: (e.event_date || e.date) ? new Date(e.event_date || e.date).toLocaleString() : 'TBD',
         registration_steps: e.registration_steps || 'Registration details pending.'
       }));
-      const formattedCommittees = committees.map(c => ({
+
+      const formattedCommittees = (Array.isArray(committees) ? committees : []).map(c => ({
         id: `comm-${c.id}`,
+        dbId: c.id,
         name: c.name,
+        title: c.name,
         description: c.description || '',
         reason: 'Official College Committee',
         category: 'Committee',
         type: 'Committee',
-        location: 'TBD',
+        location: c.location || 'SCE Campus',
         requirements: 'Open to interested students',
         timings: 'TBD'
       }));
+
       setFetchedClubsEvents([...formattedClubs, ...formattedEvents, ...formattedCommittees]);
-    })
-    .catch(err => console.error('Failed to fetch clubs/events/committees:', err));
+    } catch (err) {
+      console.error('Failed to fetch database clubs/events/committees:', err);
+    }
+  };
+
+  useEffect(() => {
+    refetchClubsEvents();
   }, []);
 
   // Verify auth token and preload icon fonts once on initial startup load
@@ -460,10 +502,6 @@ export const AppProvider = ({ children }) => {
   };
 
   const getMatchedClubs = () => {
-    if (!onboarded) return [];
-    
-    // For now, return all fetched DB items. If filtering is needed by interests, 
-    // it can be done here. Since the user wants to see the real DB data, we return it all.
     return fetchedClubsEvents;
   };
 
@@ -594,6 +632,8 @@ export const AppProvider = ({ children }) => {
       resetAllData,
       getCombinedChecklist,
       getMatchedClubs,
+      fetchedClubsEvents,
+      refetchClubsEvents,
       optedInClubs,
       toggleOptInClub,
       updateProfile,

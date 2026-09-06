@@ -642,20 +642,78 @@ router.delete('/documents/:id', async (req, res) => {
 });
 
 // ----------------------------------------------------
-// 4. EVENTS MODULE
+// IMAGE UPLOAD MODULE
+// ----------------------------------------------------
+router.post('/upload-image', async (req, res) => {
+  try {
+    const { image, folder = 'events' } = req.body;
+    if (!image) return res.status(400).json({ error: 'Image base64 data is required' });
+
+    const matches = image.match(/^data:image\/([a-zA-Z0-9]+);base64,(.+)$/);
+    if (!matches || matches.length !== 3) {
+      return res.status(400).json({ error: 'Invalid base64 image payload format' });
+    }
+
+    const rawExt = matches[1].toLowerCase();
+    const ext = rawExt === 'jpeg' ? 'jpg' : rawExt;
+    const buffer = Buffer.from(matches[2], 'base64');
+
+    if (buffer.length > 5 * 1024 * 1024) {
+      return res.status(400).json({ error: 'Image file size exceeds maximum limit of 5MB' });
+    }
+
+    const sanitizeFolder = folder === 'clubs' ? 'clubs' : 'events';
+    const targetDir = path.join(__dirname, '../../uploads', sanitizeFolder);
+    if (!fs.existsSync(targetDir)) {
+      fs.mkdirSync(targetDir, { recursive: true });
+    }
+
+    const filename = `${sanitizeFolder}-${Date.now()}-${Math.random().toString(36).substring(2, 8)}.${ext}`;
+    const filePath = path.join(targetDir, filename);
+    fs.writeFileSync(filePath, buffer);
+
+    const publicUrl = `/uploads/${sanitizeFolder}/${filename}`;
+    res.json({ success: true, url: publicUrl });
+  } catch (err) {
+    console.error('Admin image upload error:', err);
+    res.status(500).json({ error: 'Failed to save uploaded image: ' + err.message });
+  }
+});
+
+// ----------------------------------------------------
+// 4. EVENTS MODULE (CMS Production CRUD)
 // ----------------------------------------------------
 
 router.get('/events', async (req, res) => {
   try {
     const events = await db.query(`
-      SELECT e.id, e.name as title, e.description, e.event_date as date, 
-             e.location_text as location, e.status, 
-             COALESCE(e.pin_color, '#F59E0B') as pin_color,
-             (SELECT COUNT(*) FROM volunteers v WHERE v.event_id = e.id) as attendees, 
+      SELECT e.id, 
+             COALESCE(e.title, e.name) as title, 
+             COALESCE(e.title, e.name) as name, 
+             e.description, 
+             e.short_description,
+             COALESCE(e.event_type, 'General') as event_type,
+             COALESCE(e.category, 'General') as category,
+             COALESCE(e.organizer, 'Saranathan College of Engineering') as organizer,
+             COALESCE(e.venue, e.location_text, 'SCE Campus') as venue,
+             COALESCE(e.venue, e.location_text, 'SCE Campus') as location,
+             e.event_date as date,
+             e.event_date,
+             e.start_time,
+             e.end_time,
+             e.registration_deadline,
+             e.registration_url,
+             COALESCE(e.capacity, 100) as capacity,
+             (SELECT COUNT(*)::int FROM event_registrations er WHERE er.event_id = e.id) as attendees,
+             COALESCE(e.image_url, e.poster) as image_url,
+             COALESCE(e.image_url, e.poster) as poster,
+             COALESCE(e.status, 'PUBLISHED') as status,
+             COALESCE(e.featured, e.is_featured, false) as featured,
+             COALESCE(e.is_registration_open, true) as is_registration_open,
              rp.raw_process_text as registration_steps
       FROM events e
       LEFT JOIN registration_process rp ON e.id = rp.club_or_event_id AND rp.club_or_event_type = 'event'
-      ORDER BY e.event_date ASC
+      ORDER BY e.event_date DESC, e.id DESC
     `);
     res.json(events.rows);
   } catch (error) {
@@ -665,12 +723,37 @@ router.get('/events', async (req, res) => {
 
 router.post('/events', async (req, res) => {
   try {
-    const { title, description, date, location, status, registration_steps } = req.body;
-    if (!title || !date || !location) return res.status(400).json({ error: 'Title, date, and location are required' });
+    const { 
+      title, name, description, short_description, category, event_type, 
+      organizer, venue, location, date, event_date, start_time, end_time, 
+      registration_deadline, registration_url, capacity, image_url, poster, 
+      status, featured, is_featured, is_registration_open, registration_steps 
+    } = req.body;
+
+    const eventTitle = (title || name || '').trim();
+    const eventDate = date || event_date;
+    const eventVenue = venue || location || 'SCE Campus';
+
+    if (!eventTitle || !eventDate) {
+      return res.status(400).json({ error: 'Event Title and Date are required fields' });
+    }
 
     const result = await db.query(
-      'INSERT INTO events (name, description, event_date, location_text, status) VALUES ($1, $2, $3, $4, $5) RETURNING *',
-      [title, description || title, date, location, status || 'upcoming']
+      `INSERT INTO events (
+        title, name, description, short_description, category, event_type, 
+        organizer, venue, location_text, event_date, start_time, end_time, 
+        registration_deadline, registration_url, capacity, image_url, poster, 
+        status, featured, is_featured, is_registration_open, created_by, published_at
+       ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, NOW()) 
+       RETURNING *`,
+      [
+        eventTitle, eventTitle, description || eventTitle, short_description || '', category || 'General', event_type || 'General',
+        organizer || 'Saranathan College of Engineering', eventVenue, eventVenue, eventDate, start_time || '', end_time || '',
+        registration_deadline || null, registration_url || '', capacity ? parseInt(capacity) : 100, 
+        image_url || poster || null, image_url || poster || null,
+        status || 'PUBLISHED', featured || is_featured || false, featured || is_featured || false,
+        is_registration_open !== undefined ? is_registration_open : true, req.admin?.id || null
+      ]
     );
 
     const eventId = result.rows[0].id;
@@ -681,7 +764,7 @@ router.post('/events', async (req, res) => {
       );
     }
 
-    await logActivity(req.admin?.id, 'event_created', `Created event: ${title}`);
+    await logActivity(req.admin?.id, 'event_created', `Created event: ${eventTitle} (ID: ${eventId})`);
     res.status(201).json(result.rows[0]);
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -691,18 +774,49 @@ router.post('/events', async (req, res) => {
 router.put('/events/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    const { title, description, date, location, status, registration_steps } = req.body;
+    const { 
+      title, name, description, short_description, category, event_type, 
+      organizer, venue, location, date, event_date, start_time, end_time, 
+      registration_deadline, registration_url, capacity, image_url, poster, 
+      status, featured, is_featured, is_registration_open, registration_steps 
+    } = req.body;
+
+    const eventTitle = title || name;
+    const eventDate = date || event_date;
+    const eventVenue = venue || location;
 
     const result = await db.query(
       `UPDATE events SET 
+        title = COALESCE($1, title),
         name = COALESCE($1, name),
         description = COALESCE($2, description),
-        event_date = COALESCE($3, event_date),
-        location_text = COALESCE($4, location_text),
-        status = COALESCE($5, status),
+        short_description = COALESCE($3, short_description),
+        category = COALESCE($4, category),
+        event_type = COALESCE($5, event_type),
+        organizer = COALESCE($6, organizer),
+        venue = COALESCE($7, venue),
+        location_text = COALESCE($7, location_text),
+        event_date = COALESCE($8, event_date),
+        start_time = COALESCE($9, start_time),
+        end_time = COALESCE($10, end_time),
+        registration_deadline = COALESCE($11, registration_deadline),
+        registration_url = COALESCE($12, registration_url),
+        capacity = COALESCE($13, capacity),
+        image_url = COALESCE($14, image_url),
+        poster = COALESCE($14, poster),
+        status = COALESCE($15, status),
+        featured = COALESCE($16, featured),
+        is_featured = COALESCE($16, is_featured),
+        is_registration_open = COALESCE($17, is_registration_open),
         updated_at = NOW()
-       WHERE id = $6 RETURNING *`,
-      [title, description, date, location, status, id]
+       WHERE id = $18 RETURNING *`,
+      [
+        eventTitle, description, short_description, category, event_type, 
+        organizer, eventVenue, eventDate, start_time, end_time, 
+        registration_deadline, registration_url, capacity ? parseInt(capacity) : null,
+        image_url || poster, status, featured !== undefined ? featured : is_featured,
+        is_registration_open, id
+      ]
     );
 
     if (result.rows.length === 0) return res.status(404).json({ error: 'Event not found' });
@@ -723,6 +837,25 @@ router.put('/events/:id', async (req, res) => {
   }
 });
 
+router.patch('/events/:id/status', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { status } = req.body;
+    if (!status) return res.status(400).json({ error: 'Status is required' });
+
+    const result = await db.query(
+      `UPDATE events SET status = $1, updated_at = NOW() WHERE id = $2 RETURNING *`,
+      [status, id]
+    );
+    if (result.rows.length === 0) return res.status(404).json({ error: 'Event not found' });
+
+    await logActivity(req.admin?.id, 'event_status_changed', `Changed event ID ${id} status to ${status}`);
+    res.json(result.rows[0]);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 router.delete('/events/:id', async (req, res) => {
   try {
     const { id } = req.params;
@@ -734,33 +867,31 @@ router.delete('/events/:id', async (req, res) => {
   }
 });
 
-// Poster AI Scanner
-router.post('/events/vision', async (req, res) => {
-  const { imageUrl } = req.body;
-  if (!imageUrl) return res.status(400).json({ error: 'imageUrl is required' });
-
-  try {
-    const extractedData = await extractEventPosterDetails(imageUrl);
-    res.json(extractedData);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
-
 // ----------------------------------------------------
-// 5. CLUBS MODULE
+// 5. CLUBS MODULE (CMS Production CRUD)
 // ----------------------------------------------------
 
 router.get('/clubs', async (req, res) => {
   try {
     const clubs = await db.query(`
-      SELECT c.id, c.name, c.description, c.location_text as location, c.eligibility, c.status, 
-             COALESCE(c.requirements, 'Open to all students') as requirements,
-             (SELECT COUNT(*) FROM user_registrations r WHERE r.club_or_event_id = c.id AND r.club_or_event_type = 'club') as members, 
+      SELECT c.id, c.name, c.description, c.short_description, 
+             COALESCE(c.category, 'General') as category,
+             COALESCE(c.department, 'All Departments') as department,
+             c.faculty_coordinator, c.student_coordinator,
+             c.contact_email, c.contact_phone,
+             COALESCE(c.meeting_location, c.location_text, 'SCE Campus') as location,
+             COALESCE(c.meeting_location, c.location_text, 'SCE Campus') as meeting_location,
+             c.meeting_schedule,
+             COALESCE(c.membership_status, 'open') as membership_status,
+             c.membership_url, c.image_url, c.logo_url,
+             COALESCE(c.featured, false) as featured,
+             COALESCE(c.status, 'PUBLISHED') as status,
+             c.eligibility,
+             (SELECT COUNT(*)::int FROM user_registrations r WHERE r.club_or_event_id = c.id AND r.club_or_event_type = 'club') as members, 
              rp.raw_process_text as registration_steps
       FROM clubs c
       LEFT JOIN registration_process rp ON c.id = rp.club_or_event_id AND rp.club_or_event_type = 'club'
-      ORDER BY c.created_at DESC
+      ORDER BY c.created_at DESC, c.id DESC
     `);
     res.json(clubs.rows);
   } catch (error) {
@@ -770,12 +901,32 @@ router.get('/clubs', async (req, res) => {
 
 router.post('/clubs', async (req, res) => {
   try {
-    const { name, description, location, eligibility, status, registration_steps } = req.body;
-    if (!name || !description) return res.status(400).json({ error: 'Club name and description are required' });
+    const { 
+      name, description, short_description, category, department, 
+      faculty_coordinator, student_coordinator, contact_email, contact_phone, 
+      meeting_location, location, meeting_schedule, membership_status, membership_url, 
+      image_url, logo_url, featured, status, eligibility, registration_steps 
+    } = req.body;
+
+    const clubName = (name || '').trim();
+    if (!clubName || !description) return res.status(400).json({ error: 'Club Name and Description are required' });
 
     const result = await db.query(
-      'INSERT INTO clubs (name, description, location_text, eligibility, status) VALUES ($1, $2, $3, $4, $5) RETURNING *',
-      [name, description, location, eligibility, status || 'active']
+      `INSERT INTO clubs (
+        name, description, short_description, category, department, 
+        faculty_coordinator, student_coordinator, contact_email, contact_phone, 
+        meeting_location, location_text, meeting_schedule, membership_status, membership_url, 
+        image_url, logo_url, featured, status, eligibility, created_by
+       ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20) 
+       RETURNING *`,
+      [
+        clubName, description, short_description || '', category || 'General', department || 'All Departments',
+        faculty_coordinator || '', student_coordinator || '', contact_email || '', contact_phone || '',
+        meeting_location || location || 'SCE Campus', meeting_location || location || 'SCE Campus',
+        meeting_schedule || 'TBD', membership_status || 'open', membership_url || '',
+        image_url || null, logo_url || null, featured || false, status || 'PUBLISHED',
+        eligibility || 'Open to all students', req.admin?.id || null
+      ]
     );
 
     const clubId = result.rows[0].id;
@@ -786,7 +937,7 @@ router.post('/clubs', async (req, res) => {
       );
     }
 
-    await logActivity(req.admin?.id, 'club_created', `Created club: ${name}`);
+    await logActivity(req.admin?.id, 'club_created', `Created club: ${clubName} (ID: ${clubId})`);
     res.status(201).json(result.rows[0]);
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -796,18 +947,42 @@ router.post('/clubs', async (req, res) => {
 router.put('/clubs/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    const { name, description, location, eligibility, status, registration_steps } = req.body;
+    const { 
+      name, description, short_description, category, department, 
+      faculty_coordinator, student_coordinator, contact_email, contact_phone, 
+      meeting_location, location, meeting_schedule, membership_status, membership_url, 
+      image_url, logo_url, featured, status, eligibility, registration_steps 
+    } = req.body;
 
     const result = await db.query(
       `UPDATE clubs SET 
         name = COALESCE($1, name),
         description = COALESCE($2, description),
-        location_text = COALESCE($3, location_text),
-        eligibility = COALESCE($4, eligibility),
-        status = COALESCE($5, status),
+        short_description = COALESCE($3, short_description),
+        category = COALESCE($4, category),
+        department = COALESCE($5, department),
+        faculty_coordinator = COALESCE($6, faculty_coordinator),
+        student_coordinator = COALESCE($7, student_coordinator),
+        contact_email = COALESCE($8, contact_email),
+        contact_phone = COALESCE($9, contact_phone),
+        meeting_location = COALESCE($10, meeting_location),
+        location_text = COALESCE($10, location_text),
+        meeting_schedule = COALESCE($11, meeting_schedule),
+        membership_status = COALESCE($12, membership_status),
+        membership_url = COALESCE($13, membership_url),
+        image_url = COALESCE($14, image_url),
+        logo_url = COALESCE($15, logo_url),
+        featured = COALESCE($16, featured),
+        status = COALESCE($17, status),
+        eligibility = COALESCE($18, eligibility),
         updated_at = NOW()
-       WHERE id = $6 RETURNING *`,
-      [name, description, location, eligibility, status, id]
+       WHERE id = $19 RETURNING *`,
+      [
+        name, description, short_description, category, department,
+        faculty_coordinator, student_coordinator, contact_email, contact_phone,
+        meeting_location || location, meeting_schedule, membership_status, membership_url,
+        image_url, logo_url, featured, status, eligibility, id
+      ]
     );
 
     if (result.rows.length === 0) return res.status(404).json({ error: 'Club not found' });
@@ -822,6 +997,25 @@ router.put('/clubs/:id', async (req, res) => {
     }
 
     await logActivity(req.admin?.id, 'club_updated', `Updated club ID: ${id}`);
+    res.json(result.rows[0]);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.patch('/clubs/:id/status', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { status } = req.body;
+    if (!status) return res.status(400).json({ error: 'Status is required' });
+
+    const result = await db.query(
+      `UPDATE clubs SET status = $1, updated_at = NOW() WHERE id = $2 RETURNING *`,
+      [status, id]
+    );
+    if (result.rows.length === 0) return res.status(404).json({ error: 'Club not found' });
+
+    await logActivity(req.admin?.id, 'club_status_changed', `Changed club ID ${id} status to ${status}`);
     res.json(result.rows[0]);
   } catch (error) {
     res.status(500).json({ error: error.message });

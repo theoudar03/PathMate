@@ -603,8 +603,8 @@ const Dashboard = () => {
           <span className="material-symbols-outlined text-[16px] text-primary">analytics</span>
           Today's Campus Snapshot
         </h2>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-4">
-          <div className="bg-surface border border-outline/15 rounded-2xl p-4 flex flex-col justify-between hover:border-primary/20 transition-colors shadow-3xs">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4">
+          <div className="bg-surfaceContainerLowest border border-outline/20 rounded-2xl p-3.5 sm:p-4 flex flex-col justify-between hover:border-primary/30 transition-all shadow-card">
             <span className="text-[10px] font-black uppercase text-onSurfaceVariant/70 tracking-wider">{t('statClassesToday')}</span>
             <div className="mt-2.5">
               <span className="text-xl font-extrabold text-onSurface">4 lectures</span>
@@ -612,7 +612,7 @@ const Dashboard = () => {
             </div>
           </div>
 
-          <div className="bg-surface border border-outline/15 rounded-2xl p-4 flex flex-col justify-between hover:border-primary/20 transition-colors shadow-3xs">
+          <div className="bg-surfaceContainerLowest border border-outline/20 rounded-2xl p-3.5 sm:p-4 flex flex-col justify-between hover:border-primary/30 transition-all shadow-card">
             <span className="text-[10px] font-black uppercase text-onSurfaceVariant/70 tracking-wider">{t('statUnreadCirculars')}</span>
             <div className="mt-2.5">
               <span className={`text-xl font-extrabold ${unreadNoticeCount > 0 ? 'text-rose-600' : 'text-onSurface'}`}>{unreadNoticeCount} unread</span>
@@ -620,7 +620,7 @@ const Dashboard = () => {
             </div>
           </div>
 
-          <div className="bg-surface border border-outline/15 rounded-2xl p-4 flex flex-col justify-between hover:border-primary/20 transition-colors shadow-3xs">
+          <div className="bg-surfaceContainerLowest border border-outline/20 rounded-2xl p-3.5 sm:p-4 flex flex-col justify-between hover:border-primary/30 transition-all shadow-card">
             <span className="text-[10px] font-black uppercase text-onSurfaceVariant/70 tracking-wider">{t('statEventsWeek')}</span>
             <div className="mt-2.5">
               <span className="text-xl font-extrabold text-onSurface">{events.length} planned</span>
@@ -628,7 +628,7 @@ const Dashboard = () => {
             </div>
           </div>
 
-          <div className="bg-surface border border-outline/15 rounded-2xl p-4 flex flex-col justify-between hover:border-primary/20 transition-colors shadow-3xs">
+          <div className="bg-surfaceContainerLowest border border-outline/20 rounded-2xl p-3.5 sm:p-4 flex flex-col justify-between hover:border-primary/30 transition-all shadow-card">
             <span className="text-[10px] font-black uppercase text-onSurfaceVariant/70 tracking-wider">Transit Details</span>
             <div className="mt-2.5">
               <span className="text-sm font-extrabold text-onSurface truncate block">
@@ -640,7 +640,7 @@ const Dashboard = () => {
             </div>
           </div>
 
-          <div className="bg-surface border border-outline/15 rounded-2xl p-4 flex flex-col justify-between hover:border-primary/20 transition-colors shadow-3xs">
+          <div className="bg-surfaceContainerLowest border border-outline/20 rounded-2xl p-3.5 sm:p-4 flex flex-col justify-between hover:border-primary/30 transition-all shadow-card">
             <span className="text-[10px] font-black uppercase text-onSurfaceVariant/70 tracking-wider">Mentors Connected</span>
             <div className="mt-2.5">
               <span className="text-xl font-extrabold text-onSurface">2 active</span>
@@ -648,7 +648,7 @@ const Dashboard = () => {
             </div>
           </div>
 
-          <div className="bg-surface border border-outline/15 rounded-2xl p-4 flex flex-col justify-between hover:border-primary/20 transition-colors shadow-3xs relative overflow-hidden group">
+          <div className="bg-surfaceContainerLowest border border-outline/20 rounded-2xl p-3.5 sm:p-4 flex flex-col justify-between hover:border-primary/30 transition-all shadow-card relative overflow-hidden group">
             <div className="absolute right-1 top-1 text-orange-500 opacity-15 select-none transform rotate-12 group-hover:scale-110 transition-transform">
               <span className="material-symbols-outlined text-[44px]">local_fire_department</span>
             </div>
@@ -681,7 +681,7 @@ const Dashboard = () => {
           <div
             key={idx}
             onClick={() => navigate(item.path)}
-            className="bg-surface border border-outline/20 rounded-2xl p-5 hover:border-primary/30 hover:shadow-elevation1 transition-all cursor-pointer flex flex-col justify-between gap-4 group relative"
+            className="bg-surfaceContainerLowest border border-outline/30 rounded-2xl p-5 hover:border-primary/40 hover:shadow-card-hover shadow-card transition-all cursor-pointer flex flex-col justify-between gap-4 group relative"
           >
             <div className="absolute right-4 top-4 text-onSurfaceVariant/30 group-hover:text-primary transition-colors">
               <span className="material-symbols-outlined text-[18px]">arrow_forward</span>
@@ -693,7 +693,7 @@ const Dashboard = () => {
               <h3 className="text-sm font-extrabold text-onSurface leading-snug">{item.title}</h3>
               <p className="text-[11px] text-onSurfaceVariant/85 font-medium mt-1 leading-snug">{item.desc}</p>
             </div>
-            <div className="pt-2 border-t border-outline/5 flex items-center justify-between">
+            <div className="pt-2 border-t border-outline/10 flex items-center justify-between">
               <span className="text-[9px] bg-slate-100 text-slate-700 font-bold px-2 py-0.5 rounded-full">{item.stats}</span>
             </div>
           </div>
@@ -706,7 +706,7 @@ const Dashboard = () => {
         <div className="lg:col-span-2 space-y-8">
           
           {/* PROFILE BADGE IDENTITY CARD */}
-          <div className="bg-surface border border-outline/20 rounded-3xl overflow-hidden shadow-3xs flex flex-col justify-between">
+          <div className="bg-surfaceContainerLowest border border-outline/30 rounded-3xl overflow-hidden shadow-card flex flex-col justify-between">
             <div className={`p-6 bg-gradient-to-r ${theme.gradient} text-white flex flex-col sm:flex-row justify-between items-start gap-4 relative`}>
               <div className="absolute right-0 top-0 w-32 h-32 bg-white/5 rounded-full blur-xl pointer-events-none"></div>
               <div className="flex items-center gap-4 z-10">
@@ -801,7 +801,7 @@ const Dashboard = () => {
           </div>
 
           {/* DEPARTMENT FACULTY & HOD DIRECTORY (WITH LIVE SEARCH & SEARCH FILTERS) */}
-          <div className="bg-surface border border-outline/25 rounded-3xl p-6 shadow-3xs space-y-5">
+          <div className="bg-surfaceContainerLowest border border-outline/30 rounded-3xl p-6 shadow-card space-y-5">
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-outline/10 pb-4">
               <div>
                 <span className="text-[10px] font-black text-primary uppercase tracking-widest block">Academic Department</span>
@@ -1016,7 +1016,7 @@ const Dashboard = () => {
           )}
 
           {/* UPCOMING EVENTS TIMELINE (WITH DYNAMIC REGISTER HOOKS) */}
-          <div className="bg-surface border border-outline/25 rounded-3xl p-5 shadow-3xs space-y-4">
+          <div className="bg-surfaceContainerLowest border border-outline/30 rounded-3xl p-5 shadow-card space-y-4">
             <div className="flex items-center justify-between border-b border-outline/10 pb-3">
               <h2 className="text-xs font-black uppercase text-onSurfaceVariant/80 tracking-widest flex items-center gap-1.5">
                 <span className="material-symbols-outlined text-primary text-[18px]">event</span>
@@ -1099,11 +1099,11 @@ const Dashboard = () => {
             )}
           </div>
 
-          <div className="bg-surface border border-outline/15 rounded-3xl p-6 shadow-3xs flex flex-col justify-between min-h-[180px]">
+          <div className="bg-surfaceContainerLowest border border-outline/30 rounded-3xl p-6 shadow-card flex flex-col justify-between min-h-[180px]">
             {loadingReview ? (
               <div className="flex flex-col items-center justify-center py-8 space-y-2">
                 <span className="w-5 h-5 border-2 border-primary/30 border-t-primary rounded-full animate-spin"></span>
-                <p className="text-[10px] text-onSurfaceVariant font-bold uppercase tracking-wider">Syncing Review Database...</p>
+                <p className="text-[10px] text-onSurfaceVariant font-bold uppercase tracking-wider">Updating Student Reviews...</p>
               </div>
             ) : myReview ? (
               <div className="space-y-4">

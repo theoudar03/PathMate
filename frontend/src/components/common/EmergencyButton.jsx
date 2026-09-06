@@ -46,14 +46,14 @@ const EmergencyButton = () => {
   return (
     <>
       {/* Persistent Floating Emergency Button */}
-      <div className="fixed bottom-6 right-6 z-50 flex flex-col items-center gap-1.5 animate-fade-in">
-        <span className="text-[10px] font-black text-error bg-white px-2 py-0.5 rounded-md shadow-sm border border-error/20 tracking-wider uppercase">
+      <div className="fixed bottom-4 right-4 sm:right-6 z-50 flex flex-col items-center gap-1.5 animate-fade-in">
+        <span className="text-[10px] font-black text-error bg-surfaceContainerLowest px-2 py-0.5 rounded-md shadow-sm border border-error/20 tracking-wider uppercase">
           Emergency
         </span>
         <button
           type="button"
           onClick={handleToggle}
-          className="w-14 h-14 bg-error text-onError rounded-2xl shadow-elevation3 hover:bg-[#991515] transition-all flex items-center justify-center border-none hover:scale-105 active:scale-95 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+          className="w-12 h-12 sm:w-14 sm:h-14 bg-error text-onError rounded-2xl shadow-elevation3 hover:bg-[#991515] transition-all flex items-center justify-center border-none hover:scale-105 active:scale-95 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary cursor-pointer"
           aria-label="Open emergency contacts panel"
           aria-expanded={isOpen}
         >

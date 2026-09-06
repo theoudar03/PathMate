@@ -16,6 +16,21 @@
             document.documentElement.style.colorScheme = 'light';
           }
         } catch (e) {}
+
+        // Suppress icon font ligature text flash until font is loaded
+        if ('fonts' in document) {
+          document.fonts.load('1em "Material Symbols Outlined"').then(function() {
+            document.documentElement.classList.add('pm-icons-loaded');
+          }).catch(function() {
+            document.documentElement.classList.add('pm-icons-loaded');
+          });
+          // Fallback timer in case font request stalls
+          setTimeout(function() {
+            document.documentElement.classList.add('pm-icons-loaded');
+          }, 1500);
+        } else {
+          document.documentElement.classList.add('pm-icons-loaded');
+        }
       })();
     </script>
     <link rel="preconnect" href="https://fonts.googleapis.com">

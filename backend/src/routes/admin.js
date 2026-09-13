@@ -2334,10 +2334,10 @@ router.delete('/roles/users/:id', async (req, res) => {
   }
 });
 
-// 14. CAMPUS NAVIGATION MARKERS
+// 14. CAMPUS NAVIGATION MARKERS & LOCATION CRUD
 router.get('/navigation/locations', async (req, res) => {
   try {
-    const result = await db.query('SELECT * FROM locations ORDER BY name ASC');
+    const result = await db.query('SELECT * FROM locations ORDER BY is_archived ASC, name ASC');
     res.json(result.rows);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -2345,8 +2345,12 @@ router.get('/navigation/locations', async (req, res) => {
 });
 
 router.post('/navigation/locations', async (req, res) => {
-  const { name, latitude, longitude, altitude, floor, category, description, office_hours, tags, images } = req.body;
+  const { name, building_code, latitude, longitude, category, description, search_keywords, images, is_published = true } = req.body;
   
+  if (!name || name.trim().length === 0) {
+    return res.status(400).json({ error: 'Location name is required.' });
+  }
+
   // Validation coordinates checks
   const latVal = parseFloat(latitude);
   const lngVal = parseFloat(longitude);
@@ -2357,11 +2361,17 @@ router.post('/navigation/locations', async (req, res) => {
     return res.status(400).json({ error: 'Invalid longitude value. Must be between -180 and 180.' });
   }
 
+  // Campus boundary validation warning/check
+  if (latVal < 10.7400 || latVal > 10.7700 || lngVal < 78.6400 || lngVal > 78.6600) {
+    return res.status(400).json({ error: 'Coordinates are outside the configured campus boundary (Lat: 10.74–10.77, Lng: 78.64–78.66).' });
+  }
+
   try {
+    const keywordsArr = Array.isArray(search_keywords) ? search_keywords : (search_keywords ? search_keywords.split(',').map(s => s.trim()) : []);
     const result = await db.query(
-      `INSERT INTO locations (name, latitude, longitude, altitude, floor, category, description, office_hours, tags, images)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING *`,
-      [name, latVal, lngVal, altitude || 0, floor || 0, category || 'Academic', description || null, office_hours || null, tags || [], images || []]
+      `INSERT INTO locations (name, building_code, latitude, longitude, category, description, search_keywords, images, is_published, is_archived)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, false) RETURNING *`,
+      [name.trim(), building_code || null, latVal, lngVal, category || 'Academic', description || null, keywordsArr, images || [], is_published]
     );
     res.status(201).json(result.rows[0]);
   } catch (err) {
@@ -2371,7 +2381,7 @@ router.post('/navigation/locations', async (req, res) => {
 
 router.put('/navigation/locations/:id', async (req, res) => {
   const { id } = req.params;
-  const { name, latitude, longitude, altitude, floor, category, description, office_hours, tags, images } = req.body;
+  const { name, building_code, latitude, longitude, category, description, search_keywords, images, is_published, is_archived } = req.body;
 
   const latVal = parseFloat(latitude);
   const lngVal = parseFloat(longitude);
@@ -2382,12 +2392,41 @@ router.put('/navigation/locations/:id', async (req, res) => {
     return res.status(400).json({ error: 'Invalid longitude value.' });
   }
 
+  if (latVal < 10.7400 || latVal > 10.7700 || lngVal < 78.6400 || lngVal > 78.6600) {
+    return res.status(400).json({ error: 'Coordinates are outside the campus boundary (Lat: 10.74–10.77, Lng: 78.64–78.66).' });
+  }
+
   try {
+    const keywordsArr = Array.isArray(search_keywords) ? search_keywords : (search_keywords ? search_keywords.split(',').map(s => s.trim()) : []);
     const result = await db.query(
-      `UPDATE locations SET name = $1, latitude = $2, longitude = $3, altitude = $4, floor = $5, category = $6, description = $7, office_hours = $8, tags = $9, images = $10
+      `UPDATE locations 
+       SET name = $1, building_code = $2, latitude = $3, longitude = $4, category = $5, description = $6, search_keywords = $7, images = $8, is_published = COALESCE($9, is_published), is_archived = COALESCE($10, is_archived), updated_at = CURRENT_TIMESTAMP
        WHERE id = $11 RETURNING *`,
-      [name, latVal, lngVal, altitude, floor, category, description, office_hours, tags, images, id]
+      [name.trim(), building_code || null, latVal, lngVal, category || 'Academic', description || null, keywordsArr, images || [], is_published, is_archived, id]
     );
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Location not found.' });
+    }
+    res.json(result.rows[0]);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.patch('/navigation/locations/:id/toggle-publish', async (req, res) => {
+  const { id } = req.params;
+  try {
+    const result = await db.query('UPDATE locations SET is_published = NOT is_published, updated_at = CURRENT_TIMESTAMP WHERE id = $1 RETURNING *', [id]);
+    res.json(result.rows[0]);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.patch('/navigation/locations/:id/toggle-archive', async (req, res) => {
+  const { id } = req.params;
+  try {
+    const result = await db.query('UPDATE locations SET is_archived = NOT is_archived, updated_at = CURRENT_TIMESTAMP WHERE id = $1 RETURNING *', [id]);
     res.json(result.rows[0]);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -2399,6 +2438,143 @@ router.delete('/navigation/locations/:id', async (req, res) => {
   try {
     await db.query('DELETE FROM locations WHERE id = $1', [id]);
     res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// 14.5 ROUTING GRAPH & ENTRANCES ADMIN MANAGEMENT
+router.get('/navigation/graph', async (req, res) => {
+  try {
+    const [nodes, edges, entrances, obstacles] = await Promise.all([
+      db.query('SELECT * FROM map_nodes ORDER BY id ASC'),
+      db.query('SELECT * FROM map_edges ORDER BY id ASC'),
+      db.query('SELECT e.*, l.name as building_name FROM building_entrances e LEFT JOIN locations l ON e.location_id = l.id ORDER BY e.id ASC'),
+      db.query('SELECT * FROM campus_obstacles ORDER BY id ASC')
+    ]);
+    res.json({
+      nodes: nodes.rows,
+      edges: edges.rows,
+      entrances: entrances.rows,
+      obstacles: obstacles.rows
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.post('/navigation/nodes', async (req, res) => {
+  const { node_key, name, latitude, longitude, node_type = 'junction', is_accessible = true } = req.body;
+  if (!node_key || !name || isNaN(parseFloat(latitude)) || isNaN(parseFloat(longitude))) {
+    return res.status(400).json({ error: 'Valid node key, name, latitude, and longitude are required.' });
+  }
+  try {
+    const result = await db.query(
+      `INSERT INTO map_nodes (node_key, name, latitude, longitude, node_type, is_accessible)
+       VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
+      [node_key.trim(), name.trim(), parseFloat(latitude), parseFloat(longitude), node_type, is_accessible]
+    );
+    res.status(201).json(result.rows[0]);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.put('/navigation/nodes/:id', async (req, res) => {
+  const { id } = req.params;
+  const { name, latitude, longitude, node_type, is_accessible } = req.body;
+  try {
+    const result = await db.query(
+      `UPDATE map_nodes
+       SET name = $1, latitude = $2, longitude = $3, node_type = $4, is_accessible = $5
+       WHERE id = $6 RETURNING *`,
+      [name, parseFloat(latitude), parseFloat(longitude), node_type, is_accessible, id]
+    );
+    res.json(result.rows[0]);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.delete('/navigation/nodes/:id', async (req, res) => {
+  const { id } = req.params;
+  try {
+    await db.query('DELETE FROM map_nodes WHERE id = $1', [id]);
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.post('/navigation/edges', async (req, res) => {
+  const { source_node_key, target_node_key, distance_meters, segment_type = 'footpath', is_accessible = true, allowed_modes = ['walking', 'cycling', 'wheelchair'] } = req.body;
+  try {
+    const result = await db.query(
+      `INSERT INTO map_edges (source_node_key, target_node_key, distance_meters, segment_type, is_accessible, is_active, allowed_modes)
+       VALUES ($1, $2, $3, $4, $5, true, $6) RETURNING *`,
+      [source_node_key, target_node_key, parseInt(distance_meters, 10) || 10, segment_type, is_accessible, allowed_modes]
+    );
+    res.status(201).json(result.rows[0]);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.delete('/navigation/edges/:id', async (req, res) => {
+  const { id } = req.params;
+  try {
+    await db.query('DELETE FROM map_edges WHERE id = $1', [id]);
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.post('/navigation/entrances', async (req, res) => {
+  const { location_id, building_code, entrance_name, latitude, longitude, node_key, is_primary = true, is_accessible = true } = req.body;
+  try {
+    const result = await db.query(
+      `INSERT INTO building_entrances (location_id, building_code, entrance_name, latitude, longitude, node_key, is_primary, is_accessible)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *`,
+      [location_id || null, building_code || null, entrance_name, parseFloat(latitude), parseFloat(longitude), node_key || null, is_primary, is_accessible]
+    );
+    res.status(201).json(result.rows[0]);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// 15. CONTACT REQUESTS MODERATION
+router.get('/contact-requests', async (req, res) => {
+  try {
+    const result = await db.query('SELECT * FROM contact_requests ORDER BY created_at DESC');
+    res.json(result.rows);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.put('/contact-requests/:id/status', async (req, res) => {
+  const { id } = req.params;
+  const { status, admin_notes } = req.body;
+
+  const validStatuses = ['New', 'In Review', 'Resolved', 'Rejected'];
+  if (!validStatuses.includes(status)) {
+    return res.status(400).json({ error: 'Invalid contact request status.' });
+  }
+
+  try {
+    const resolvedAt = ['Resolved', 'Rejected'].includes(status) ? new Date() : null;
+    const result = await db.query(
+      `UPDATE contact_requests 
+       SET status = $1, admin_notes = COALESCE($2, admin_notes), resolved_at = $3
+       WHERE id = $4 RETURNING *`,
+      [status, admin_notes || null, resolvedAt, id]
+    );
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Contact request not found.' });
+    }
+    res.json(result.rows[0]);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -2689,6 +2865,84 @@ router.delete('/reviews/:id', async (req, res) => {
     res.json({ success: true, message: 'Review deleted successfully.' });
   } catch (error) {
     res.status(500).json({ error: error.message });
+  }
+});
+
+/**
+ * 15. CONTACT REQUESTS ADMIN MANAGEMENT
+ * GET /api/admin/contact-requests
+ * PUT /api/admin/contact-requests/:id/status
+ * DELETE /api/admin/contact-requests/:id
+ */
+router.get('/contact-requests', async (req, res) => {
+  try {
+    const result = await db.query(
+      `SELECT * FROM contact_requests 
+       ORDER BY created_at DESC`
+    );
+    res.json(result.rows);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.put('/contact-requests/:id/status', async (req, res) => {
+  const { id } = req.params;
+  const { status, admin_notes } = req.body;
+
+  const validStatuses = ['New', 'In Review', 'Resolved', 'Rejected'];
+  if (!status || !validStatuses.includes(status)) {
+    return res.status(400).json({ error: 'Invalid status provided.' });
+  }
+
+  try {
+    const result = await db.query(
+      `UPDATE contact_requests
+       SET status = $1, 
+           admin_notes = $2, 
+           resolved_at = (CASE WHEN $1 = 'Resolved' THEN CURRENT_TIMESTAMP ELSE resolved_at END)
+       WHERE id = $3
+       RETURNING *`,
+      [status, admin_notes || null, id]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Contact request not found.' });
+    }
+
+    const updatedRequest = result.rows[0];
+
+    // If user_id exists, send notification to student
+    if (updatedRequest.user_id) {
+      await db.query(
+        `INSERT INTO student_notifications (student_id, title, message)
+         VALUES ($1, $2, $3)`,
+        [
+          updatedRequest.user_id,
+          `Contact Request ${status}`,
+          `Your contact enquiry #${updatedRequest.id} (${updatedRequest.category}) has been updated to: ${status}.${admin_notes ? ` Notes: ${admin_notes}` : ''}`
+        ]
+      ).catch(e => console.warn('Failed to insert notification:', e.message));
+    }
+
+    await logActivity(req.admin?.id, 'update_contact_request', `Updated contact request #${id} to status '${status}'`);
+    res.json(updatedRequest);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.delete('/contact-requests/:id', async (req, res) => {
+  const { id } = req.params;
+  try {
+    const result = await db.query('DELETE FROM contact_requests WHERE id = $1 RETURNING id', [id]);
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Contact request not found.' });
+    }
+    await logActivity(req.admin?.id, 'delete_contact_request', `Deleted contact request #${id}`);
+    res.json({ success: true, message: 'Contact request deleted successfully.' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
 });
 

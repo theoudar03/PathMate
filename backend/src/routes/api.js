@@ -3017,5 +3017,112 @@ router.get('/settings', async (req, res) => {
   }
 });
 
+/**
+ * GET /api/locations
+ * Returns published and non-archived campus locations from database
+ */
+router.get('/locations', async (req, res) => {
+  try {
+    const result = await db.query(
+      `SELECT * FROM locations 
+       WHERE is_published = true AND (is_archived = false OR is_archived IS NULL)
+       ORDER BY category ASC, name ASC`
+    );
+    const seen = new Set();
+    const uniqueRows = (result.rows || []).filter(item => {
+      const key = String(item.name || item.building_code || item.id || '').toLowerCase().trim();
+      if (!key || seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+    res.json(uniqueRows);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+/**
+ * POST /api/contact
+ * Submits a new student/public contact request to the database
+ */
+router.post('/contact', async (req, res) => {
+  const { name, email, category, message, page_reference, user_id } = req.body;
+
+  if (!name || name.trim().length < 2) {
+    return res.status(400).json({ error: 'Please provide a valid name.' });
+  }
+
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!email || !emailRegex.test(email.trim())) {
+    return res.status(400).json({ error: 'Please provide a valid email address.' });
+  }
+
+  const validCategories = [
+    'Suggestion',
+    'Report incorrect information',
+    'Report campus map mistake',
+    'Report club or event issue',
+    'Report technical issue',
+    'Account or login problem',
+    'General enquiry'
+  ];
+
+  if (!category || !validCategories.includes(category)) {
+    return res.status(400).json({ error: 'Invalid contact category selected.' });
+  }
+
+  if (!message || message.trim().length < 10) {
+    return res.status(400).json({ error: 'Message content must be at least 10 characters long.' });
+  }
+
+  try {
+    const userIdVal = parseInt(user_id, 10);
+    const validUserId = !isNaN(userIdVal) ? userIdVal : null;
+
+    const result = await db.query(
+      `INSERT INTO contact_requests (user_id, name, email, category, message, page_reference, status)
+       VALUES ($1, $2, $3, $4, $5, $6, 'New')
+       RETURNING *`,
+      [validUserId, name.trim(), email.trim(), category, message.trim(), page_reference || null]
+    );
+
+    res.status(201).json({
+      success: true,
+      message: 'Your inquiry has been submitted successfully. Our campus support team will review it shortly.',
+      request: result.rows[0]
+    });
+  } catch (err) {
+    console.error('Error submitting contact request:', err);
+    res.status(500).json({ error: 'Failed to submit contact request. Please try again.' });
+  }
+});
+
+/**
+ * GET /api/routing/graph
+ * Returns map nodes, edges, building entrances, and obstacle boundaries
+ */
+router.get('/routing/graph', async (req, res) => {
+  try {
+    const [nodesRes, edgesRes, entrancesRes, obstaclesRes] = await Promise.all([
+      db.query('SELECT * FROM map_nodes ORDER BY node_key ASC'),
+      db.query('SELECT * FROM map_edges WHERE is_active = true ORDER BY id ASC'),
+      db.query('SELECT e.*, l.name as building_name FROM building_entrances e LEFT JOIN locations l ON e.location_id = l.id ORDER BY e.id ASC'),
+      db.query('SELECT * FROM campus_obstacles WHERE is_active = true ORDER BY id ASC')
+    ]);
+
+    res.json({
+      success: true,
+      nodes: nodesRes.rows,
+      edges: edgesRes.rows,
+      entrances: entrancesRes.rows,
+      obstacles: obstaclesRes.rows
+    });
+  } catch (err) {
+    console.error('Error fetching routing graph:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 export default router;
+
 

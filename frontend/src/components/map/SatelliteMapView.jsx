@@ -5,6 +5,11 @@ import { CAMPUS_MAP_DATA, isValidGps } from '../../config/mapData';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useApp } from '../../contexts/AppContext';
 import TranslateText from '../common/TranslateText';
+import {
+  buildGraph,
+  findShortestPathAStar,
+  snapToNearestNode
+} from '../../services/routingEngine';
 import { 
   MapPin, 
   Navigation, 
@@ -42,132 +47,6 @@ const getOriginPresetsMap = () => {
 };
 
 const ORIGIN_PRESETS_MAP = getOriginPresetsMap();
-
-// Topological Road Waypoints for clear, obstacle-free paths
-const WAYPOINTS = {
-  'main_gate': [78.6534, 10.7544],
-  'parking_junction': [78.6514, 10.7548],
-  'sports_junction': [78.6504, 10.7548],
-  'volleyball_junction': [78.6512, 10.7552],
-  'ks_block_junction': [78.6510, 10.7560],
-  'academic_cross_1': [78.6513, 10.7560],
-  'eastern_road_1': [78.6516, 10.7566],
-  'generator_junction': [78.6510, 10.7568],
-  'academic_cross_2': [78.6513, 10.7568],
-  'eastern_road_2': [78.6516, 10.7572],
-  'cafeteria_junction': [78.6510, 10.7572],
-  'academic_cross_3': [78.6513, 10.7572],
-  'eastern_road_3': [78.6516, 10.7576],
-  'me_block_junction': [78.6510, 10.7576],
-  'eastern_road_4': [78.6516, 10.7580],
-  'workshop_junction': [78.6510, 10.7580],
-  'eastern_road_5': [78.6516, 10.7584],
-  'hostel_junction': [78.6512, 10.7584],
-  'cricket_main_junction': [78.6504, 10.7582],
-  'cricket_2_junction': [78.6504, 10.7566],
-  'tnsca_junction': [78.6502, 10.7572]
-};
-
-const GRAPH = {
-  'main_gate': ['parking_junction'],
-  'parking_junction': ['main_gate', 'sports_junction', 'volleyball_junction'],
-  'sports_junction': ['parking_junction'],
-  'volleyball_junction': ['parking_junction', 'ks_block_junction'],
-  'ks_block_junction': ['volleyball_junction', 'academic_cross_1', 'generator_junction'],
-  'academic_cross_1': ['ks_block_junction', 'eastern_road_1'],
-  'eastern_road_1': ['academic_cross_1', 'eastern_road_2'],
-  'generator_junction': ['ks_block_junction', 'academic_cross_2', 'cafeteria_junction'],
-  'academic_cross_2': ['generator_junction', 'eastern_road_2'],
-  'eastern_road_2': ['eastern_road_1', 'academic_cross_2', 'eastern_road_3'],
-  'cafeteria_junction': ['generator_junction', 'academic_cross_3', 'me_block_junction', 'cricket_2_junction'],
-  'academic_cross_3': ['cafeteria_junction', 'eastern_road_3'],
-  'eastern_road_3': ['eastern_road_2', 'academic_cross_3', 'eastern_road_4'],
-  'me_block_junction': ['cafeteria_junction', 'workshop_junction', 'tnsca_junction'],
-  'workshop_junction': ['me_block_junction', 'hostel_junction'],
-  'eastern_road_4': ['eastern_road_3', 'eastern_road_5'],
-  'eastern_road_5': ['eastern_road_4', 'hostel_junction'],
-  'hostel_junction': ['workshop_junction', 'eastern_road_5', 'cricket_main_junction'],
-  'cricket_main_junction': ['hostel_junction'],
-  'cricket_2_junction': ['cafeteria_junction'],
-  'tnsca_junction': ['me_block_junction']
-};
-
-const BUILDING_TO_WAYPOINT = {
-  'main-gate': 'main_gate',
-  'security-room': 'main_gate',
-  'parking-lot': 'parking_junction',
-  'football-ground': 'parking_junction',
-  'cricket-ground-1': 'sports_junction',
-  'toilet': 'sports_junction',
-  'volleyball-court': 'volleyball_junction',
-  'basketball-court': 'volleyball_junction',
-  'ks-block': 'ks_block_junction',
-  'me-block': 'me_block_junction',
-  'mech-workshop': 'workshop_junction',
-  'generator-room': 'generator_junction',
-  'mech-lab': 'ks_block_junction',
-  'cafeteria': 'cafeteria_junction',
-  'stationery': 'cafeteria_junction',
-  'atm': 'ks_block_junction',
-  'temple': 'eastern_road_1',
-  'rv-block': 'eastern_road_1',
-  'js-block': 'eastern_road_2',
-  'bd-block': 'eastern_road_3',
-  'staff-parking': 'eastern_road_4',
-  'bus-boarding': 'eastern_road_5',
-  'boys-hostel': 'hostel_junction',
-  'main-cricket': 'cricket_main_junction',
-  'cricket-ground-2': 'cricket_2_junction',
-  'tnsca-office': 'tnsca_junction'
-};
-
-const findWalkingPath = (startId, endId) => {
-  const startNode = BUILDING_TO_WAYPOINT[startId] || 'main_gate';
-  const endNode = BUILDING_TO_WAYPOINT[endId] || 'main_gate';
-  
-  if (startNode === endNode) {
-    return [WAYPOINTS[startNode]];
-  }
-
-  const queue = [[startNode]];
-  const visited = new Set([startNode]);
-
-  while (queue.length > 0) {
-    const path = queue.shift();
-    const node = path[path.length - 1];
-
-    if (node === endNode) {
-      return path.map(name => WAYPOINTS[name]);
-    }
-
-    const neighbors = GRAPH[node] || [];
-    for (const neighbor of neighbors) {
-      if (!visited.has(neighbor)) {
-        visited.add(neighbor);
-        queue.push([...path, neighbor]);
-      }
-    }
-  }
-
-  return [WAYPOINTS[startNode], WAYPOINTS[endNode]];
-};
-
-const getClosestWaypoint = (coords) => {
-  let closestKey = 'main_gate';
-  let minDistance = Infinity;
-
-  Object.entries(WAYPOINTS).forEach(([key, pt]) => {
-    const dx = coords.lng - pt[0];
-    const dy = coords.lat - pt[1];
-    const dist = dx * dx + dy * dy;
-    if (dist < minDistance) {
-      minDistance = dist;
-      closestKey = key;
-    }
-  });
-
-  return closestKey;
-};
 
 // Base Style containing Google raster sources and CartoDB Dark Matter tile source
 const BASE_MAP_STYLE = {
@@ -251,6 +130,8 @@ const SatelliteMapView = ({
   searchQuery = '', 
   userLocation, 
   activeDestination,
+  locations = [],
+  routingGraph = { nodes: [], edges: [], building_entrances: [], campus_obstacles: [] },
   originId = 'main-gate',
   isNavigating = false,
   onToggleNavigation
@@ -258,9 +139,22 @@ const SatelliteMapView = ({
   const { resolvedTheme } = useTheme();
   const { t } = useApp();
   const [mapType, setMapType] = useState('hybrid');
-  const [selectedBuilding, setSelectedBuilding] = useState(activeDestination || CAMPUS_MAP_DATA[0]);
+  const locationList = (locations && locations.length > 0) ? locations : CAMPUS_MAP_DATA;
+  const [selectedBuilding, setSelectedBuilding] = useState(activeDestination || locationList[0]);
   const [hasArrived, setHasArrived] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
+
+  const getDisplayName = (item) => {
+    if (!item) return '';
+    const rawId = item.id || item.svg_id || '';
+    if (rawId) {
+      const translation = t('mapBlock_' + rawId);
+      if (translation && typeof translation === 'string' && !translation.startsWith('mapBlock_')) {
+        return translation;
+      }
+    }
+    return item.name || item.block_name || item.building_name || 'Location';
+  };
 
   const mapContainerRef = useRef(null);
   const mapInstanceRef = useRef(null);
@@ -275,15 +169,19 @@ const SatelliteMapView = ({
       setHasArrived(false);
       
       // Fly to target destination
-      if (mapInstanceRef.current && activeDestination.gps) {
-        mapInstanceRef.current.flyTo({
-          center: [activeDestination.gps.lng, activeDestination.gps.lat],
-          zoom: 18,
-          pitch: 45,
-          speed: 1.2,
-          curve: 1.4,
-          essential: true
-        });
+      if (mapInstanceRef.current && (activeDestination.gps || (activeDestination.latitude && activeDestination.longitude))) {
+        const lat = activeDestination.gps ? activeDestination.gps.lat : parseFloat(activeDestination.latitude);
+        const lng = activeDestination.gps ? activeDestination.gps.lng : parseFloat(activeDestination.longitude);
+        if (!isNaN(lat) && !isNaN(lng)) {
+          mapInstanceRef.current.flyTo({
+            center: [lng, lat],
+            zoom: 18,
+            pitch: 45,
+            speed: 1.2,
+            curve: 1.4,
+            essential: true
+          });
+        }
       }
     }
   }, [activeDestination]);
@@ -350,6 +248,13 @@ const SatelliteMapView = ({
     };
   }, []);
 
+  // Re-render markers when locationList or selectedBuilding changes
+  useEffect(() => {
+    if (mapInstanceRef.current) {
+      renderBuildingMarkers();
+    }
+  }, [locationList, selectedBuilding]);
+
   // Update Tile Layers when mapType or theme changes
   useEffect(() => {
     const map = mapInstanceRef.current;
@@ -378,7 +283,7 @@ const SatelliteMapView = ({
     }
   }, [mapType, resolvedTheme]);
 
-  // Create clean location markers for buildings (clutter-free)
+  // Create clean location markers for buildings (clutter-free, category icons, highlighted on selection)
   const renderBuildingMarkers = () => {
     const map = mapInstanceRef.current;
     if (!map) return;
@@ -387,48 +292,47 @@ const SatelliteMapView = ({
     markersRef.current.forEach(m => m.remove());
     markersRef.current = [];
 
-    // Helper for category badge text, badge color, and pin color matching mockup
     const getCategoryBadgeStyles = (cat) => {
-      const c = cat.toLowerCase();
-      if (c.includes('academic')) return { text: 'ACADEMIC', color: '#60A5FA', pinColor: '#1B4DA6' };
-      if (c.includes('hostel')) return { text: 'HOSTEL', color: '#A78BFA', pinColor: '#3F51B5' };
-      if (c.includes('sports')) return { text: 'SPORTS', color: '#4ADE80', pinColor: '#2E7D32' };
-      if (c.includes('transport')) return { text: 'TRANSPORT', color: '#94A3B8', pinColor: '#607D8B' };
-      if (c.includes('utilit')) return { text: 'UTILITY', color: '#F87171', pinColor: '#757575' };
-      if (c.includes('service')) return { text: 'SERVICES', color: '#FDBA74', pinColor: '#E65100' };
-      if (c.includes('religi')) return { text: 'RELIGIOUS', color: '#FBBF24', pinColor: '#FFA000' };
-      if (c.includes('entrance')) return { text: 'ENTRANCE', color: '#FDBA74', pinColor: '#E65100' };
-      return { text: cat.toUpperCase(), color: '#FFFFFF', pinColor: '#2563EB' };
+      const safeCat = String(cat || 'Location');
+      const c = safeCat.toLowerCase();
+      if (c.includes('academic')) return { text: 'ACADEMIC', color: '#60A5FA', pinColor: '#1B4DA6', icon: 'school' };
+      if (c.includes('hostel')) return { text: 'HOSTEL', color: '#A78BFA', pinColor: '#3F51B5', icon: 'bed' };
+      if (c.includes('sports')) return { text: 'SPORTS', color: '#4ADE80', pinColor: '#2E7D32', icon: 'sports_soccer' };
+      if (c.includes('transport')) return { text: 'TRANSPORT', color: '#94A3B8', pinColor: '#607D8B', icon: 'directions_bus' };
+      if (c.includes('utilit')) return { text: 'UTILITY', color: '#F87171', pinColor: '#757575', icon: 'build' };
+      if (c.includes('service') || c.includes('dining')) return { text: 'SERVICES', color: '#FDBA74', pinColor: '#E65100', icon: 'restaurant' };
+      if (c.includes('religi')) return { text: 'RELIGIOUS', color: '#FBBF24', pinColor: '#FFA000', icon: 'temple_hindu' };
+      if (c.includes('entrance') || c.includes('landmark')) return { text: 'LANDMARK', color: '#FDBA74', pinColor: '#E65100', icon: 'place' };
+      return { text: safeCat.toUpperCase(), color: '#FFFFFF', pinColor: '#2563EB', icon: 'location_on' };
     };
 
-    CAMPUS_MAP_DATA.forEach(building => {
-      if (building.hideMarker) return;
-      if (!building.gps) return;
-      if (!isValidGps(building.gps)) {
-        console.warn(`[GPS Validation] Skipping out-of-bounds marker for "${building.name}":`, building.gps);
-        return;
-      }
+    locationList.forEach(building => {
+      if (!building || building.hideMarker) return;
+      const lat = building.gps ? building.gps.lat : parseFloat(building.latitude);
+      const lng = building.gps ? building.gps.lng : parseFloat(building.longitude);
+      
+      if (isNaN(lat) || isNaN(lng)) return;
 
-      const el = document.createElement('div');
-      el.className = 'cursor-pointer select-none';
-      el.style.width = '140px';
-
+      const isSelected = selectedBuilding?.id === building.id || selectedBuilding?.name === building.name;
       const badgeStyles = getCategoryBadgeStyles(building.category);
 
-      // SVG marker structure with dark semi-transparent capsule and colored category badge matching mockup
+      const el = document.createElement('div');
+      el.className = 'group cursor-pointer select-none relative';
+      const safeName = building.name || 'Campus Location';
+      const safeCategory = building.category || 'Location';
+      el.setAttribute('aria-label', `${safeName} (${safeCategory})`);
+      el.setAttribute('title', `${safeName} — ${safeCategory}`);
+
       el.innerHTML = `
-        <div class="flex flex-col items-center justify-center">
-          <!-- Circular MapPin Icon -->
-          <div class="w-6 h-6 rounded-full flex items-center justify-center border border-white shadow-md transition-all duration-150 transform hover:scale-115 active:scale-95" style="background-color: ${badgeStyles.pinColor};">
-            <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/>
-              <circle cx="12" cy="10" r="3"/>
-            </svg>
+        <div class="flex flex-col items-center justify-center transition-transform duration-200 hover:scale-125 ${isSelected ? 'scale-125 z-30' : 'scale-100 z-10'}">
+          <!-- Marker Circle Pin -->
+          <div class="w-8 h-8 rounded-full flex items-center justify-center border-2 border-white shadow-lg transition-all ${isSelected ? 'ring-4 ring-blue-500 ring-offset-2 animate-bounce' : ''}" style="background-color: ${badgeStyles.pinColor};">
+            <span class="material-symbols-outlined text-[16px] text-white select-none">${badgeStyles.icon}</span>
           </div>
-          <!-- Label Capsule Card -->
-          <div class="mt-0.5 bg-[#0F172A]/90 text-white px-2 py-0.5 rounded-md border border-slate-700/60 shadow-lg text-[9px] font-bold text-center whitespace-nowrap pointer-events-none flex flex-col items-center leading-normal">
-            <span class="text-white">${building.name}</span>
-            <span class="text-[7px] font-black uppercase tracking-wider" style="color: ${badgeStyles.color};">${badgeStyles.text}</span>
+          <!-- Label capsule visible on selection or hover -->
+          <div class="${isSelected ? 'flex' : 'hidden group-hover:flex'} mt-1 bg-[#0F172A]/90 backdrop-blur-md text-white px-2.5 py-1 rounded-lg border border-slate-700/60 shadow-xl text-[10px] font-extrabold text-center flex-col items-center leading-tight">
+            <span>${building.name}</span>
+            <span class="text-[8px] font-black uppercase tracking-wider" style="color: ${badgeStyles.color};">${badgeStyles.text}</span>
           </div>
         </div>
       `;
@@ -437,16 +341,19 @@ const SatelliteMapView = ({
         e.stopPropagation();
         setSelectedBuilding(building);
         setHasArrived(false);
+        if (onSelectBuildingForNavigation) {
+          onSelectBuildingForNavigation(building);
+        }
         map.flyTo({
-          center: [building.gps.lng, building.gps.lat],
+          center: [lng, lat],
           zoom: 18,
           pitch: 45,
           speed: 1.2
         });
       });
 
-      const marker = new maplibregl.Marker({ element: el, anchor: 'top' })
-        .setLngLat([building.gps.lng, building.gps.lat])
+      const marker = new maplibregl.Marker({ element: el, anchor: 'center' })
+        .setLngLat([lng, lat])
         .addTo(map);
 
       markersRef.current.push(marker);
@@ -525,17 +432,30 @@ const SatelliteMapView = ({
       // Draw walking route line dynamically along waypoints
       if (isNavigating) {
         let pathPoints = [];
-        
-        if (originId === 'gps' && userLocation?.lat && userLocation?.lng) {
-          const closestNode = getClosestWaypoint(userLocation);
-          const waypointPath = findWalkingPath(closestNode, targetBuilding.id);
-          pathPoints = [[userLocation.lng, userLocation.lat], ...waypointPath];
-        } else {
-          pathPoints = findWalkingPath(originId, targetBuilding.id);
+        const nodes = routingGraph.nodes && routingGraph.nodes.length > 0 ? routingGraph.nodes : [];
+        const edges = routingGraph.edges && routingGraph.edges.length > 0 ? routingGraph.edges : [];
+
+        if (nodes.length > 0 && edges.length > 0) {
+          const graph = buildGraph(nodes, edges);
+          const startNode = snapToNearestNode({ lat: sourceLat, lng: sourceLng }, nodes);
+          const endNode = snapToNearestNode({ lat: destLat, lng: destLng }, nodes);
+
+          if (startNode && endNode) {
+            const pathNodeIds = findShortestPathAStar(graph, startNode.id, endNode.id, nodes);
+            const nodeMap = new Map(nodes.map(n => [n.id, n]));
+            pathPoints = pathNodeIds
+              .map(id => nodeMap.get(id))
+              .filter(Boolean)
+              .map(n => [parseFloat(n.longitude), parseFloat(n.latitude)]);
+          }
         }
 
-        // Add destination coordinate at the end to make it snap perfectly
-        pathPoints.push([destLng, destLat]);
+        if (pathPoints.length === 0) {
+          pathPoints = [[sourceLng, sourceLat], [destLng, destLat]];
+        } else {
+          pathPoints[0] = [sourceLng, sourceLat];
+          pathPoints[pathPoints.length - 1] = [destLng, destLat];
+        }
 
         const routeSource = map.getSource('route');
         if (routeSource) {
@@ -572,12 +492,10 @@ const SatelliteMapView = ({
         ];
 
         if (isNavigating) {
-          if (originId === 'gps' && userLocation?.lat && userLocation?.lng) {
-            const closestNode = getClosestWaypoint(userLocation);
-            const waypointPath = findWalkingPath(closestNode, targetBuilding.id);
-            coordinates = [[userLocation.lng, userLocation.lat], ...waypointPath, [destLng, destLat]];
-          } else {
-            coordinates = [...findWalkingPath(originId, targetBuilding.id), [destLng, destLat]];
+          const routeSource = map.getSource('route');
+          const routeData = routeSource?._data || routeSource?.data;
+          if (routeData?.geometry?.coordinates?.length > 0) {
+            coordinates = routeData.geometry.coordinates;
           }
         }
         
@@ -702,8 +620,8 @@ const SatelliteMapView = ({
               <h4 className="text-xs font-black">🎉 {t('reachedTitle') || 'You Have Arrived!'}</h4>
               <p className="text-[11px] font-bold text-emerald-100 mt-0.5">
                 {t('reachedBody') 
-                  ? t('reachedBody').replace('{dest}', t('mapBlock_' + selectedBuilding?.id) || selectedBuilding?.name || 'Destination')
-                  : `Welcome to ${t('mapBlock_' + selectedBuilding?.id) || selectedBuilding?.name || 'Destination'}! Have a great day!`}
+                  ? t('reachedBody').replace('{dest}', getDisplayName(selectedBuilding) || 'Destination')
+                  : `Welcome to ${getDisplayName(selectedBuilding) || 'Destination'}! Have a great day!`}
               </p>
             </div>
           </div>
@@ -731,7 +649,7 @@ const SatelliteMapView = ({
                 <span className="text-[10px] font-black uppercase tracking-wider text-primary bg-primaryContainer/60 px-2.5 py-0.5 rounded-full border border-primaryContainer">
                   {t('mapCategory_' + selectedBuilding.category) || selectedBuilding.category}
                 </span>
-                <h2 className="text-base font-black text-onSurface mt-1.5 leading-tight">{t('mapBlock_' + selectedBuilding.id) || selectedBuilding.name}</h2>
+                <h2 className="text-base font-black text-onSurface mt-1.5 leading-tight">{getDisplayName(selectedBuilding)}</h2>
               </div>
               <button
                 onClick={() => setSelectedBuilding(null)}
@@ -744,7 +662,7 @@ const SatelliteMapView = ({
             <div className="w-full h-32 sm:h-36 rounded-2xl overflow-hidden bg-slate-100 border border-outline/20 shadow-xs relative">
               <img
                 src={selectedBuilding.image || '/assets/campus-bg.jpg'}
-                alt={t('mapBlock_' + selectedBuilding.id) || selectedBuilding.name}
+                alt={getDisplayName(selectedBuilding)}
                 className="w-full h-full object-cover"
                 onError={(e) => {
                   e.target.onerror = null;

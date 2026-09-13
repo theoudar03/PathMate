@@ -15,9 +15,11 @@ const Connect = React.lazy(() => import('./pages/Connect'));
 const FacultyDirectory = React.lazy(() => import('./pages/FacultyDirectory'));
 const CampusMap = React.lazy(() => import('./pages/CampusMap'));
 const StudyHub = React.lazy(() => import('./pages/StudyHub'));
+const Contact = React.lazy(() => import('./pages/Contact'));
 const AdminKnowledge = React.lazy(() => import('./pages/AdminKnowledge'));
 const AdminAIReports = React.lazy(() => import('./pages/admin/AdminAIReports'));
 const AdminReviews = React.lazy(() => import('./pages/admin/AdminReviews'));
+const AdminContactRequests = React.lazy(() => import('./pages/admin/AdminContactRequests'));
 import BrandedSplashLoader from './components/common/BrandedSplashLoader';
 import AdminLogin from './pages/admin/AdminLogin';
 import AdminLayout from './layouts/AdminLayout';
@@ -106,6 +108,7 @@ function AppContent() {
             <Route path="dashboard" element={<AdminDashboard />} />
             <Route path="students" element={<AdminStudents />} />
             <Route path="reviews" element={<AdminReviews />} />
+            <Route path="contact-requests" element={<AdminContactRequests />} />
             <Route path="faculty" element={<AdminFaculty />} />
             <Route path="departments" element={<AdminDepartments />} />
             <Route path="knowledge" element={<AdminKnowledge />} />
@@ -141,6 +144,7 @@ function AppContent() {
             <Route path="/faculty" element={<FacultyDirectory />} />
             <Route path="/map" element={<CampusMap />} />
             <Route path="/study-hub" element={<StudyHub />} />
+            <Route path="/contact" element={<Contact />} />
             <Route path="/chatbot" element={<Chatbot />} />
           </Route>
 

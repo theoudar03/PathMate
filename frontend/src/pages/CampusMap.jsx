@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useApp } from '../contexts/AppContext';
 import { useTheme } from '../contexts/ThemeContext';
 import { CAMPUS_MAP_DATA } from '../config/mapData';
@@ -66,6 +66,62 @@ const CampusMap = () => {
   const [selectedBlockId, setSelectedBlockId] = useState(null);
   const [blockDetails, setBlockDetails] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [dbLocations, setDbLocations] = useState([]);
+  const [routingGraph, setRoutingGraph] = useState({ nodes: [], edges: [], building_entrances: [], campus_obstacles: [] });
+
+  const getDisplayName = (item) => {
+    if (!item) return '';
+    const rawId = item.id || item.svg_id || '';
+    if (rawId) {
+      const translation = t('mapBlock_' + rawId);
+      if (translation && typeof translation === 'string' && !translation.startsWith('mapBlock_')) {
+        return translation;
+      }
+    }
+    return item.name || item.block_name || item.building_name || 'Location';
+  };
+
+  // Fetch Database Locations and Routing Graph as single sources of truth
+  useEffect(() => {
+    fetch('/api/locations')
+      .then(r => r.json())
+      .then(data => {
+        if (Array.isArray(data) && data.length > 0) {
+          const seen = new Set();
+          const normalized = [];
+          
+          data.forEach(item => {
+            const key = String(item.name || item.building_code || item.id || '').toLowerCase().trim();
+            if (key && !seen.has(key)) {
+              seen.add(key);
+              normalized.push({
+                ...item,
+                id: item.id ? String(item.id) : (item.building_code ? item.building_code.toLowerCase() : item.name.toLowerCase().replace(/\s+/g, '-')),
+                gps: {
+                  lat: item.latitude ? parseFloat(item.latitude) : (item.gps?.lat || 10.7565),
+                  lng: item.longitude ? parseFloat(item.longitude) : (item.gps?.lng || 78.6520)
+                }
+              });
+            }
+          });
+
+          setDbLocations(normalized);
+          if (normalized.length > 0) {
+            setNavigationDestination(normalized[0]);
+          }
+        }
+      })
+      .catch(err => console.error('Failed to load database locations:', err));
+
+    fetch('/api/routing/graph')
+      .then(r => r.json())
+      .then(data => {
+        if (data && Array.isArray(data.nodes) && Array.isArray(data.edges)) {
+          setRoutingGraph(data);
+        }
+      })
+      .catch(err => console.error('Failed to load campus routing graph:', err));
+  }, []);
 
   // View Mode Switcher: Default 'satellite' (Satellite View FIRST) | 'layout' (2D Layout SECOND)
   const [viewMode, setViewMode] = useState('satellite');
@@ -166,7 +222,7 @@ const CampusMap = () => {
         (qLower.includes('mech') && b.id === 'me-block')
       ) || CAMPUS_MAP_DATA[0];
 
-      setAiIntentMsg(`${t('navigatingTo') || 'Navigating to'} ${t('mapBlock_' + targetBlock.id) || targetBlock.name}`);
+      setAiIntentMsg(`${t('navigatingTo') || 'Navigating to'} ${getDisplayName(targetBlock)}`);
       setNavigationDestination(targetBlock);
       setIsNavigating(true);
       setShowNavigationDrawer(true);
@@ -358,6 +414,8 @@ const CampusMap = () => {
               searchQuery={searchQuery}
               userLocation={userLocation}
               activeDestination={navigationDestination}
+              locations={dbLocations}
+              routingGraph={routingGraph}
               originId={navigationOriginId}
               isNavigating={isNavigating}
               onToggleNavigation={(navState) => setIsNavigating(navState)}
@@ -540,7 +598,7 @@ const CampusMap = () => {
                             {block.id === 'main-cricket' && (
                               <rect x={cx - 10} y={cy - 18} width={20} height={36} fill="#D2B48C" stroke="#A0522D" strokeWidth="1" rx="1" />
                             )}
-                            {renderMultiLineText(t('mapBlock_' + block.id) || block.name, cx, cy - 6, rx * 2, ry * 2, style.text, "11.5")}
+                            {renderMultiLineText(getDisplayName(block), cx, cy - 6, rx * 2, ry * 2, style.text, "11.5")}
                             <text
                               x={cx}
                               y={cy + 12}
@@ -648,7 +706,7 @@ const CampusMap = () => {
                               </g>
                             )}
 
-                            {renderMultiLineText(t('mapBlock_' + block.id) || block.name, centerX, h < 40 ? centerY : centerY - 6, w, h, style.text, w < 100 || h < 40 ? "9.5" : "11")}
+                            {renderMultiLineText(getDisplayName(block), centerX, h < 40 ? centerY : centerY - 6, w, h, style.text, w < 100 || h < 40 ? "9.5" : "11")}
                             {h >= 40 && (
                               <text
                                 x={centerX}
@@ -682,7 +740,7 @@ const CampusMap = () => {
                       <span className="text-[9px] font-black uppercase tracking-wider text-primary bg-primaryContainer/60 px-2.5 py-0.5 rounded-full border border-primaryContainer">
                         {t('mapCategory_' + blockDetails.category) || blockDetails.block_type || t('locationCategory') || 'Location'}
                       </span>
-                      <h3 className="text-sm font-extrabold text-slate-900 mt-1.5 leading-tight">{t('mapBlock_' + selectedBlockId) || blockDetails.block_name || blockDetails.name}</h3>
+                      <h3 className="text-sm font-extrabold text-slate-900 mt-1.5 leading-tight">{getDisplayName(blockDetails || CAMPUS_MAP_DATA.find(b => b.id === selectedBlockId))}</h3>
                     </div>
                     <button 
                       onClick={closeDialog}
@@ -744,6 +802,8 @@ const CampusMap = () => {
           <LiveNavigationDrawer
             initialDestination={navigationDestination}
             isNavigating={isNavigating}
+            locations={dbLocations}
+            routingGraph={routingGraph}
             onToggleNavigation={(navState) => setIsNavigating(navState)}
             onOriginChange={(origId) => setNavigationOriginId(origId)}
             onDestinationChange={(building) => setNavigationDestination(building)}

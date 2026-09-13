@@ -1027,6 +1027,124 @@ const Welcome = () => {
       </section>
 
       {/* ─────────────────────────────────────────────────
+         9.5 PUBLIC VOLUNTEER RECRUITMENT SECTION (Pre-Auth)
+         ───────────────────────────────────────────────── */}
+      <section className="relative z-10 max-w-5xl mx-auto px-6 py-14 border-t border-slate-200/60">
+        <div className="text-center max-w-2xl mx-auto mb-10 space-y-2">
+          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-50 border border-blue-200 text-blue-700 text-xs font-black uppercase tracking-wider">
+            <span className="material-symbols-outlined text-[14px]">volunteer_activism</span>
+            Senior Volunteer Recruitment
+          </span>
+          <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-800 tracking-tight">
+            Help Guide the Next Generation of Saranathan Students
+          </h2>
+          <p className="text-xs sm:text-sm text-slate-500 font-medium leading-relaxed">
+            Seniors! Lend your experience to first-year freshers by becoming a verified PathMate volunteer mentor or roommate advisor.
+          </p>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-stretch">
+          {/* Roommate Finder Volunteer Card */}
+          <div className="bg-white border border-slate-200 rounded-[24px] p-6 sm:p-7 flex flex-col justify-between hover:border-primary/40 hover:shadow-xl transition-all duration-300 group text-left">
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div className="w-12 h-12 rounded-2xl bg-blue-50 text-primary flex items-center justify-center group-hover:scale-110 transition-transform">
+                  <span className="material-symbols-outlined text-[26px]">groups</span>
+                </div>
+                <span className="text-[10px] font-extrabold bg-slate-100 text-slate-600 px-2.5 py-1 rounded-full">
+                  2nd, 3rd & 4th Years
+                </span>
+              </div>
+
+              <div>
+                <h3 className="text-lg font-black text-slate-800 group-hover:text-primary transition-colors">
+                  Roommate Finder Volunteer
+                </h3>
+                <p className="text-xs text-slate-500 font-medium leading-relaxed mt-1.5">
+                  Assist freshers in finding compatible roommates by providing honest hostel insights, room layout details, and onboarding guidance.
+                </p>
+              </div>
+
+              <div className="space-y-2 pt-2 border-t border-slate-100">
+                <h4 className="text-[11px] font-bold text-slate-700 uppercase tracking-wider">Responsibilities & Eligibility:</h4>
+                <ul className="text-xs text-slate-600 space-y-1.5 list-disc list-inside">
+                  <li>Senior student in good academic standing</li>
+                  <li>Assist freshers with hostel block orientation</li>
+                  <li>Moderate roommate compatibility questions</li>
+                </ul>
+              </div>
+            </div>
+
+            <div className="pt-6 mt-4 border-t border-slate-100 space-y-2">
+              <button
+                type="button"
+                onClick={() => {
+                  const url = import.meta.env.VITE_ROOMMATE_VOLUNTEER_FORM_URL || 'https://forms.gle/udat4BNtakphtANr7';
+                  window.open(url.trim(), '_blank', 'noopener,noreferrer');
+                }}
+                className="w-full bg-primary hover:bg-primaryHover text-white font-extrabold text-xs py-3 px-5 rounded-full shadow-md transition-all flex items-center justify-center gap-2 active:scale-[0.98] cursor-pointer"
+              >
+                <span>Become a Roommate Finder Volunteer</span>
+                <span className="material-symbols-outlined text-[16px]">open_in_new</span>
+              </button>
+              <p className="text-[10px] text-slate-400 text-center font-medium">
+                * Submission does not guarantee selection. Administration manually reviews all applicants.
+              </p>
+            </div>
+          </div>
+
+          {/* Senior Connect Volunteer Card */}
+          <div className="bg-white border border-slate-200 rounded-[24px] p-6 sm:p-7 flex flex-col justify-between hover:border-indigo-400 hover:shadow-xl transition-all duration-300 group text-left">
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div className="w-12 h-12 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center group-hover:scale-110 transition-transform">
+                  <span className="material-symbols-outlined text-[26px]">psychology</span>
+                </div>
+                <span className="text-[10px] font-extrabold bg-indigo-50 text-indigo-700 px-2.5 py-1 rounded-full">
+                  Senior Guidance
+                </span>
+              </div>
+
+              <div>
+                <h3 className="text-lg font-black text-slate-800 group-hover:text-indigo-600 transition-colors">
+                  Senior Connect Volunteer
+                </h3>
+                <p className="text-xs text-slate-500 font-medium leading-relaxed mt-1.5">
+                  Share academic strategies, lab advice, exam tips, and departmental wisdom to help freshers excel in their first semester.
+                </p>
+              </div>
+
+              <div className="space-y-2 pt-2 border-t border-slate-100">
+                <h4 className="text-[11px] font-bold text-slate-700 uppercase tracking-wider">Responsibilities & Guidance:</h4>
+                <ul className="text-xs text-slate-600 space-y-1.5 list-disc list-inside">
+                  <li>Host departmental orientation Q&A sessions</li>
+                  <li>Provide subject notes & lab preparation guidance</li>
+                  <li>Help freshers adapt to college life</li>
+                </ul>
+              </div>
+            </div>
+
+            <div className="pt-6 mt-4 border-t border-slate-100 space-y-2">
+              <button
+                type="button"
+                onClick={() => {
+                  const url = import.meta.env.VITE_SENIOR_VOLUNTEER_FORM_URL || 'https://forms.gle/udat4BNtakphtANr7';
+                  window.open(url.trim(), '_blank', 'noopener,noreferrer');
+                }}
+                className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold text-xs py-3 px-5 rounded-full shadow-md transition-all flex items-center justify-center gap-2 active:scale-[0.98] cursor-pointer"
+              >
+                <span>Become a Senior Connect Volunteer</span>
+                <span className="material-symbols-outlined text-[16px]">open_in_new</span>
+              </button>
+              <p className="text-[10px] text-slate-400 text-center font-medium">
+                * Submission does not guarantee selection. Administration manually reviews all applicants.
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ─────────────────────────────────────────────────
          10. CALL TO ACTION (CTA grand end banner)
          ───────────────────────────────────────────────── */}
       <section className="relative z-10 max-w-4xl mx-auto px-6 py-16 text-center">

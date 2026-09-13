@@ -12,6 +12,8 @@ import StatCard from '../components/home/StatCard';
 import DiscoverBook from '../components/home/DiscoverBook';
 import CampusGallery from '../components/home/CampusGallery';
 import FresherChecklist from '../components/home/FresherChecklist';
+import HomeReviewSection from '../components/home/HomeReviewSection';
+import ReviewPromptModal from '../components/home/ReviewPromptModal';
 
 // Campus SVG Illustration
 const CampusIllustration = () => (
@@ -276,6 +278,17 @@ const Home = () => {
           refreshTrigger={todoRefreshTrigger}
         />
       </div>
+
+      {/* ── 3.5 MY PATHMATE REVIEW (Secondary Compact Section) ──────── */}
+      <div id="pathmate-review-section" className="stagger-item">
+        <HomeReviewSection />
+      </div>
+
+      {/* Review prompt popup modal with controlled frequency */}
+      <ReviewPromptModal onOpenReview={() => {
+        const el = document.getElementById('pathmate-review-section');
+        if (el) el.scrollIntoView({ behavior: 'smooth' });
+      }} />
 
       {/* ── 4. CAMPUS SNAPSHOT (Animated Count-Up Cards) ────────── */}
       <div className="space-y-4 stagger-item stagger-delay-4">

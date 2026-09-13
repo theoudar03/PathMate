@@ -16,6 +16,7 @@ const MAIN_NAV_LINKS = [
 const CAMPUS_INFO_LINKS = [
   { path: '/faculty', label: 'Faculty Directory', icon: 'badge' },
   { path: '/map', label: 'Campus Map', icon: 'map' },
+  { path: '/contact', label: 'Contact Us', icon: 'mail' },
 ];
 
 const STUDY_HUB_LINK = { path: '/study-hub', label: 'Study Hub', icon: 'school' };

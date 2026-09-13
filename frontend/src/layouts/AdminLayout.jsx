@@ -44,6 +44,7 @@ const AdminLayout = () => {
     { name: 'Dashboard', path: '/admin/dashboard', icon: LayoutDashboard },
     { name: 'Students', path: '/admin/students', icon: Users },
     { name: 'Student Reviews', path: '/admin/reviews', icon: MessageSquare },
+    { name: 'Contact Requests', path: '/admin/contact-requests', icon: Mail },
     { name: 'Faculty', path: '/admin/faculty', icon: Users },
     { name: 'Departments', path: '/admin/departments', icon: Building },
     { name: 'Notice Board', path: '/admin/notices', icon: Layers },

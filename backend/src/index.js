@@ -108,7 +108,10 @@ const runMigrationsSafely = async () => {
       '30_update_emergency_contacts.sql',
       '31_add_preferred_theme.sql',
       '32_add_email_verification.sql',
-      '33_events_clubs_production_overhaul.sql'
+      '33_events_clubs_production_overhaul.sql',
+      '34_contact_requests.sql',
+      '35_locations_master_upgrade.sql',
+      '36_campus_navigation_graph.sql'
     ];
 
     for (const file of migrationFiles) {

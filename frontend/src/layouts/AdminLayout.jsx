@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Outlet, NavLink, useNavigate, useLocation } from 'react-router-dom';
-import { LayoutDashboard, Users, BookOpen, Calendar, Settings, LogOut, Menu, X, Bell, Search, Layers, Home, Bus, ShieldAlert, Building, MapPin, ShieldCheck, Briefcase, Brain, RefreshCw, FolderOpen, UserCheck, MessageSquare } from 'lucide-react';
+import { LayoutDashboard, Users, BookOpen, Calendar, Settings, LogOut, Menu, X, Bell, Search, Layers, Home, Bus, ShieldAlert, Building, MapPin, ShieldCheck, Briefcase, Brain, RefreshCw, FolderOpen, UserCheck, MessageSquare, Mail } from 'lucide-react';
 import ThemeToggle from '../components/common/ThemeToggle';
 
 const AdminLayout = () => {

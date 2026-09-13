@@ -583,7 +583,7 @@ const AdminEvents = () => {
           <div className="bg-surfaceContainerLowest border border-outline/30 rounded-[28px] max-w-2xl w-full p-6 text-left shadow-2xl relative my-8 max-h-[90vh] overflow-y-auto">
             <button onClick={() => setShowEventModal(false)} className="absolute right-4 top-4 text-onSurfaceVariant hover:text-onSurface p-1 rounded-full"><X size={20} /></button>
             <h3 className="text-xl font-black text-onSurface mb-1">{selectedItem ? 'Edit Event' : 'Create Event'}</h3>
-            <p className="text-xs text-onSurfaceVariant mb-4 font-medium">Fields are synchronized directly to PostgreSQL and displayed to freshers.</p>
+            <p className="text-xs text-onSurfaceVariant mb-4 font-medium">Fields are synchronized directly and displayed to students.</p>
 
             {errorMsg && <p className="text-xs text-rose-600 bg-rose-50 border border-rose-200 p-3 rounded-xl font-bold mb-4">{errorMsg}</p>}
 
@@ -732,7 +732,7 @@ const AdminEvents = () => {
           <div className="bg-surfaceContainerLowest border border-outline/30 rounded-[28px] max-w-2xl w-full p-6 text-left shadow-2xl relative my-8 max-h-[90vh] overflow-y-auto">
             <button onClick={() => setShowClubModal(false)} className="absolute right-4 top-4 text-onSurfaceVariant hover:text-onSurface p-1 rounded-full"><X size={20} /></button>
             <h3 className="text-xl font-black text-onSurface mb-1">{selectedItem ? 'Edit Club' : 'Create Club'}</h3>
-            <p className="text-xs text-onSurfaceVariant mb-4 font-medium">Fields are saved directly in PostgreSQL and displayed in the Student Club Directory.</p>
+            <p className="text-xs text-onSurfaceVariant mb-4 font-medium">Fields are saved directly and displayed in the Student Club Directory.</p>
 
             {errorMsg && <p className="text-xs text-rose-600 bg-rose-50 border border-rose-200 p-3 rounded-xl font-bold mb-4">{errorMsg}</p>}
 
@@ -893,7 +893,7 @@ const AdminEvents = () => {
           <div className="bg-surfaceContainerLowest border border-outline/30 rounded-[28px] max-w-md w-full p-6 text-left shadow-2xl relative animate-scale-up">
             <h3 className="text-xl font-black text-rose-700 mb-2">Delete {activeTab === 'events' ? 'Event' : 'Club'}</h3>
             <p className="text-xs text-onSurfaceVariant leading-relaxed mb-6">
-              Are you sure you want to permanently delete <strong>{selectedItem.title || selectedItem.name}</strong> from PostgreSQL?
+              Are you sure you want to permanently delete <strong>{selectedItem.title || selectedItem.name}</strong>?
             </p>
             <div className="flex justify-end gap-2 text-xs">
               <button onClick={() => setShowDeleteModal(false)} className="px-5 py-2.5 bg-surfaceContainer border border-outline/30 rounded-full font-bold text-onSurface cursor-pointer">Cancel</button>

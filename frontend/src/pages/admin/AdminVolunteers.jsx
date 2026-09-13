@@ -139,7 +139,7 @@ const AdminVolunteers = () => {
       {/* Roster Container */}
       {loading ? (
         <div className="bg-surface border border-surfaceVariant/60 rounded-3xl p-12 text-center text-xs text-onSurfaceVariant font-semibold shadow-sm">
-          Loading Volunteers from PostgreSQL...
+          Loading Volunteers...
         </div>
       ) : volunteers.length === 0 ? (
         <div className="bg-surface border border-surfaceVariant/60 rounded-3xl p-12 text-center text-xs text-onSurfaceVariant italic shadow-sm">

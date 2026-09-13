@@ -116,7 +116,7 @@ const AdminDashboard = () => {
     return (
       <div className="flex flex-col items-center justify-center min-h-[400px]">
         <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-primary"></div>
-        <p className="text-xs text-onSurfaceVariant mt-3 font-semibold">Loading PostgreSQL Live Metrics...</p>
+        <p className="text-xs text-onSurfaceVariant mt-3 font-semibold">Loading System Metrics...</p>
       </div>
     );
   }
@@ -134,7 +134,7 @@ const AdminDashboard = () => {
             </span>
           </div>
           <p className="text-xs text-onSurfaceVariant font-medium mt-1">
-            Real-time metric telemetry computed directly from PostgreSQL tables.
+            Real-time telemetry and campus management control panel.
           </p>
         </div>
 
@@ -145,12 +145,12 @@ const AdminDashboard = () => {
             className="flex items-center gap-1.5 px-3.5 py-2 bg-surfaceContainerHigh hover:bg-surfaceVariant text-onSurface rounded-xl text-xs font-bold border border-outline/30 transition-all active:scale-95"
           >
             <RefreshCw size={14} className={refreshing ? "animate-spin" : ""} />
-            <span>Sync DB</span>
+            <span>Sync Data</span>
           </button>
 
           <div className="flex items-center gap-2 px-3.5 py-2 bg-emerald-50 text-emerald-800 rounded-xl text-xs font-extrabold border border-emerald-200">
             <Database size={15} />
-            <span>PostgreSQL Operational</span>
+            <span>System Operational</span>
           </div>
         </div>
       </div>

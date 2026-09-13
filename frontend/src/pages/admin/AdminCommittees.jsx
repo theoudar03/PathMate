@@ -141,7 +141,7 @@ const AdminCommittees = () => {
       {/* Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
         {loading ? (
-          <div className="col-span-full py-12 text-center text-xs text-onSurfaceVariant font-semibold">Loading Committees from PostgreSQL...</div>
+          <div className="col-span-full py-12 text-center text-xs text-onSurfaceVariant font-semibold">Loading Committees...</div>
         ) : committees.length === 0 ? (
           <div className="col-span-full py-12 text-center text-xs text-onSurfaceVariant italic">No committees found. Click "Create Committee" to add one.</div>
         ) : (
@@ -225,7 +225,7 @@ const AdminCommittees = () => {
           <div className="bg-white border border-outline/30 rounded-[28px] max-w-md w-full p-6 text-left shadow-2xl relative animate-scale-up">
             <h3 className="text-xl font-black text-rose-700 mb-2">Delete Committee</h3>
             <p className="text-xs text-onSurfaceVariant leading-relaxed mb-6">
-              Are you sure you want to delete <strong>{selectedItem.name}</strong> from PostgreSQL?
+              Are you sure you want to delete <strong>{selectedItem.name}</strong>?
             </p>
             <div className="flex justify-end gap-2 text-xs">
               <button onClick={() => setShowDeleteModal(false)} className="px-4 py-2 bg-surfaceVariant rounded-xl font-bold">Cancel</button>

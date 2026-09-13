@@ -249,7 +249,7 @@ const AdminStudents = () => {
         <div>
           <h1 className="text-2xl font-black text-onSurface tracking-tight">Student Management</h1>
           <p className="text-xs text-onSurfaceVariant font-medium mt-1">
-            Real-time PostgreSQL student roster, authentication status, and security controls.
+            Real-time official student roster, authentication status, and security controls.
           </p>
         </div>
 
@@ -326,12 +326,12 @@ const AdminStudents = () => {
         <div className="bg-surface border border-surfaceVariant/60 rounded-3xl p-12 text-center text-onSurfaceVariant font-semibold">
           <div className="flex justify-center items-center gap-2">
             <span className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin"></span>
-            <span>Querying PostgreSQL Users Table...</span>
+            <span>Searching student directory...</span>
           </div>
         </div>
       ) : students.length === 0 ? (
         <div className="bg-surface border border-surfaceVariant/60 rounded-3xl p-12 text-center text-onSurfaceVariant italic">
-          No student records found in PostgreSQL matching criteria.
+          No student records found matching criteria.
         </div>
       ) : (
         <>
@@ -524,7 +524,7 @@ const AdminStudents = () => {
             </button>
 
             <h3 className="text-xl font-black text-onSurface mb-1">Create Student Profile</h3>
-            <p className="text-xs text-onSurfaceVariant mb-4">Adds student directly to PostgreSQL database & official registry.</p>
+            <p className="text-xs text-onSurfaceVariant mb-4">Adds student directly to the official campus registry.</p>
 
             {errorMsg && <p className="text-xs text-rose-600 bg-rose-50 p-2.5 rounded-xl font-bold mb-3">{errorMsg}</p>}
 
@@ -646,7 +646,7 @@ const AdminStudents = () => {
             </button>
 
             <h3 className="text-xl font-black text-onSurface mb-1">Edit Student Profile</h3>
-            <p className="text-xs text-onSurfaceVariant mb-4">Update status, role, and department in PostgreSQL.</p>
+            <p className="text-xs text-onSurfaceVariant mb-4">Update status, role, and department in the campus registry.</p>
 
             {errorMsg && <p className="text-xs text-rose-600 bg-rose-50 p-2.5 rounded-xl font-bold mb-3">{errorMsg}</p>}
 

@@ -239,7 +239,7 @@ const Connect = () => {
 
           {/* Roommates Grid */}
           {loadingRoommates ? (
-            <div className="p-12 text-center text-gray-500 font-semibold">Loading roommate profiles from PostgreSQL...</div>
+            <div className="p-12 text-center text-gray-500 font-semibold">Loading roommate profiles...</div>
           ) : filteredRoommates.length > 0 ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {filteredRoommates.map((rm, idx) => (
@@ -297,7 +297,7 @@ const Connect = () => {
 
           {/* Seniors Grid */}
           {loadingSeniors ? (
-            <div className="p-12 text-center text-gray-500 font-semibold">Loading senior mentors from PostgreSQL...</div>
+            <div className="p-12 text-center text-gray-500 font-semibold">Loading senior mentors...</div>
           ) : filteredSeniors.length > 0 ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {filteredSeniors.map((senior, idx) => (

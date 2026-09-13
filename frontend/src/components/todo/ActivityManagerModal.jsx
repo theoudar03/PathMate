@@ -767,7 +767,7 @@ const ActivityManagerModal = ({ isOpen, onClose, defaultTab = 'all', onTaskChang
             <div className="space-y-4 animate-fade-in">
               <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-slate-50 p-4 rounded-2xl border border-outline/20">
                 <div>
-                  <h3 className="text-base font-black text-onSurface">SCE PostgreSQL Activity Registry</h3>
+                  <h3 className="text-base font-black text-onSurface">SCE Campus Activity Registry</h3>
                   <p className="text-xs text-onSurfaceVariant">Select any college event, club, workshop, or hackathon to instantly add to your tasks.</p>
                 </div>
               </div>

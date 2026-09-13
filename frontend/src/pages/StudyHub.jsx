@@ -225,7 +225,7 @@ const StudyHub = () => {
                 </div>
                 <div>
                   <h3 className="text-base font-extrabold text-onSurface">Study Materials & Notes</h3>
-                  <span className="text-[10px] bg-emerald-50 text-emerald-700 font-bold px-2 py-0.5 rounded-full">PostgreSQL Live</span>
+                  <span className="text-[10px] bg-emerald-50 text-emerald-700 font-bold px-2 py-0.5 rounded-full">Verified Hub</span>
                 </div>
               </div>
               

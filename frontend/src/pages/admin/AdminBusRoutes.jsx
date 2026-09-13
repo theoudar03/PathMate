@@ -189,7 +189,7 @@ const AdminBusRoutes = () => {
       {/* Routes Container */}
       {loading ? (
         <div className="bg-white border border-surfaceVariant rounded-2xl p-12 text-center text-xs text-onSurfaceVariant font-semibold">
-          Loading bus routes from PostgreSQL...
+          Loading bus routes...
         </div>
       ) : routes.length > 0 ? (
         <>

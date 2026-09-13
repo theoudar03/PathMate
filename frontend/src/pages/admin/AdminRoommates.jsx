@@ -165,7 +165,7 @@ const AdminRoommates = () => {
             Roommate Matcher Directory
           </h1>
           <p className="text-xs text-onSurfaceVariant mt-1">
-            Manage live hostel roommate opt-ins in PostgreSQL. Any changes reflect instantly in the Student UI.
+            Manage live hostel roommate opt-ins. Any changes reflect instantly in the Student UI.
           </p>
         </div>
 
@@ -181,7 +181,7 @@ const AdminRoommates = () => {
       {/* Roommates Container */}
       {loading ? (
         <div className="bg-white border border-surfaceVariant rounded-2xl p-12 text-center text-xs text-onSurfaceVariant font-semibold">
-          Loading roommate profiles from PostgreSQL...
+          Loading roommate profiles...
         </div>
       ) : roommates.length > 0 ? (
         <>

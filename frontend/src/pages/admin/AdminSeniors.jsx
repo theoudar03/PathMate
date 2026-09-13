@@ -177,7 +177,7 @@ const AdminSeniors = () => {
       {/* Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
         {loading ? (
-          <div className="col-span-full py-12 text-center text-xs text-onSurfaceVariant font-semibold">Loading Senior Mentors from PostgreSQL...</div>
+          <div className="col-span-full py-12 text-center text-xs text-onSurfaceVariant font-semibold">Loading Senior Mentors...</div>
         ) : seniors.length === 0 ? (
           <div className="col-span-full py-12 text-center text-xs text-onSurfaceVariant italic">No senior mentors recorded. Click "Add Senior Mentor" to add one.</div>
         ) : (

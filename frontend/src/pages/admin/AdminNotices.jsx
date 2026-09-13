@@ -201,7 +201,7 @@ const AdminNotices = () => {
       {/* Notices Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {loading ? (
-          <div className="col-span-full py-12 text-center text-xs text-onSurfaceVariant font-semibold">Loading Notices from PostgreSQL...</div>
+          <div className="col-span-full py-12 text-center text-xs text-onSurfaceVariant font-semibold">Loading Notices...</div>
         ) : notices.length === 0 ? (
           <div className="col-span-full py-12 text-center text-xs text-onSurfaceVariant italic">No notices published. Click "Publish New Notice" to add one.</div>
         ) : (

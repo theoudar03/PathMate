@@ -265,7 +265,7 @@ const AdminKnowledge = () => {
       {activeTab === 'faqs' && (
         <div className="space-y-4">
           {loading ? (
-            <div className="py-12 text-center text-xs text-onSurfaceVariant">Loading FAQs from PostgreSQL...</div>
+            <div className="py-12 text-center text-xs text-onSurfaceVariant">Loading FAQs...</div>
           ) : faqs.length === 0 ? (
             <div className="py-12 text-center text-xs text-onSurfaceVariant italic">No FAQs configured yet. Click "Add New FAQ" to create one.</div>
           ) : (

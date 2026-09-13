@@ -10,11 +10,11 @@ export const BrandedSplashLoader = () => {
     <div className="fixed inset-0 bg-surface flex flex-col items-center justify-center z-50 p-6 font-sans">
       <div className="flex flex-col items-center max-w-sm w-full text-center space-y-6 animate-fade-in">
         {/* Animated Brand Logo Icon */}
-        <div className="w-16 h-16 rounded-2xl bg-primary text-onPrimary flex items-center justify-center shadow-elevation2 animate-pulse">
-          <svg className="w-9 h-9 text-onPrimary fill-current select-none" viewBox="0 0 24 24" aria-hidden="true">
-            <path d="M12 2L1 7v2h22V7L12 2zm0 18H2v2h20v-2H12zm-5-9v7h3v-7H7zm5 0v7h3v-7h-3zm5 0v7h3v-7h-3z" />
-          </svg>
-        </div>
+        <img
+          src="/logo.png"
+          alt="PathMate"
+          className="w-16 h-16 rounded-2xl shadow-elevation2 animate-pulse object-cover border border-outline/15"
+        />
 
         {/* Brand Labels */}
         <div className="space-y-1">

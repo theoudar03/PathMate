@@ -486,24 +486,73 @@ body, header, aside, main, nav, .card, .card-accent, .card-premium, button, inpu
 .stagger-delay-8 { animation-delay: 390ms; }
 
 /* ─────────────────────────────────────────────────
-   SCROLLBAR (Chromium)
+   GLOBAL MODERN SCROLLBARS (Side & Down Scrollbars)
 ───────────────────────────────────────────────── */
-::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+html, body, *, ::-webkit-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(var(--primary-rgb), 0.35) transparent;
 }
 
-::-webkit-scrollbar-track {
+.dark html, .dark body, .dark * {
+  scrollbar-color: rgba(255, 255, 255, 0.25) transparent;
+}
+
+/* Custom smooth scroll behavior */
+html {
+  scroll-behavior: smooth;
+}
+
+/* Universal WebKit Scrollbars for Side & Horizontal Containers */
+::-webkit-scrollbar,
+*::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track,
+*::-webkit-scrollbar-track {
   background: transparent;
 }
 
-::-webkit-scrollbar-thumb {
-  background-color: var(--outline);
-  border-radius: 99px;
+::-webkit-scrollbar-thumb,
+*::-webkit-scrollbar-thumb {
+  background-color: rgba(148, 163, 184, 0.45);
+  border-radius: 9999px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+  transition: background-color 0.2s ease, border-color 0.2s ease;
 }
 
-::-webkit-scrollbar-thumb:hover {
-  background-color: var(--on-surface-variant);
+::-webkit-scrollbar-thumb:hover,
+*::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(var(--primary-rgb), 0.8);
+}
+
+.dark ::-webkit-scrollbar-thumb,
+.dark *::-webkit-scrollbar-thumb {
+  background-color: rgba(255, 255, 255, 0.25);
+}
+
+.dark ::-webkit-scrollbar-thumb:hover,
+.dark *::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(255, 255, 255, 0.5);
+}
+
+::-webkit-scrollbar-corner,
+*::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+/* Custom Scrollbar Utility Classes */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background-color: rgba(var(--primary-rgb), 0.4);
+}
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(var(--primary-rgb), 0.8);
 }
 
 /* ─────────────────────────────────────────────────
@@ -1053,31 +1102,8 @@ nav .flex-1 > * {
 }
 
 /* ─────────────────────────────────────────────────
-   GLOBAL THEME SCROLLBARS & SELECTION CONTRAST
+   GLOBAL SELECTION CONTRAST
 ───────────────────────────────────────────────── */
-* {
-  scrollbar-width: thin;
-  scrollbar-color: var(--surface-container-high) var(--surface);
-}
-
-::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
-}
-
-::-webkit-scrollbar-track {
-  background: var(--surface);
-}
-
-::-webkit-scrollbar-thumb {
-  background: var(--surface-container-high);
-  border-radius: 99px;
-  border: 2px solid var(--surface);
-}
-
-::-webkit-scrollbar-thumb:hover {
-  background: var(--surface-variant);
-}
 
 ::selection {
   background-color: rgba(var(--primary-rgb), 0.25);

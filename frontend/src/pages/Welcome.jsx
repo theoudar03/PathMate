@@ -1209,9 +1209,11 @@ const Welcome = () => {
 
             {/* Logo and Heading */}
             <div className="flex items-center gap-3 mb-4 select-none">
-              <div className="w-8 h-8 rounded-lg bg-primary text-white flex items-center justify-center shadow-sm">
-                <span className="material-symbols-outlined text-[16px] font-bold">account_balance</span>
-              </div>
+              <img
+                src="/logo.png"
+                alt="PathMate"
+                className="w-8 h-8 rounded-lg shadow-sm border border-slate-200/60 object-cover"
+              />
               <div>
                 <h4 className="text-xs font-black tracking-wide text-primary uppercase">SCE PathMate</h4>
                 <span className="text-[8px] text-slate-400 uppercase font-bold tracking-wider">

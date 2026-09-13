@@ -90,9 +90,11 @@ const Login = () => {
         {/* Branding & Logo */}
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-3">
-            <div className="w-11 h-11 rounded-2xl bg-primary text-onPrimary flex items-center justify-center shadow-md">
-              <span className="material-symbols-outlined text-[24px] font-bold select-none">account_balance</span>
-            </div>
+            <img
+              src="/logo.png"
+              alt="PathMate"
+              className="w-11 h-11 rounded-2xl shadow-md border border-outline/15 object-cover"
+            />
             <div>
               <h2 className="text-xs font-black tracking-widest text-primary uppercase">{t('collegeName') || 'Saranathan College'}</h2>
               <h1 className="text-xl font-black text-onSurface tracking-tight">PathMate {t('portal') || 'Portal'}</h1>

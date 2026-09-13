@@ -84,9 +84,11 @@ const AdminLayout = () => {
         {/* Logo Area */}
         <div className="h-16 flex items-center justify-between px-4 border-b border-surfaceVariant/50">
           <div className={`flex items-center gap-3 overflow-hidden ${!sidebarOpen && 'md:justify-center'}`}>
-            <div className="w-8 h-8 bg-primary rounded-xl flex items-center justify-center text-onPrimary font-bold shadow-sm flex-shrink-0">
-              PM
-            </div>
+            <img
+              src="/logo.png"
+              alt="PathMate"
+              className="w-8 h-8 rounded-xl shadow-xs border border-outline/15 object-cover flex-shrink-0"
+            />
             {sidebarOpen && <span className="font-bold text-lg text-onSurface whitespace-nowrap">PathMate OS</span>}
           </div>
           {sidebarOpen && (
